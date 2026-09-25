@@ -20,8 +20,14 @@ python manage.py runserver
 
 Requires a local PostgreSQL 16+ database (see `.env.example` for the
 connection settings) — created by hand once, then owned by Django's
-migrations from that point on. API docs are served at `/api/docs/` once
-the server is running.
+migrations from that point on.
+
+## API documentation
+
+Once `runserver` is up, the API docs are available at:
+
+- `http://127.0.0.1:8000/api/docs/` — Swagger UI, browsable and interactive
+- `http://127.0.0.1:8000/api/schema/` — the raw OpenAPI 3 schema (YAML) that Swagger UI is generated from
 
 ## App layout
 

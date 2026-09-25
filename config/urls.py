@@ -10,7 +10,7 @@ this file only wires the version prefix and the cross-cutting endpoints
 from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 API_V1 = [
     path("geography/", include("apps.geography.urls")),
@@ -23,6 +23,10 @@ API_V1 = [
     path("engagement/", include("apps.engagement.urls")),
     path("notifications/", include("apps.notifications.urls")),
     path("cms/", include("apps.cms.urls")),
+    # Phase 0 Backend, task 7: basic JWT login wiring against Django's
+    # built-in auth.User. The three actor-specific login flows (Admin,
+    # Seller, Buyer, with OTP for the latter two) are Phase 1 scope.
+    path("auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 ]
 
