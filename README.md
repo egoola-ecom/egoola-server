@@ -8,15 +8,22 @@ list this is being built against.
 
 ## Local setup
 
+Dependencies are managed with [uv](https://docs.astral.sh/uv/) — install it
+once per machine (see uv's docs for your OS), then:
+
 ```bash
-python -m venv venv
-./venv/Scripts/activate       # venv\Scripts\activate on native Windows shells
-pip install -r requirements.txt
+uv sync                       # creates .venv and installs the locked dependencies
 cp .env.example .env          # then fill in your local Postgres password
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver
+uv run python manage.py migrate
+uv run python manage.py createsuperuser
+uv run python manage.py runserver
 ```
+
+`uv sync` reads `pyproject.toml` and `uv.lock` and pins the interpreter to
+the version in `.python-version` (3.12) — no manual `venv`/`pip` steps
+needed. Every management command runs through `uv run` so it always uses
+that same environment; activating `.venv` by hand (`.venv\Scripts\activate`)
+works too if you prefer running `python manage.py ...` directly.
 
 Requires a local PostgreSQL 16+ database (see `.env.example` for the
 connection settings) — created by hand once, then owned by Django's
