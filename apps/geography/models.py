@@ -39,7 +39,11 @@ class State(AuditedModel):
         Country, on_delete=models.CASCADE, related_name="states", db_column="countryId"
     )
     name = models.CharField(max_length=255)
-    slug = models.SlugField(max_length=255, unique=True)
+    # Not globally unique — the same state name legitimately recurs under
+    # different countries, so redundancy is only checked within one country
+    # (see StateSerializer.validate()); this constraint backs that up at
+    # the DB level.
+    slug = models.SlugField(max_length=255)
     state_code = models.CharField(db_column="stateCode", max_length=20)
     flag_path = models.CharField(db_column="flagPath", max_length=255, null=True, blank=True)
     flag_url = models.URLField(db_column="flagUrl", max_length=500, null=True, blank=True)
@@ -47,6 +51,9 @@ class State(AuditedModel):
     class Meta:
         db_table = "states"
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["country", "slug"], name="unique_state_slug_per_country")
+        ]
 
     def __str__(self):
         return self.name
@@ -62,7 +69,10 @@ class City(AuditedModel):
         State, on_delete=models.CASCADE, related_name="cities", db_column="stateId"
     )
     name = models.CharField(max_length=255)
-    slug = models.SlugField(max_length=255, unique=True)
+    # Not globally unique — the same city name legitimately recurs under
+    # different states, so redundancy is only checked within one state
+    # (see CitySerializer.validate()).
+    slug = models.SlugField(max_length=255)
     city_code = models.CharField(db_column="cityCode", max_length=20)
     flag_path = models.CharField(db_column="flagPath", max_length=255, null=True, blank=True)
     flag_url = models.URLField(db_column="flagUrl", max_length=500, null=True, blank=True)
@@ -71,6 +81,9 @@ class City(AuditedModel):
         db_table = "cities"
         ordering = ["name"]
         verbose_name_plural = "cities"
+        constraints = [
+            models.UniqueConstraint(fields=["state", "slug"], name="unique_city_slug_per_state")
+        ]
 
     def __str__(self):
         return self.name
@@ -89,7 +102,10 @@ class Thana(AuditedModel):
         City, on_delete=models.CASCADE, related_name="thanas", db_column="cityId"
     )
     name = models.CharField(max_length=255)
-    slug = models.SlugField(max_length=255, unique=True)
+    # Not globally unique — the same thana name legitimately recurs under
+    # different cities, so redundancy is only checked within one city
+    # (see ThanaSerializer.validate()).
+    slug = models.SlugField(max_length=255)
     thana_code = models.CharField(db_column="thanaCode", max_length=20)
     flag_path = models.CharField(db_column="flagPath", max_length=255, null=True, blank=True)
     flag_url = models.URLField(db_column="flagUrl", max_length=500, null=True, blank=True)
@@ -98,6 +114,9 @@ class Thana(AuditedModel):
         db_table = "thanas"
         ordering = ["name"]
         verbose_name_plural = "thanas"
+        constraints = [
+            models.UniqueConstraint(fields=["city", "slug"], name="unique_thana_slug_per_city")
+        ]
 
     def __str__(self):
         return self.name
