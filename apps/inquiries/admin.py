@@ -1,3 +1,9 @@
-from django.contrib import admin  # noqa: F401
+from django.contrib import admin
 
-# Model admin registrations land here as models are built.
+from .models import QuoteRequest
+
+
+@admin.register(QuoteRequest)
+class QuoteRequestAdmin(admin.ModelAdmin):
+    list_display = ("id", "listing", "buyer", "seller", "qty", "status")
+    list_filter = ("status",)

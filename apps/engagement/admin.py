@@ -1,3 +1,14 @@
-from django.contrib import admin  # noqa: F401
+from django.contrib import admin
 
-# Model admin registrations land here as models are built.
+from .models import Favourite, Review
+
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = ("id", "order", "reviewer", "listing", "rating")
+    list_filter = ("rating",)
+
+
+@admin.register(Favourite)
+class FavouriteAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "listing")

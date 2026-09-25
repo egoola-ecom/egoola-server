@@ -1,3 +1,9 @@
-from django.contrib import admin  # noqa: F401
+from django.contrib import admin
 
-# Model admin registrations land here as models are built.
+from .models import Bid
+
+
+@admin.register(Bid)
+class BidAdmin(admin.ModelAdmin):
+    list_display = ("id", "listing", "bidder", "price_type", "price", "hourly_rate", "status")
+    list_filter = ("price_type", "status")
