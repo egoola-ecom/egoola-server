@@ -36,6 +36,25 @@ SECRET_KEY = env("DJANGO_SECRET_KEY", "insecure-dev-key-change-me")
 DEBUG = env_bool("DJANGO_DEBUG", True)
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 
+# Render sets this automatically on every web service (e.g.
+# "egoola-server.onrender.com") — trusting it here means DJANGO_ALLOWED_HOSTS
+# doesn't need to be hand-maintained with the assigned Render domain.
+RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME")
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+# Django's own CSRF check (used by the session-based /admin/ site, not by
+# the JWT API) compares the request's Origin against this list — required
+# for any https:// origin once DEBUG is off. Same Render domain as above.
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", "")
+if RENDER_EXTERNAL_HOSTNAME:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_EXTERNAL_HOSTNAME}")
+
+# Render terminates TLS at its edge and forwards plain HTTP to the app —
+# without this, Django can't tell the request was actually HTTPS, which
+# breaks the CSRF/secure-cookie checks above.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -69,6 +88,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Serves collected static files directly from the app process — no
+    # separate static-file host needed, which matters on Render's free web
+    # service (only one process, no CDN/static-site pairing by default).
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -196,6 +219,13 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
 )
+
+# Temporary escape hatch for early deployment, before the frontend's real
+# domain is known — skips CORS_ALLOWED_ORIGINS entirely and accepts a
+# browser request from any origin. Meant to be turned back off
+# (CORS_ALLOW_ALL_ORIGINS unset/false) once that domain is known, in favor
+# of listing it explicitly in CORS_ALLOWED_ORIGINS above.
+CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", False)
 
 # --------------------------------------------------------------------------
 # File storage — see config/storage.py for the actual configuration and why

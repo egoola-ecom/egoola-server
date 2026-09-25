@@ -58,7 +58,14 @@ STORAGES = {
         ),
     },
     "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        # WhiteNoise's storage compresses static files and fingerprints
+        # their names for far-future caching — only useful once deployed,
+        # so it's only switched on outside local dev (same IS_LOCAL_ENV
+        # switch as `default` above).
+        "BACKEND": (
+            "django.contrib.staticfiles.storage.StaticFilesStorage" if IS_LOCAL_ENV
+            else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        ),
     },
 }
 
