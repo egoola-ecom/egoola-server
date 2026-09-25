@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.geography",
     "apps.accounts",
+    "apps.authentication",
     "apps.catalog",
     "apps.bidding",
     "apps.orders",
@@ -115,6 +116,23 @@ DATABASES = {
     }
 }
 
+# --------------------------------------------------------------------------
+# bcrypt for every password this project hashes (Admin/Seller/User rows via
+# apps.accounts, and Django's own auth_user). BCryptSHA256 (not plain BCrypt)
+# because bcrypt itself silently truncates passwords over 72 bytes — the
+# SHA256 pre-hash avoids that. The older hashers stay listed after it purely
+# so any password hashed before this change (PBKDF2, Django's old default)
+# still verifies; every *new* hash uses bcrypt, since make_password() always
+# uses whichever hasher is listed first.
+# --------------------------------------------------------------------------
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.ScryptPasswordHasher",
+]
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -137,7 +155,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # --------------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.authentication.backends.ActorJWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -145,8 +163,8 @@ REST_FRAMEWORK = {
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.SearchFilter",
     ),
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    "PAGE_SIZE": 20,
+    "DEFAULT_PAGINATION_CLASS": "apps.core.pagination.DefaultPagination",
+    "PAGE_SIZE": 20,  # DRF's LimitOffsetPagination reads this as its default `limit`
 }
 
 SPECTACULAR_SETTINGS = {
@@ -177,4 +195,25 @@ SIMPLE_JWT = {
 # --------------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+)
+
+# --------------------------------------------------------------------------
+# File storage — see config/storage.py for the actual configuration and why
+# it's kept separate. Imported here (rather than at the top of the file)
+# because it reads AWS_*/MEDIA_ROOT from the environment at import time, and
+# load_dotenv() above must run first.
+# --------------------------------------------------------------------------
+from config.storage import (  # noqa: E402
+    AWS_ACCESS_KEY_ID,
+    AWS_DEFAULT_ACL,
+    AWS_S3_ENDPOINT_URL,
+    AWS_S3_FILE_OVERWRITE,
+    AWS_S3_REGION_NAME,
+    AWS_SECRET_ACCESS_KEY,
+    AWS_STORAGE_BUCKET_NAME,
+    DJANGO_ENV,
+    IS_LOCAL_ENV,
+    MEDIA_ROOT,
+    MEDIA_URL,
+    STORAGES,
 )
