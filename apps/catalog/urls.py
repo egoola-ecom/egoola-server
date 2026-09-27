@@ -1,6 +1,8 @@
 from rest_framework.routers import DefaultRouter
 
+from .views import CategoryViewSet
+
 router = DefaultRouter()
-# ViewSets are registered here as this app's endpoints are built.
+router.register("categories", CategoryViewSet, basename="category")
 
 urlpatterns = router.urls
