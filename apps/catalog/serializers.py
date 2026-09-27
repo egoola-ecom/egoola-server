@@ -101,6 +101,17 @@ class CategorySerializer(serializers.ModelSerializer):
         return instance
 
 
+class CategoryBriefSerializer(serializers.ModelSerializer):
+    """Flat, non-recursive view of a category — used for the parent-chain
+    API's `parents` entries and the category itself, where the full
+    CategorySerializer's `parent` field (and its queryset-backed validation)
+    isn't relevant."""
+
+    class Meta:
+        model = Category
+        fields = ["id", "type", "name", "slug", "image_path", "image_url", "sort_order", "status"]
+
+
 class MeasurementSerializer(serializers.ModelSerializer):
     """Client sends `name` and `symbol` — `slug` is always server-generated
     from `name`, and duplicate names are rejected via a global slug clash
