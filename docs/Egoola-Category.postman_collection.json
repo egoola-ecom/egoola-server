@@ -2,19 +2,45 @@
   "info": {
     "name": "Egoola API — Category",
     "_postman_id": "6c1e9f2a-3b7d-4e58-8a1c-egoola-category",
-    "description": "Category reference data (Admin-only) — the single unified tree used for both product and service listings. No Retrieve (405) — only List, Create, Update, Delete. `slug` is always server-generated from `name`, and duplicate names are checked per `type` — the same name is fine once under `product` and once under `service`, but not twice within the same type.\n\n`parent` is optional and nullable — a category can be created or moved under another category later, or detached back to top-level. Two rules are enforced server-side: a parent must be the *same type* as its child (a product category can't sit under a service category, or vice versa), and no chain of parents may loop back on itself (directly — B can't be A's parent when A is already B's parent — or through a deeper nested chain).\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run **Auth > Admin Login** first — its \"Tests\" script saves the access/refresh tokens into collection variables automatically.\n3. Run **Categories > Create Parent Category** — its \"Tests\" script saves the new row's id into `category_id`.\n4. Run **Categories > Create Child Category** — it sends `{{category_id}}` as `parent`, and saves its own id into `child_category_id`.\n5. The three Update requests below show attaching, moving, and removing a parent on an already-existing category.\n6. When a 401 says the token expired, run **Auth > Refresh Token**.\n\nFor login/Admin/Seller/Buyer management, see the separate Egoola API — Accounts & Auth collection. For Country/State/City/Thana, see the separate Egoola API — Geography collection.",
+    "description": "Category reference data (Admin-only) — the single unified tree used for both product and service listings. No Retrieve (405) — only List, Create, Update, Delete. `slug` is always server-generated from `name`, and duplicate names are checked per `type` — the same name is fine once under `product` and once under `service`, but not twice within the same type.\n\n`parent` is optional and nullable — a category can be created or moved under another category later, or detached back to top-level. Two rules are enforced server-side: a parent must be the *same type* as its child (a product category can't sit under a service category, or vice versa), and no chain of parents may loop back on itself (directly — B can't be A's parent when A is already B's parent — or through a deeper nested chain).\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run **Auth > Admin Login** first — its \"Tests\" script saves the access/refresh tokens into collection variables automatically.\n3. Run **Categories > Create Parent Category** — its \"Tests\" script saves the new row's id into `category_id`.\n4. Run **Categories > Create Child Category** — it sends `{{category_id}}` as `parent`, and saves its own id into `child_category_id`.\n5. The three Update requests below show attaching, moving, and removing a parent on an already-existing category.\n6. When a 401 says the token expired, run **Auth > Refresh Token**.\n\nFor login/Admin/Seller/Buyer management, see the separate Egoola API — Accounts & Auth collection. For Country/State/City/Thana, see the separate Egoola API — Geography collection.\n\n**Get Category Parent Chain** (`GET /categories/parent-chain/?categoryIds=1,2`) resolves one or more categories' full ancestor chains in one call. **Get Category Tree** (`GET /categories/tree/?type=&categoryName=`) returns the whole hierarchy (or a name-filtered slice of it) as a nested tree, unpaginated — see the category-tree-api-guide.md handover doc for full details on both.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
     "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
   },
   "variable": [
-    { "key": "base_url", "value": "http://127.0.0.1:8000", "type": "string" },
-    { "key": "access_token", "value": "", "type": "string" },
-    { "key": "refresh_token", "value": "", "type": "string" },
-    { "key": "category_id", "value": "", "type": "string" },
-    { "key": "child_category_id", "value": "", "type": "string" }
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "category_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "child_category_id",
+      "value": "",
+      "type": "string"
+    }
   ],
   "item": [
     {
@@ -24,13 +50,33 @@
           "name": "Admin Login",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "auth": { "type": "noauth" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
             },
-            "url": { "raw": "{{base_url}}/api/v1/auth/admin/login/", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "admin", "login", ""] },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/admin/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "admin",
+                "login",
+                ""
+              ]
+            },
             "description": "Public endpoint — no token needed to call this. Returns access + refresh JWTs carrying actor_type=admin. Every Catalog endpoint below is Admin-only."
           },
           "event": [
@@ -55,13 +101,33 @@
           "name": "Refresh Token",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "auth": { "type": "noauth" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}"
             },
-            "url": { "raw": "{{base_url}}/api/v1/auth/token/refresh/", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "token", "refresh", ""] },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/token/refresh/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "token",
+                "refresh",
+                ""
+              ]
+            },
             "description": "Exchanges the saved refresh token (14-day life) for a new access token (1-hour life). Run this instead of logging in again once the access token expires."
           },
           "event": [
@@ -92,14 +158,259 @@
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/api/v1/catalog/categories/?type=&status=&search=",
-              "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", ""],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "categories",
+                ""
+              ],
               "query": [
-                { "key": "type", "value": "", "description": "exact match — product or service" },
-                { "key": "status", "value": "", "description": "exact match — active or inactive" },
-                { "key": "search", "value": "", "description": "partial match on name" }
+                {
+                  "key": "type",
+                  "value": "",
+                  "description": "exact match — product or service"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "exact match — active or inactive"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "partial match on name"
+                }
               ]
             }
           }
+        },
+        {
+          "name": "Get Category Parent Chain",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/categories/parent-chain/?categoryIds=1,2",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "categories",
+                "parent-chain",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "categoryIds",
+                  "value": "1,2",
+                  "description": "Required. One or more category ids, comma-separated (e.g. 1,2). Unknown/non-numeric ids are silently skipped."
+                }
+              ]
+            },
+            "description": "Returns each requested category's own details plus a `parents` array — its ancestor chain ordered from the top-level ancestor (index 0) down to its immediate parent (last index). A top-level category (no parent) gets an empty `parents` array. Pass multiple ids to resolve several chains in one call: `?categoryIds=1,2`."
+          },
+          "response": [
+            {
+              "name": "200 OK — one nested category (Mobiles) and one top-level (Electronics)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/catalog/categories/parent-chain/?categoryIds=1,2",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "catalog",
+                    "categories",
+                    "parent-chain",
+                    ""
+                  ],
+                  "query": [
+                    {
+                      "key": "categoryIds",
+                      "value": "1,2",
+                      "description": "Required. One or more category ids, comma-separated (e.g. 1,2). Unknown/non-numeric ids are silently skipped."
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"id\": 2,\n    \"type\": \"product\",\n    \"name\": \"Mobiles\",\n    \"slug\": \"mobiles\",\n    \"image_path\": null,\n    \"image_url\": null,\n    \"sort_order\": 1,\n    \"status\": \"active\",\n    \"parents\": [\n      {\n        \"id\": 1,\n        \"type\": \"product\",\n        \"name\": \"Electronics\",\n        \"slug\": \"electronics\",\n        \"image_path\": null,\n        \"image_url\": null,\n        \"sort_order\": 1,\n        \"status\": \"active\"\n      }\n    ]\n  },\n  {\n    \"id\": 1,\n    \"type\": \"product\",\n    \"name\": \"Electronics\",\n    \"slug\": \"electronics\",\n    \"image_path\": null,\n    \"image_url\": null,\n    \"sort_order\": 1,\n    \"status\": \"active\",\n    \"parents\": []\n  }\n]"
+            },
+            {
+              "name": "400 Bad Request — categoryIds missing",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/catalog/categories/parent-chain/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "catalog",
+                    "categories",
+                    "parent-chain",
+                    ""
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"categoryIds\": \"Provide one or more comma-separated category ids.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Category Tree",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/categories/tree/?type=product&categoryName=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "categories",
+                "tree",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "product",
+                  "description": "Optional. Exact match — product or service."
+                },
+                {
+                  "key": "categoryName",
+                  "value": "",
+                  "description": "Optional. Case-insensitive substring match on name — see description for pruning behavior."
+                }
+              ]
+            },
+            "description": "Full category hierarchy in nested tree form (id/type/name/slug/image_path/image_url/sort_order/status/children), not paginated — built for rendering the tree while creating or re-parenting a category.\n\n`type` narrows to one catalog type. `categoryName` does a case-insensitive substring match: any matching category is kept along with its full ancestor path (so you can see where it sits) and its full descendant subtree (so it stays browsable); branches with no match anywhere in them are dropped entirely."
+          },
+          "response": [
+            {
+              "name": "200 OK — full product tree (no categoryName filter)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/catalog/categories/tree/?type=product&categoryName=",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "catalog",
+                    "categories",
+                    "tree",
+                    ""
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": "product",
+                      "description": "Optional. Exact match — product or service. Every descendant already shares its root's type (enforced at write time), so filtering roots by type filters the whole tree."
+                    },
+                    {
+                      "key": "categoryName",
+                      "value": "",
+                      "description": "Optional. Case-insensitive substring match on name. Matching categories are kept together with their full ancestor path (for context) and their full descendant subtree (so the matched branch stays navigable) — unrelated branches are pruned out."
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"id\": 1,\n    \"type\": \"product\",\n    \"name\": \"Electronics\",\n    \"slug\": \"electronics\",\n    \"image_path\": null,\n    \"image_url\": null,\n    \"sort_order\": 1,\n    \"status\": \"active\",\n    \"children\": [\n      {\n        \"id\": 2,\n        \"type\": \"product\",\n        \"name\": \"Mobiles\",\n        \"slug\": \"mobiles\",\n        \"image_path\": null,\n        \"image_url\": null,\n        \"sort_order\": 1,\n        \"status\": \"active\",\n        \"children\": []\n      },\n      {\n        \"id\": 3,\n        \"type\": \"product\",\n        \"name\": \"Laptops & Computers\",\n        \"slug\": \"laptops-computers\",\n        \"image_path\": null,\n        \"image_url\": null,\n        \"sort_order\": 2,\n        \"status\": \"active\",\n        \"children\": []\n      }\n    ]\n  },\n  {\n    \"id\": 4,\n    \"type\": \"product\",\n    \"name\": \"Fashion\",\n    \"slug\": \"fashion\",\n    \"image_path\": null,\n    \"image_url\": null,\n    \"sort_order\": 2,\n    \"status\": \"active\",\n    \"children\": [\n      {\n        \"id\": 5,\n        \"type\": \"product\",\n        \"name\": \"Men's Clothing\",\n        \"slug\": \"mens-clothing\",\n        \"image_path\": null,\n        \"image_url\": null,\n        \"sort_order\": 1,\n        \"status\": \"active\",\n        \"children\": []\n      },\n      {\n        \"id\": 6,\n        \"type\": \"product\",\n        \"name\": \"Women's Clothing\",\n        \"slug\": \"womens-clothing\",\n        \"image_path\": null,\n        \"image_url\": null,\n        \"sort_order\": 2,\n        \"status\": \"active\",\n        \"children\": []\n      }\n    ]\n  }\n]"
+            },
+            {
+              "name": "200 OK — categoryName=cloth (Fashion kept as ancestor context, both Clothing children kept, Electronics pruned)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/catalog/categories/tree/?type=product&categoryName=cloth",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "catalog",
+                    "categories",
+                    "tree",
+                    ""
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": "product",
+                      "description": "Optional. Exact match — product or service."
+                    },
+                    {
+                      "key": "categoryName",
+                      "value": "cloth",
+                      "description": "Optional. Case-insensitive substring match on name."
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"id\": 4,\n    \"type\": \"product\",\n    \"name\": \"Fashion\",\n    \"slug\": \"fashion\",\n    \"image_path\": null,\n    \"image_url\": null,\n    \"sort_order\": 2,\n    \"status\": \"active\",\n    \"children\": [\n      {\n        \"id\": 5,\n        \"type\": \"product\",\n        \"name\": \"Men's Clothing\",\n        \"slug\": \"mens-clothing\",\n        \"image_path\": null,\n        \"image_url\": null,\n        \"sort_order\": 1,\n        \"status\": \"active\",\n        \"children\": []\n      },\n      {\n        \"id\": 6,\n        \"type\": \"product\",\n        \"name\": \"Women's Clothing\",\n        \"slug\": \"womens-clothing\",\n        \"image_path\": null,\n        \"image_url\": null,\n        \"sort_order\": 2,\n        \"status\": \"active\",\n        \"children\": []\n      }\n    ]\n  }\n]"
+            }
+          ]
         },
         {
           "name": "Create Parent Category",
@@ -108,44 +419,132 @@
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "type", "value": "product", "type": "text", "description": "product or service" },
-                { "key": "name", "value": "Electronics", "type": "text" },
-                { "key": "sort_order", "value": "1", "type": "text", "description": "optional, defaults to 0" },
-                { "key": "status", "value": "active", "type": "text", "description": "optional, defaults to active" },
-                { "key": "image", "type": "file", "description": "optional — category banner image" }
+                {
+                  "key": "type",
+                  "value": "product",
+                  "type": "text",
+                  "description": "product or service"
+                },
+                {
+                  "key": "name",
+                  "value": "Electronics",
+                  "type": "text"
+                },
+                {
+                  "key": "sort_order",
+                  "value": "1",
+                  "type": "text",
+                  "description": "optional, defaults to 0"
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "type": "text",
+                  "description": "optional, defaults to active"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "description": "optional — category banner image"
+                }
               ]
             },
-            "url": { "raw": "{{base_url}}/api/v1/catalog/categories/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", ""] },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/categories/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "categories",
+                ""
+              ]
+            },
             "description": "`type` and `name` required; `parent` is left out here, so this lands as a top-level category. `slug` is always server-generated from `name` and checked for duplicates within the same `type` only — the same name is fine under the other type. `image`/`sort_order`/`status` are optional — send `image` only when actually attaching a file (multipart), or drop the whole form-data body and send plain JSON with just `type`/`name` when there's no image."
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "if (pm.response.code === 201) { pm.collectionVariables.set('category_id', pm.response.json().id); }"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('category_id', pm.response.json().id); }"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Create Child Category (with parent)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"type\": \"product\",\n  \"name\": \"Mobiles\",\n  \"parent\": {{category_id}}\n}" },
-            "url": { "raw": "{{base_url}}/api/v1/catalog/categories/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", ""] },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"product\",\n  \"name\": \"Mobiles\",\n  \"parent\": {{category_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/categories/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "categories",
+                ""
+              ]
+            },
             "description": "`parent` must be the id of a category of the *same* `type` — pointing it at a category of the other type returns a 400 on the `parent` field. There's no depth limit; a child can itself be used as a parent for a grandchild, and so on."
           },
           "event": [
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "if (pm.response.code === 201) { pm.collectionVariables.set('child_category_id', pm.response.json().id); }"
-            ] } }
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('child_category_id', pm.response.json().id); }"
+                ]
+              }
+            }
           ]
         },
         {
           "name": "Update Category (partial — PATCH)",
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Consumer Electronics\",\n  \"sort_order\": 2\n}" },
-            "url": { "raw": "{{base_url}}/api/v1/catalog/categories/{{category_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", "{{category_id}}", ""] },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Consumer Electronics\",\n  \"sort_order\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/categories/{{category_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "categories",
+                "{{category_id}}",
+                ""
+              ]
+            },
             "description": "Any subset of type/name/image/sort_order/status. Renaming regenerates slug and re-checks it for duplicates (within the same type). To replace the image, send a multipart request with a new `image` file instead of this raw JSON body."
           }
         },
@@ -153,9 +552,30 @@
           "name": "Update Category — attach a parent",
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"parent\": {{category_id}}\n}" },
-            "url": { "raw": "{{base_url}}/api/v1/catalog/categories/{{child_category_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", "{{child_category_id}}", ""] },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parent\": {{category_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/categories/{{child_category_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "categories",
+                "{{child_category_id}}",
+                ""
+              ]
+            },
             "description": "Works the same whether the category previously had no parent at all, or already had a different one — this just overwrites whatever `parent` currently is. Rejected with a 400 if `parent`'s type doesn't match this category's type, or if it would create a cycle (this category, directly or through a nested chain, is already an ancestor of the given parent)."
           }
         },
@@ -163,9 +583,30 @@
           "name": "Update Category — move to a different parent",
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"parent\": {{category_id}}\n}" },
-            "url": { "raw": "{{base_url}}/api/v1/catalog/categories/{{child_category_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", "{{child_category_id}}", ""] },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parent\": {{category_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/categories/{{child_category_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "categories",
+                "{{child_category_id}}",
+                ""
+              ]
+            },
             "description": "Same request shape as attaching a parent — send the new parent's id and it replaces the old one. Edit the raw body above to point at a different category id to see it actually move."
           }
         },
@@ -173,9 +614,30 @@
           "name": "Update Category — remove parent",
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"parent\": null\n}" },
-            "url": { "raw": "{{base_url}}/api/v1/catalog/categories/{{child_category_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", "{{child_category_id}}", ""] },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parent\": null\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/categories/{{child_category_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "categories",
+                "{{child_category_id}}",
+                ""
+              ]
+            },
             "description": "Explicit `null` detaches the category back to top-level. Omitting `parent` from the body entirely (rather than sending null) leaves whatever parent is already set untouched — that's how the other PATCH requests in this collection avoid accidentally clearing it."
           }
         },
@@ -183,7 +645,20 @@
           "name": "Delete Category",
           "request": {
             "method": "DELETE",
-            "url": { "raw": "{{base_url}}/api/v1/catalog/categories/{{category_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", "{{category_id}}", ""] }
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/categories/{{category_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "categories",
+                "{{category_id}}",
+                ""
+              ]
+            }
           }
         }
       ]
