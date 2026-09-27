@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from config.storage import save_upload
 
-from .models import Category
+from .models import Category, Measurement
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -99,3 +99,33 @@ class CategorySerializer(serializers.ModelSerializer):
         if image is not None:
             self._apply_image(instance, image)
         return instance
+
+
+class MeasurementSerializer(serializers.ModelSerializer):
+    """Client sends `name` and `symbol` — `slug` is always server-generated
+    from `name`, and duplicate names are rejected via a global slug clash
+    check (there's no scoping dimension here, unlike Category's per-type
+    check)."""
+
+    class Meta:
+        model = Measurement
+        fields = ["id", "name", "slug", "symbol"]
+        read_only_fields = ["slug"]
+
+    def validate_name(self, name):
+        slug = slugify(name)
+        clash = Measurement.objects.filter(slug=slug)
+        if self.instance is not None:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise serializers.ValidationError("A measurement with this name already exists.")
+        return name
+
+    def create(self, validated_data):
+        validated_data["slug"] = slugify(validated_data["name"])
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if "name" in validated_data:
+            validated_data["slug"] = slugify(validated_data["name"])
+        return super().update(instance, validated_data)
