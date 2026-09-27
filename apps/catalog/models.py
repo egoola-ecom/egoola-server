@@ -30,7 +30,7 @@ class Category(AuditedModel):
     type = models.CharField(max_length=10, choices=CatalogType.choices)
     name = models.CharField(max_length=255)
     name_bn = models.CharField(db_column="nameBn", max_length=255)
-    slug = models.SlugField(max_length=255, unique=True)
+    slug = models.SlugField(max_length=255)
     image_path = models.CharField(db_column="imagePath", max_length=255, null=True, blank=True)
     image_url = models.URLField(db_column="imageUrl", max_length=500, null=True, blank=True)
     sort_order = models.IntegerField(db_column="sortOrder", default=0)
@@ -40,6 +40,9 @@ class Category(AuditedModel):
         db_table = "categories"
         ordering = ["sort_order", "name"]
         verbose_name_plural = "categories"
+        constraints = [
+            models.UniqueConstraint(fields=["type", "slug"], name="unique_category_slug_per_type")
+        ]
 
     def __str__(self):
         return self.name
