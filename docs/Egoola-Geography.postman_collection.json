@@ -1,0 +1,293 @@
+{
+  "info": {
+    "name": "Egoola API — Geography",
+    "_postman_id": "8a2c7b1e-4d5f-4a9b-9f6d-egoola-geography",
+    "description": "Country -> State -> City -> Thana reference data (Admin-only). No Retrieve on any of these four (405) — only List, Create, Update, Delete. `slug` and the `*_code` field are always server-generated; duplicate names are checked against the parent (country for State, state for City, city for Thana), not globally.\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run **Auth > Admin Login** first — its \"Tests\" script saves the access/refresh tokens into collection variables automatically.\n3. Run **Countries > Create Country**, then **States > Create State**, then **Cities > Create City**, then **Thanas > Create Thana**, in that order — each one saves the new row's id into a collection variable the next level's request bodies already reference.\n4. When a 401 says the token expired, run **Auth > Refresh Token**.\n\nFor login/Admin/Seller/Buyer management, see the separate Egoola API — Accounts & Auth collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" },
+    { "key": "country_id", "value": "", "type": "string" },
+    { "key": "state_id", "value": "", "type": "string" },
+    { "key": "city_id", "value": "", "type": "string" },
+    { "key": "thana_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/admin/login/", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "admin", "login", ""] },
+            "description": "Public endpoint — no token needed to call this. Returns access + refresh JWTs carrying actor_type=admin. Every Geography endpoint below is Admin-only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    pm.collectionVariables.set('refresh_token', body.refresh);",
+                  "    console.log('Saved admin access/refresh tokens.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/token/refresh/", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "token", "refresh", ""] },
+            "description": "Exchanges the saved refresh token (14-day life) for a new access token (1-hour life). Run this instead of logging in again once the access token expires."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    console.log('Refreshed access_token.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Countries",
+      "item": [
+        {
+          "name": "List Countries",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/geography/countries/?search=",
+              "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "countries", ""],
+              "query": [ { "key": "search", "value": "", "description": "partial match on name" } ]
+            }
+          }
+        },
+        {
+          "name": "Create Country",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Bangladesh\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/geography/countries/", "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "countries", ""] },
+            "description": "Only `name` is accepted — `slug`/`country_code` are generated server-side."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "if (pm.response.code === 201) { pm.collectionVariables.set('country_id', pm.response.json().id); }"
+            ] } }
+          ]
+        },
+        {
+          "name": "Update Country (partial — PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Republic of Bangladesh\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/geography/countries/{{country_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "countries", "{{country_id}}", ""] },
+            "description": "Regenerates slug and re-checks it for duplicates against every other country."
+          }
+        },
+        {
+          "name": "Delete Country",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/api/v1/geography/countries/{{country_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "countries", "{{country_id}}", ""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "States",
+      "item": [
+        {
+          "name": "List States",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/geography/states/?country={{country_id}}&search=",
+              "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "states", ""],
+              "query": [
+                { "key": "country", "value": "{{country_id}}", "description": "exact match (plain id, even though the response nests country)" },
+                { "key": "search", "value": "", "description": "partial match on name" }
+              ]
+            },
+            "description": "Each row's `country` field is the full nested Country object ({id, name, slug, country_code}), not just an id — Create/Update still return a plain id."
+          }
+        },
+        {
+          "name": "Create State",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Dhaka Division\",\n  \"country\": {{country_id}}\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/geography/states/", "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "states", ""] },
+            "description": "`name` and `country` required. Duplicate-name check is scoped to that country — the same name is fine under a different country."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "if (pm.response.code === 201) { pm.collectionVariables.set('state_id', pm.response.json().id); }"
+            ] } }
+          ]
+        },
+        {
+          "name": "Update State (partial — PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Greater Dhaka\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/geography/states/{{state_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "states", "{{state_id}}", ""] }
+          }
+        },
+        {
+          "name": "Delete State",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/api/v1/geography/states/{{state_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "states", "{{state_id}}", ""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cities",
+      "item": [
+        {
+          "name": "List Cities",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/geography/cities/?country={{country_id}}&state={{state_id}}&search=",
+              "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "cities", ""],
+              "query": [
+                { "key": "country", "value": "{{country_id}}", "description": "exact match" },
+                { "key": "state", "value": "{{state_id}}", "description": "exact match" },
+                { "key": "search", "value": "", "description": "partial match on name" }
+              ]
+            },
+            "description": "Each row's `country` and `state` fields are the full nested objects, not just ids — Create/Update still return plain ids."
+          }
+        },
+        {
+          "name": "Create City",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Dhaka City\",\n  \"country\": {{country_id}},\n  \"state\": {{state_id}}\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/geography/cities/", "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "cities", ""] },
+            "description": "`name`, `country`, `state` required. `state` must actually belong to `country` (400 if not). Duplicate-name check is scoped to `state`."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "if (pm.response.code === 201) { pm.collectionVariables.set('city_id', pm.response.json().id); }"
+            ] } }
+          ]
+        },
+        {
+          "name": "Update City (partial — PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Dhaka Metro\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/geography/cities/{{city_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "cities", "{{city_id}}", ""] }
+          }
+        },
+        {
+          "name": "Delete City",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/api/v1/geography/cities/{{city_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "cities", "{{city_id}}", ""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Thanas",
+      "item": [
+        {
+          "name": "List Thanas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/geography/thanas/?country={{country_id}}&state={{state_id}}&city={{city_id}}&search=",
+              "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "thanas", ""],
+              "query": [
+                { "key": "country", "value": "{{country_id}}", "description": "exact match" },
+                { "key": "state", "value": "{{state_id}}", "description": "exact match" },
+                { "key": "city", "value": "{{city_id}}", "description": "exact match" },
+                { "key": "search", "value": "", "description": "partial match on name" }
+              ]
+            },
+            "description": "Each row's `country`, `state` and `city` fields are the full nested objects, not just ids — Create/Update still return plain ids."
+          }
+        },
+        {
+          "name": "Create Thana",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Dhanmondi\",\n  \"country\": {{country_id}},\n  \"state\": {{state_id}},\n  \"city\": {{city_id}}\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/geography/thanas/", "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "thanas", ""] },
+            "description": "`name`, `country`, `state`, `city` required. `state` must belong to `country`, and `city` must belong to `state` (400 if not). Duplicate-name check is scoped to `city`."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "if (pm.response.code === 201) { pm.collectionVariables.set('thana_id', pm.response.json().id); }"
+            ] } }
+          ]
+        },
+        {
+          "name": "Update Thana (partial — PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Dhanmondi Thana\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/geography/thanas/{{thana_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "thanas", "{{thana_id}}", ""] }
+          }
+        },
+        {
+          "name": "Delete Thana",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/api/v1/geography/thanas/{{thana_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "geography", "thanas", "{{thana_id}}", ""] }
+          }
+        }
+      ]
+    }
+  ]
+}
