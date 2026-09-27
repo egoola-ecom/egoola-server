@@ -1,0 +1,142 @@
+{
+  "info": {
+    "name": "Egoola API — Measurement",
+    "_postman_id": "6c1e9f2a-3b7d-4e58-8a1c-egoola-measurement",
+    "description": "Measurement reference data (Admin-only) — units like Kilogram/kg, Litre/L, Piece/pc used by product listings. No Retrieve (405) — only List, Create, Update, Delete. `slug` is always server-generated from `name`, and duplicate names are rejected globally — unlike Category, there's no scoping dimension here, so a measurement named \"Kilogram\" can exist only once across the whole system.\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run **Auth > Admin Login** first — its \"Tests\" script saves the access/refresh tokens into collection variables automatically.\n3. Run **Measurements > Create Measurement** — its \"Tests\" script saves the new row's id into `measurement_id`.\n4. Use **Update Measurement** / **Delete Measurement** against that id.\n5. When a 401 says the token expired, run **Auth > Refresh Token**.\n\nFor login/Admin/Seller/Buyer management, see the separate Egoola API — Accounts & Auth collection. For Category, see the separate Egoola API — Category collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" },
+    { "key": "measurement_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/admin/login/", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "admin", "login", ""] },
+            "description": "Public endpoint — no token needed to call this. Returns access + refresh JWTs carrying actor_type=admin. Every Measurement endpoint below is Admin-only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    pm.collectionVariables.set('refresh_token', body.refresh);",
+                  "    console.log('Saved admin access/refresh tokens.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/token/refresh/", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "token", "refresh", ""] },
+            "description": "Exchanges the saved refresh token (14-day life) for a new access token (1-hour life). Run this instead of logging in again once the access token expires."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    console.log('Refreshed access_token.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Measurements",
+      "item": [
+        {
+          "name": "List Measurements",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/measurements/?search=",
+              "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "measurements", ""],
+              "query": [
+                { "key": "search", "value": "", "description": "partial, case-insensitive match on name (e.g. 'kilo' matches 'Kilogram')" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Measurement",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Kilogram\",\n  \"symbol\": \"kg\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/catalog/measurements/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "measurements", ""] },
+            "description": "`name` and `symbol` required. `slug` is always server-generated from `name` and checked for duplicates globally — creating a second measurement with the same name (e.g. another \"Kilogram\") returns a 400 on the `name` field."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "if (pm.response.code === 201) { pm.collectionVariables.set('measurement_id', pm.response.json().id); }"
+            ] } }
+          ]
+        },
+        {
+          "name": "Update Measurement (partial — PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Kilo\",\n  \"symbol\": \"kg\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/catalog/measurements/{{measurement_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "measurements", "{{measurement_id}}", ""] },
+            "description": "Any subset of name/symbol. Renaming regenerates slug and re-checks it for duplicates (globally, same as create)."
+          }
+        },
+        {
+          "name": "Delete Measurement",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/api/v1/catalog/measurements/{{measurement_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "measurements", "{{measurement_id}}", ""] }
+          }
+        }
+      ]
+    }
+  ]
+}
