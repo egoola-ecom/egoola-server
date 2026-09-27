@@ -12,8 +12,8 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Measurement)
 class MeasurementAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "symbol")
-    search_fields = ("name", "symbol")
+    list_display = ("id", "name", "slug", "symbol")
+    search_fields = ("name", "slug", "symbol")
 
 
 class ListingPriceTierInline(admin.TabularInline):
