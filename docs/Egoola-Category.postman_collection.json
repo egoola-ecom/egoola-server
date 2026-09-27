@@ -1,0 +1,192 @@
+{
+  "info": {
+    "name": "Egoola API — Category",
+    "_postman_id": "6c1e9f2a-3b7d-4e58-8a1c-egoola-category",
+    "description": "Category reference data (Admin-only) — the single unified tree used for both product and service listings. No Retrieve (405) — only List, Create, Update, Delete. `slug` is always server-generated from `name`, and duplicate names are checked per `type` — the same name is fine once under `product` and once under `service`, but not twice within the same type.\n\n`parent` is optional and nullable — a category can be created or moved under another category later, or detached back to top-level. Two rules are enforced server-side: a parent must be the *same type* as its child (a product category can't sit under a service category, or vice versa), and no chain of parents may loop back on itself (directly — B can't be A's parent when A is already B's parent — or through a deeper nested chain).\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run **Auth > Admin Login** first — its \"Tests\" script saves the access/refresh tokens into collection variables automatically.\n3. Run **Categories > Create Parent Category** — its \"Tests\" script saves the new row's id into `category_id`.\n4. Run **Categories > Create Child Category** — it sends `{{category_id}}` as `parent`, and saves its own id into `child_category_id`.\n5. The three Update requests below show attaching, moving, and removing a parent on an already-existing category.\n6. When a 401 says the token expired, run **Auth > Refresh Token**.\n\nFor login/Admin/Seller/Buyer management, see the separate Egoola API — Accounts & Auth collection. For Country/State/City/Thana, see the separate Egoola API — Geography collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" },
+    { "key": "category_id", "value": "", "type": "string" },
+    { "key": "child_category_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/admin/login/", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "admin", "login", ""] },
+            "description": "Public endpoint — no token needed to call this. Returns access + refresh JWTs carrying actor_type=admin. Every Catalog endpoint below is Admin-only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    pm.collectionVariables.set('refresh_token', body.refresh);",
+                  "    console.log('Saved admin access/refresh tokens.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/token/refresh/", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "token", "refresh", ""] },
+            "description": "Exchanges the saved refresh token (14-day life) for a new access token (1-hour life). Run this instead of logging in again once the access token expires."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    console.log('Refreshed access_token.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/categories/?type=&status=&search=",
+              "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", ""],
+              "query": [
+                { "key": "type", "value": "", "description": "exact match — product or service" },
+                { "key": "status", "value": "", "description": "exact match — active or inactive" },
+                { "key": "search", "value": "", "description": "partial match on name" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Parent Category",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "type", "value": "product", "type": "text", "description": "product or service" },
+                { "key": "name", "value": "Electronics", "type": "text" },
+                { "key": "sort_order", "value": "1", "type": "text", "description": "optional, defaults to 0" },
+                { "key": "status", "value": "active", "type": "text", "description": "optional, defaults to active" },
+                { "key": "image", "type": "file", "description": "optional — category banner image" }
+              ]
+            },
+            "url": { "raw": "{{base_url}}/api/v1/catalog/categories/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", ""] },
+            "description": "`type` and `name` required; `parent` is left out here, so this lands as a top-level category. `slug` is always server-generated from `name` and checked for duplicates within the same `type` only — the same name is fine under the other type. `image`/`sort_order`/`status` are optional — send `image` only when actually attaching a file (multipart), or drop the whole form-data body and send plain JSON with just `type`/`name` when there's no image."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "if (pm.response.code === 201) { pm.collectionVariables.set('category_id', pm.response.json().id); }"
+            ] } }
+          ]
+        },
+        {
+          "name": "Create Child Category (with parent)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"product\",\n  \"name\": \"Mobiles\",\n  \"parent\": {{category_id}}\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/catalog/categories/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", ""] },
+            "description": "`parent` must be the id of a category of the *same* `type` — pointing it at a category of the other type returns a 400 on the `parent` field. There's no depth limit; a child can itself be used as a parent for a grandchild, and so on."
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "if (pm.response.code === 201) { pm.collectionVariables.set('child_category_id', pm.response.json().id); }"
+            ] } }
+          ]
+        },
+        {
+          "name": "Update Category (partial — PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Consumer Electronics\",\n  \"sort_order\": 2\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/catalog/categories/{{category_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", "{{category_id}}", ""] },
+            "description": "Any subset of type/name/image/sort_order/status. Renaming regenerates slug and re-checks it for duplicates (within the same type). To replace the image, send a multipart request with a new `image` file instead of this raw JSON body."
+          }
+        },
+        {
+          "name": "Update Category — attach a parent",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"parent\": {{category_id}}\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/catalog/categories/{{child_category_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", "{{child_category_id}}", ""] },
+            "description": "Works the same whether the category previously had no parent at all, or already had a different one — this just overwrites whatever `parent` currently is. Rejected with a 400 if `parent`'s type doesn't match this category's type, or if it would create a cycle (this category, directly or through a nested chain, is already an ancestor of the given parent)."
+          }
+        },
+        {
+          "name": "Update Category — move to a different parent",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"parent\": {{category_id}}\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/catalog/categories/{{child_category_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", "{{child_category_id}}", ""] },
+            "description": "Same request shape as attaching a parent — send the new parent's id and it replaces the old one. Edit the raw body above to point at a different category id to see it actually move."
+          }
+        },
+        {
+          "name": "Update Category — remove parent",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"parent\": null\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/catalog/categories/{{child_category_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", "{{child_category_id}}", ""] },
+            "description": "Explicit `null` detaches the category back to top-level. Omitting `parent` from the body entirely (rather than sending null) leaves whatever parent is already set untouched — that's how the other PATCH requests in this collection avoid accidentally clearing it."
+          }
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/api/v1/catalog/categories/{{category_id}}/", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "categories", "{{category_id}}", ""] }
+          }
+        }
+      ]
+    }
+  ]
+}
