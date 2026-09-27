@@ -50,6 +50,7 @@ class Category(AuditedModel):
 
 class Measurement(AuditedModel):
     name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=100, unique=True)
     symbol = models.CharField(max_length=20)
 
     class Meta:
