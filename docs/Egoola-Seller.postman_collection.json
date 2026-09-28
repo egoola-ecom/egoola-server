@@ -1,0 +1,769 @@
+{
+  "info": {
+    "name": "Egoola API — Seller",
+    "_postman_id": "9d3e7c1a-5f42-4b8e-9a6d-egoola-seller",
+    "description": "Full Seller Management (Admin-only) — CRUD, business profile, media/identity documents, and the Seller Verification workflow (verify/reject with a mandatory rejection note, and the append-only verification_logs history). Lives at `/api/v1/accounts/sellers/` — full CRUD including Retrieve (unlike Category/Measurement, which don't expose a detail-GET).\n\nVerification rules to know before you run these:\n1. An Admin-created seller defaults to verification_status=\"verified\"; you can still override it explicitly at create time.\n2. Rejecting (verification_status=\"rejected\") always requires verification_note in that same request — on create and on update alike.\n3. verification_note is never inherited from a previous change — every request that changes verification_status stores exactly the note you send this time, or null if you don't send one, even if a note already existed.\n4. verification_logs (Retrieve only) is the full, append-only history behind the current verification_status/verification_note — one entry written on create, and one more each time an update actually changes verification_status.\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run **Auth > Admin Login** first — its \"Tests\" script saves the access/refresh tokens into collection variables automatically.\n3. Run the whole **Sellers** folder top to bottom with Postman's \"Run collection\" (or click through it in order) — it's written to work as one continuous sequence: **Create Seller** saves `seller_id`, **Seller Login** right after it saves `seller_token` using those same just-created credentials (run it before the later password-change request, or it'll fail), and the verification requests near the end run through reject-without-a-note (400) → reject-with-a-note (200) → re-verify-without-a-note (note clears to null) against that same seller.\n4. \"Update Seller — Upload Media & Profile Picture\" needs real files selected by hand in Postman first (see its own description) — skip it in an automated/Newman run.\n5. When a 401 says the token expired, run **Auth > Refresh Token**.\n\nFor Admin/Buyer management and login, see the Egoola API — Accounts & Auth collection. For Category, see Egoola API — Category. For Measurement, see Egoola API — Measurement.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "seller_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "seller_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "seller_login_email",
+      "value": "rafiq.traders@example.com",
+      "type": "string"
+    },
+    {
+      "key": "seller_login_password",
+      "value": "Sell@12345",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/admin/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "admin",
+                "login",
+                ""
+              ]
+            },
+            "description": "Public endpoint — no token needed. Returns access + refresh JWTs carrying actor_type=admin. Every Seller Management endpoint below is Admin-only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    pm.collectionVariables.set('refresh_token', body.refresh);",
+                  "    console.log('Saved admin access/refresh tokens.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/token/refresh/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "token",
+                "refresh",
+                ""
+              ]
+            },
+            "description": "Exchanges the saved refresh token (14-day life) for a new access token (1-hour life). Run this instead of logging in again once the access token expires."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    console.log('Refreshed access_token.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sellers",
+      "item": [
+        {
+          "name": "List Sellers",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/?search=&verification_status=&status=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "matches name, email, phone"
+                },
+                {
+                  "key": "verification_status",
+                  "value": "",
+                  "description": "unverified | pending | verified | rejected"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "active | suspended"
+                }
+              ]
+            },
+            "description": "Admin-only. List rows use SellerListSerializer — no media/business_info/verification_logs, those only appear on Retrieve."
+          }
+        },
+        {
+          "name": "Create Seller",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rafiq Traders\",\n  \"email\": \"rafiq.traders@example.com\",\n  \"phone\": \"+8801711000111\",\n  \"password\": \"Sell@12345\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ]
+            },
+            "description": "Minimal create. Because the actor creating this row is an Admin, verification_status defaults to \"verified\" and verification_note defaults to null — you don't need to send either. A future public self-registration flow would default to \"unverified\" instead; you can still override the default explicitly by sending verification_status yourself (see \"Create Seller — explicit verification_status\" below)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    pm.collectionVariables.set('seller_id', pm.response.json().id);",
+                  "    console.log('Saved seller_id.');",
+                  "}",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('verified by default (admin-created)', () => pm.expect(pm.response.json().verification_status).to.eql('verified'));",
+                  "pm.test('verification_note is null', () => pm.expect(pm.response.json().verification_note).to.be.null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seller Login (for the permission-boundary test below)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{seller_login_email}}\",\n  \"password\": \"{{seller_login_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "login",
+                ""
+              ]
+            },
+            "description": "A Seller's own login — returns a token with actor_type=seller. Must run right here, straight after \"Create Seller\" and before \"Update Seller — Change Password\" further down — seller_login_email/seller_login_password default to the exact credentials \"Create Seller\" just registered, and they go stale the moment the password-change request runs. Its only purpose is populating {{seller_token}} for \"Seller actor forbidden from Sellers management\" near the end of this folder."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('seller_token', pm.response.json().access);",
+                  "    console.log('Saved seller_token.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Seller — with Business Info",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dhaka Gadget House\",\n  \"email\": \"dhaka.gadget@example.com\",\n  \"phone\": \"+8801711000222\",\n  \"password\": \"Sell@12345\",\n  \"info\": {\n    \"business_type\": \"Retail\",\n    \"main_product\": \"Mobile phones & accessories\",\n    \"owner_name\": \"Dhaka Gadget House\",\n    \"employees_range\": \"1-10\",\n    \"annual_revenue\": \"< $50,000\",\n    \"established_year\": \"2022\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ]
+            },
+            "description": "`info` is the seller's 1:1 business profile, created in the same call. It comes back read-only as `business_info` on this and every later response for this seller (Retrieve, Update). In a multipart request (e.g. alongside profile_pic or media files) send `info` as a JSON-encoded string instead of a nested object — multipart has no nested-object syntax."
+          }
+        },
+        {
+          "name": "Create Seller — explicit verification_status (Pending)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Applicant Store\",\n  \"email\": \"new.applicant@example.com\",\n  \"phone\": \"+8801711000333\",\n  \"password\": \"Sell@12345\",\n  \"verification_status\": \"pending\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ]
+            },
+            "description": "An Admin can override the verified-by-default behavior at create time by sending verification_status explicitly — whatever you send here is honored as-is."
+          }
+        },
+        {
+          "name": "Create Seller — rejected with no note (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bad Applicant\",\n  \"email\": \"bad.applicant@example.com\",\n  \"phone\": \"+8801711000444\",\n  \"password\": \"Sell@12345\",\n  \"verification_status\": \"rejected\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ]
+            },
+            "description": "verification_note is mandatory whenever verification_status is \"rejected\" — on create just as much as on update. Expect a 400 with a verification_note error."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('verification_note error present', () => pm.expect(pm.response.json()).to.have.property('verification_note'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve Seller",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{seller_id}}",
+                ""
+              ]
+            },
+            "description": "Includes `business_info` (the validated SellerInfo row, or null), `media[]`, and `verification_logs[]` — the full verification-status change history for this seller, newest first. `verification_logs` only appears here, never on List."
+          }
+        },
+        {
+          "name": "Update Seller (partial — PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rafiq Traders (Updated)\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{seller_id}}",
+                ""
+              ]
+            },
+            "description": "Any subset of fields. This example only touches `name` — verification_status/verification_note/verification_logs are all left completely untouched, and no verification log entry is written, because verification_status isn't part of this request."
+          }
+        },
+        {
+          "name": "Update Seller — Change Password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"NewSell@54321\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{seller_id}}",
+                ""
+              ]
+            },
+            "description": "Hashed server-side before saving. The seller can log in with the new password immediately (POST /api/v1/auth/seller/login/); the old password stops working."
+          }
+        },
+        {
+          "name": "Update Seller — Upload Media & Profile Picture",
+          "request": {
+            "method": "PATCH",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "profile_pic",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional. Replaces profile_pic_path/profile_pic_url."
+                },
+                {
+                  "key": "media_for",
+                  "value": "nid",
+                  "type": "text",
+                  "description": "nid | birth_certificate | certificate | gallery_image | gallery_video | other"
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Paired with the media_for above by position (1st media_for <-> 1st media_file, etc.)."
+                },
+                {
+                  "key": "media_for",
+                  "value": "certificate",
+                  "type": "text"
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "media_delete_ids",
+                  "value": "",
+                  "type": "text",
+                  "description": "Optional, repeatable — ids of existing media rows to remove. Leave out if you're only adding files."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{seller_id}}",
+                ""
+              ]
+            },
+            "description": "multipart/form-data — Postman sets the Content-Type boundary automatically, don't add it by hand. Add as many media_for/media_file pairs as you have files; they're matched by position, so provide exactly one media_for per media_file, in the same order. There's no in-place edit of an existing file: to replace one, delete its id via media_delete_ids and upload a new one in the same call.\n\nThe file fields (`profile_pic`, `media_file`) have no file selected — file paths aren't portable between machines, so this collection can't ship one. Click each file field in Postman and select a real image/document from your own disk before sending; run as-is (e.g. via Newman/CI) it correctly fails with 400 (\"file load error: missing file source\"), not a bug."
+          }
+        },
+        {
+          "name": "Update Seller — Reject (missing note, expect 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_status\": \"rejected\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{seller_id}}",
+                ""
+              ]
+            },
+            "description": "Same rule as on create: rejecting without verification_note in this same request is a 400, even if the seller already has a note stored from a previous rejection."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Seller — Reject (with note)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_status\": \"rejected\",\n  \"verification_note\": \"Trade license document is unreadable, please re-upload.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{seller_id}}",
+                ""
+              ]
+            },
+            "description": "Sets verification_status to rejected and stores the note — both on the seller row (verification_status/verification_note) and as a brand-new entry appended to verification_logs."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status is rejected', () => pm.expect(pm.response.json().verification_status).to.eql('rejected'));",
+                  "pm.test('note stored', () => pm.expect(pm.response.json().verification_note).to.eql('Trade license document is unreadable, please re-upload.'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Seller — Re-verify (note clears to null)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_status\": \"verified\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{seller_id}}",
+                ""
+              ]
+            },
+            "description": "Run this right after \"Reject (with note)\" above. verification_note is NOT sent here, so it is stored as null on the seller row and in the new log entry — the old rejection note does not carry over. If you want a note to still be visible after this change, you must resend it yourself in this same request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status is verified', () => pm.expect(pm.response.json().verification_status).to.eql('verified'));",
+                  "pm.test('note cleared to null, not carried over', () => pm.expect(pm.response.json().verification_note).to.be.null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Seller — unrelated field (verification untouched)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"suspended\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{seller_id}}",
+                ""
+              ]
+            },
+            "description": "This request doesn't include verification_status at all, so verification_status/verification_note/verification_logs all come back exactly as they were — no new log entry is written. Confirms verification bookkeeping only reacts to an actual verification_status change, not to every update."
+          }
+        },
+        {
+          "name": "Seller actor forbidden from Sellers management (expect 403)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{seller_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ]
+            },
+            "description": "Needs \"Seller Login (for the permission-boundary test below)\" (earlier in this same folder) to have already populated {{seller_token}}. Every endpoint in this collection is Admin-only (IsAdminActor) — a valid Seller token still gets 403, not 401, since the token itself is valid, just for the wrong actor type."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Seller",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{seller_id}}",
+                ""
+              ]
+            },
+            "description": "Cascades — deletes the seller's media, business_info, and verification_logs rows along with it."
+          }
+        }
+      ]
+    }
+  ]
+}
