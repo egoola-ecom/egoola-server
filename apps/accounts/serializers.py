@@ -1,9 +1,10 @@
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 
+from apps.core.models import ActorType
 from config.storage import infer_media_type, save_upload
 
-from .models import Admin, AdminMedia, BuyerMedia, Seller, SellerInfo, SellerMedia, User
+from .models import Admin, AdminMedia, BuyerMedia, Seller, SellerInfo, SellerMedia, SellerVerificationLog, User
 
 
 class PasswordWriteMixin:
@@ -187,6 +188,19 @@ class SellerMediaSerializer(serializers.ModelSerializer):
         fields = ["id", "media_type", "media_for", "media_path", "media_url"]
 
 
+class SellerVerificationLogSerializer(serializers.ModelSerializer):
+    """Read-only — shown on a Seller's detail page. Written internally by
+    SellerSerializer's create()/update(), never through a client-facing
+    field."""
+
+    class Meta:
+        model = SellerVerificationLog
+        fields = [
+            "id", "verification_status", "verification_note",
+            "created_by", "creator_type", "creator_name", "created_at",
+        ]
+
+
 class SellerInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = SellerInfo
@@ -234,6 +248,7 @@ class SellerSerializer(MediaSyncMixin, ProfilePicUploadMixin, PasswordWriteMixin
     # (the full validated SellerInfo row) aren't the same shape.
     info = serializers.JSONField(write_only=True, required=False)
     business_info = SellerInfoSerializer(source="info", read_only=True)
+    verification_logs = SellerVerificationLogSerializer(many=True, read_only=True)
 
     media_model = SellerMedia
     media_fk_name = "seller"
@@ -250,18 +265,26 @@ class SellerSerializer(MediaSyncMixin, ProfilePicUploadMixin, PasswordWriteMixin
             "country", "state", "city", "thana",
             "wallet_balance", "bonus_balance", "status", "last_logged_at",
             "media", "media_for", "media_file", "media_delete_ids", "info", "business_info",
+            "verification_logs",
         ]
         extra_kwargs = {
             "email_verified_at": {"read_only": True},
             "phone_verified_at": {"read_only": True},
-            "verification_status": {"read_only": True},
-            "verification_note": {"read_only": True},
             "wallet_balance": {"read_only": True},
             "bonus_balance": {"read_only": True},
             "last_logged_at": {"read_only": True},
             "profile_pic_path": {"read_only": True},
             "profile_pic_url": {"read_only": True},
         }
+
+    def validate(self, attrs):
+        if attrs.get("verification_status") == Seller.VerificationStatus.REJECTED and not attrs.get(
+            "verification_note"
+        ):
+            raise serializers.ValidationError(
+                {"verification_note": "A verification note is required when rejecting a seller."}
+            )
+        return super().validate(attrs)
 
     def _save_info(self, instance, info_data):
         # `info_data` is raw, client-supplied JSON at this point — still
@@ -274,16 +297,59 @@ class SellerSerializer(MediaSyncMixin, ProfilePicUploadMixin, PasswordWriteMixin
 
     def create(self, validated_data):
         info_data = validated_data.pop("info", None)
+        # Verified by default when an Admin creates the Seller directly;
+        # unverified by default otherwise (e.g. a future self-registration
+        # flow) — matches the model's own default, restated here so an
+        # Admin who explicitly picks a status in the create payload isn't
+        # overridden by it.
+        if "verification_status" not in validated_data:
+            validated_data["verification_status"] = (
+                Seller.VerificationStatus.VERIFIED
+                if validated_data.get("creator_type") == ActorType.ADMIN
+                else Seller.VerificationStatus.UNVERIFIED
+            )
+        # verification_note never carries over from anywhere — a Seller
+        # doesn't exist yet, so there's nothing to carry over from, but
+        # this keeps create and update symmetric: whatever was (or wasn't)
+        # provided for this event is exactly what ends up on the row.
+        validated_data["verification_note"] = validated_data.get("verification_note") or None
         instance = super().create(validated_data)
         if info_data:
             self._save_info(instance, info_data)
+        SellerVerificationLog.objects.create(
+            seller=instance,
+            verification_status=instance.verification_status,
+            verification_note=instance.verification_note,
+            created_by=validated_data.get("created_by"),
+            creator_type=validated_data.get("creator_type", ActorType.SYSTEM),
+            creator_name=validated_data.get("creator_name"),
+        )
         return instance
 
     def update(self, instance, validated_data):
         info_data = validated_data.pop("info", None)
+        status_changing = (
+            "verification_status" in validated_data
+            and validated_data["verification_status"] != instance.verification_status
+        )
+        if status_changing:
+            # The seller row always holds the note for its *current*
+            # status only — never a leftover from a previous status
+            # change. So a status-changing update always sets it, to
+            # whatever was provided this time or to null if it wasn't.
+            validated_data["verification_note"] = validated_data.get("verification_note") or None
         instance = super().update(instance, validated_data)
         if info_data:
             self._save_info(instance, info_data)
+        if status_changing:
+            SellerVerificationLog.objects.create(
+                seller=instance,
+                verification_status=instance.verification_status,
+                verification_note=instance.verification_note,
+                created_by=validated_data.get("updated_by"),
+                creator_type=validated_data.get("updater_type", ActorType.SYSTEM),
+                creator_name=validated_data.get("updater_name"),
+            )
         return instance
 
 

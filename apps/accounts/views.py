@@ -1,6 +1,7 @@
 from rest_framework.viewsets import ModelViewSet
 
 from apps.authentication.permissions import IsAdminActor
+from apps.core.mixins import AuditedViewSetMixin
 
 from .models import Admin, Seller, User
 from .serializers import (
@@ -34,10 +35,15 @@ class AdminViewSet(ModelViewSet):
         return Admin.objects.select_related("country", "state", "city", "thana").prefetch_related("media")
 
 
-class SellerViewSet(ModelViewSet):
+class SellerViewSet(AuditedViewSetMixin, ModelViewSet):
     """Seller Management. Media and the business-info profile are handled
     through this same API (see SellerSerializer) — there's no separate
-    /sellers/{id}/media/ or /sellers/{id}/info/ endpoint."""
+    /sellers/{id}/media/ or /sellers/{id}/info/ endpoint.
+
+    AuditedViewSetMixin is required here, not just convention: SellerSerializer
+    reads creator_type/updater_type off validated_data to decide the
+    default verification_status on create and to attribute each
+    SellerVerificationLog row to the actor who wrote it."""
 
     permission_classes = [IsAdminActor]
     filterset_fields = ["verification_status", "status"]
@@ -51,7 +57,7 @@ class SellerViewSet(ModelViewSet):
             return Seller.objects.all()
         return Seller.objects.select_related(
             "country", "state", "city", "thana", "info"
-        ).prefetch_related("media")
+        ).prefetch_related("media", "verification_logs")
 
 
 class BuyerViewSet(ModelViewSet):
