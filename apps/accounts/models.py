@@ -11,7 +11,7 @@ contacts, skills, interests, edcations, experiences).
 
 from django.db import models
 
-from apps.core.models import AuditedModel
+from apps.core.models import ActorType, AuditedModel
 
 
 class MediaType(models.TextChoices):
@@ -174,6 +174,37 @@ class SellerMedia(AuditedModel):
     class Meta:
         db_table = "sellerMedia"
         verbose_name_plural = "seller media"
+
+
+class SellerVerificationLog(models.Model):
+    """Append-only history of every verification_status change on a Seller
+    — who changed it, to what, and (for a rejection) why. Written once on
+    Seller creation and again on every update that changes
+    verification_status; never updated or deleted afterwards, so this
+    isn't an AuditedModel — there's no updated_by/updated_at to track on a
+    row that never changes after it's written."""
+
+    seller = models.ForeignKey(
+        Seller, on_delete=models.CASCADE, related_name="verification_logs", db_column="sellerId"
+    )
+    verification_status = models.CharField(
+        db_column="verificationStatus", max_length=12, choices=Seller.VerificationStatus.choices
+    )
+    verification_note = models.TextField(db_column="verificationNote", null=True, blank=True)
+
+    created_by = models.BigIntegerField(db_column="createdBy", null=True, blank=True)
+    creator_type = models.CharField(
+        db_column="creatorType", max_length=10, choices=ActorType.choices, default=ActorType.SYSTEM
+    )
+    creator_name = models.CharField(db_column="creatorName", max_length=255, null=True, blank=True)
+    created_at = models.DateTimeField(db_column="createdAt", auto_now_add=True)
+
+    class Meta:
+        db_table = "sellerVerificationLogs"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Seller #{self.seller_id} -> {self.verification_status}"
 
 
 class SellerInfo(AuditedModel):
