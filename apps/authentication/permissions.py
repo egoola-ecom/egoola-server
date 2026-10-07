@@ -1,5 +1,6 @@
 from rest_framework.permissions import BasePermission
 
+from apps.accounts.models import Admin
 from apps.core.models import ActorType
 
 
@@ -26,6 +27,20 @@ class IsAdminActor(_IsActor):
 
     actor_type = ActorType.ADMIN
     message = "Only an authenticated Admin can access this endpoint."
+
+
+class IsSuperAdminActor(_IsActor):
+    """Passes only for an Admin whose own `type` is super_admin — a plain
+    `admin`, a Seller, a Buyer and an anonymous request are all rejected.
+    Used by Admin Management, the one area only super-admins may touch. The
+    actor row is loaded fresh on every request (see ActorJWTAuthentication),
+    so demoting a super-admin takes effect immediately, not at token expiry."""
+
+    actor_type = ActorType.ADMIN
+    message = "Only a super-admin can access Admin Management."
+
+    def has_permission(self, request, view):
+        return super().has_permission(request, view) and request.user.type == Admin.AdminType.SUPER_ADMIN
 
 
 class IsSellerActor(_IsActor):
