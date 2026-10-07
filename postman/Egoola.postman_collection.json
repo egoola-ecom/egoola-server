@@ -45,6 +45,11 @@
       "key": "buyer_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "super_admin_token",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -95,6 +100,55 @@
                   "    pm.collectionVariables.set('refresh_token', body.refresh);",
                   "    pm.collectionVariables.set('admin_id', body.id);",
                   "    console.log('Saved admin access/refresh tokens.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Super-Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.super@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/admin/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "admin",
+                "login",
+                ""
+              ]
+            },
+            "description": "Public endpoint. Logs in an Admin whose type is super_admin. Admin Management (the **Admins** folder) is super-admin only — a plain admin token from \"Admin Login\" gets 403 there. Saves the token as `super_admin_token`, which the Admins folder uses."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('super_admin_token', pm.response.json().access);",
+                  "    console.log('Saved super_admin_token.');",
                   "}",
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));"
                 ],
@@ -286,7 +340,7 @@
                     {
                       "key": "type",
                       "value": "",
-                      "description": "super_admin | admin | moderator | support"
+                      "description": "super_admin | admin"
                     },
                     {
                       "key": "status",
@@ -325,7 +379,7 @@
                     ""
                   ]
                 },
-                "description": "`password` is required on create (hashed server-side), optional on update. `type` choices: super_admin, admin, moderator, support."
+                "description": "`password` is required on create (hashed server-side), optional on update. `type` choices: super_admin, admin (super-admin only endpoint)."
               },
               "event": [
                 {
@@ -442,7 +496,18 @@
                 }
               }
             }
-          ]
+          ],
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              {
+                "key": "token",
+                "value": "{{super_admin_token}}",
+                "type": "string"
+              }
+            ]
+          },
+          "description": "Super-admin only. Run **Auth > Super-Admin Login** first. A plain admin, seller or buyer token gets 403. Types are `super_admin` and `admin`. You can't change your own type/status or delete yourself (400)."
         },
         {
           "name": "Sellers",
@@ -605,7 +670,7 @@
               "request": {
                 "method": "GET",
                 "url": {
-                  "raw": "{{base_url}}/api/v1/accounts/buyers/?search=&status=",
+                  "raw": "{{base_url}}/api/v1/accounts/buyers/?search=&status=&country=&state=&city=&thana=&email_verified=&phone_verified=&created_from=&created_to=",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -620,15 +685,56 @@
                     {
                       "key": "search",
                       "value": "",
-                      "description": "matches name, email, phone"
+                      "description": "name, email or phone"
                     },
                     {
                       "key": "status",
                       "value": "",
                       "description": "active | suspended"
+                    },
+                    {
+                      "key": "country",
+                      "value": "",
+                      "description": "country id"
+                    },
+                    {
+                      "key": "state",
+                      "value": "",
+                      "description": "state id"
+                    },
+                    {
+                      "key": "city",
+                      "value": "",
+                      "description": "city id"
+                    },
+                    {
+                      "key": "thana",
+                      "value": "",
+                      "description": "thana id"
+                    },
+                    {
+                      "key": "email_verified",
+                      "value": "",
+                      "description": "true | false"
+                    },
+                    {
+                      "key": "phone_verified",
+                      "value": "",
+                      "description": "true | false"
+                    },
+                    {
+                      "key": "created_from",
+                      "value": "",
+                      "description": "signup date from, YYYY-MM-DD (inclusive)"
+                    },
+                    {
+                      "key": "created_to",
+                      "value": "",
+                      "description": "signup date to, YYYY-MM-DD (inclusive)"
                     }
                   ]
-                }
+                },
+                "description": "Admin-only. Light rows (no media). Filters: search, status, country, state, city, thana, email_verified, phone_verified, created_from, created_to — combine freely. Paginated with limit/offset. Full detail (media, address, skills) is on Retrieve Buyer. See docs/buyer-management-guide.md."
               }
             },
             {
