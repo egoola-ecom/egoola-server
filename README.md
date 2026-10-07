@@ -46,3 +46,7 @@ One Django app per module of the Database Redesign document
 `inquiries`, `messaging`, `engagement`, `notifications`, `cms`.
 
 Every endpoint is versioned: `/api/v1/<app>/...`.
+
+## Test accounts
+
+Local dev logins (admin, super-admin, seller, buyer) are listed in `docs/test-accounts.md`.
