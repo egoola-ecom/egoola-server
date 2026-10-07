@@ -1,6 +1,8 @@
+from rest_framework import status
+from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from apps.authentication.permissions import IsAdminActor
+from apps.authentication.permissions import IsAdminActor, IsSuperAdminActor
 from apps.core.mixins import AuditedViewSetMixin
 
 from .filters import BuyerFilter
@@ -19,13 +21,22 @@ class AdminViewSet(AuditedViewSetMixin, ModelViewSet):
     """Admin Management. Media is handled through this same API (see
     AdminSerializer) — there's no separate /admins/{id}/media/ endpoint.
 
-    Admin-only (IsAdminActor) — Seller/Buyer actors can't manage Admins,
-    Sellers or Buyers yet; that's the current phase's scope, not a
-    permanent rule."""
+    Super-admin only (IsSuperAdminActor): a plain `admin` token gets 403
+    here, though it can still use Seller/Buyer/Listing management. A
+    super-admin can't delete themselves, and AdminSerializer stops them
+    changing their own type or status — together that means there is
+    always at least one active super-admin left."""
 
-    permission_classes = [IsAdminActor]
+    permission_classes = [IsSuperAdminActor]
     filterset_fields = ["type", "status"]
     search_fields = ["name", "email", "mobile"]
+
+    def destroy(self, request, *args, **kwargs):
+        if self.get_object().pk == request.user.pk:
+            return Response(
+                {"detail": "You cannot delete your own account."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        return super().destroy(request, *args, **kwargs)
 
     def get_serializer_class(self):
         return AdminListSerializer if self.action == "list" else AdminSerializer

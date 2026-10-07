@@ -178,6 +178,21 @@ class AdminSerializer(MediaSyncMixin, ProfilePicUploadMixin, PasswordWriteMixin,
             "profile_pic_url": {"read_only": True},
         }
 
+    def validate(self, attrs):
+        # An admin can't change their own role or status — otherwise the
+        # last super-admin could demote or deactivate themselves and leave
+        # nobody able to use Admin Management. (Only super-admins reach
+        # this serializer at all, so another super-admin is always there to
+        # make such a change on their behalf.)
+        request = self.context.get("request")
+        instance = self.instance
+        if request is not None and instance is not None and instance.pk == request.user.pk:
+            if "type" in attrs and attrs["type"] != instance.type:
+                raise serializers.ValidationError({"type": "You cannot change your own admin type."})
+            if "status" in attrs and attrs["status"] != instance.status:
+                raise serializers.ValidationError({"status": "You cannot change your own status."})
+        return super().validate(attrs)
+
 
 class SellerMediaSerializer(serializers.ModelSerializer):
     """Read-only — shown on a Seller's detail page. Writes happen through
