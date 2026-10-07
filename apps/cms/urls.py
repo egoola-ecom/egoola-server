@@ -1,6 +1,14 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-router = DefaultRouter()
-# ViewSets are registered here as this app's endpoints are built.
+from .views import BannerViewSet, EmailTemplateViewSet, SettingViewSet, SiteLogoView
 
-urlpatterns = router.urls
+router = DefaultRouter()
+router.register("banners", BannerViewSet, basename="banner")
+router.register("email-templates", EmailTemplateViewSet, basename="email-template")
+router.register("settings", SettingViewSet, basename="setting")
+
+urlpatterns = [
+    path("site-logo/", SiteLogoView.as_view(), name="site-logo"),
+    *router.urls,
+]

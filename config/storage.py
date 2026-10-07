@@ -105,3 +105,16 @@ def save_upload(uploaded_file, *path_parts):
     storage_path = "/".join([*path_parts, f"{uuid.uuid4().hex}{ext}"])
     saved_name = default_storage.save(storage_path, uploaded_file)
     return saved_name, default_storage.url(saved_name)
+
+
+def delete_upload(media_path):
+    """Best-effort removal of a previously saved file (used when a banner
+    image or the site logo is replaced or deleted, so old files don't pile
+    up in the bucket). A missing file or a storage error is ignored — the
+    database row is what matters, a stray file is only wasted space."""
+    if not media_path:
+        return
+    try:
+        default_storage.delete(media_path)
+    except Exception:
+        pass
