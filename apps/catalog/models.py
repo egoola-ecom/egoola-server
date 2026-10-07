@@ -12,7 +12,16 @@ documents).
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
-from apps.core.models import AuditedModel
+from apps.core.models import ActorType, AuditedModel
+
+
+class ActiveListingManager(models.Manager):
+    """Default manager for Listing — every ordinary query (list, retrieve,
+    filter) should never see a soft-deleted row, so the exclusion lives
+    here once instead of being repeated at every call site."""
+
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted_at__isnull=True)
 
 
 class Category(AuditedModel):
@@ -61,6 +70,22 @@ class Measurement(AuditedModel):
         return self.symbol
 
 
+class Brand(AuditedModel):
+    """Admin-managed brand list — a Listing picks from here instead of
+    typing a free-text brand name."""
+
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True)
+    is_active = models.BooleanField(db_column="isActive", default=True)
+
+    class Meta:
+        db_table = "brands"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Listing(AuditedModel):
     class CatalogType(models.TextChoices):
         PRODUCT = "product", "Product"
@@ -87,8 +112,10 @@ class Listing(AuditedModel):
         PENDING = "pending", "Pending"
         APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
+        CHANGES_REQUESTED = "changes_requested", "Changes Requested"
 
-    # Exactly one of seller/buyer is set, depending on posted_by_role — see
+    # Both are optional (an Admin can create a listing owned by neither);
+    # when set, at most one of the two is, matching posted_by_role — see
     # the correctness note in DB Redesign doc Section 3.5.
     seller = models.ForeignKey(
         "accounts.Seller", on_delete=models.CASCADE, null=True, blank=True, related_name="listings",
@@ -113,14 +140,21 @@ class Listing(AuditedModel):
     slug = models.SlugField(max_length=255, unique=True)
     description = models.TextField()
 
-    brand = models.CharField(max_length=255, null=True, blank=True)
+    brand = models.ForeignKey(
+        Brand, on_delete=models.PROTECT, null=True, blank=True, related_name="listings", db_column="brandId"
+    )
     model = models.CharField(max_length=255, null=True, blank=True)
     color = models.CharField(max_length=100, null=True, blank=True)
     origin = models.CharField(max_length=255, null=True, blank=True)
     warranty = models.CharField(max_length=255, null=True, blank=True)
 
+    # `price` is always the original/actual price; `discounted_price` is the
+    # price actually charged (price=150, discounted=120). When no discount is
+    # given it equals `price` — save() fills it in, so it is never null.
     price = models.DecimalField(max_digits=12, decimal_places=2)
-    old_price = models.DecimalField(db_column="oldPrice", max_digits=12, decimal_places=2, null=True, blank=True)
+    discounted_price = models.DecimalField(
+        db_column="discountedPrice", max_digits=12, decimal_places=2, blank=True
+    )
     currency = models.CharField(max_length=8, default="BDT")
 
     # Service side
@@ -161,7 +195,20 @@ class Listing(AuditedModel):
         "geography.Thana", on_delete=models.SET_NULL, null=True, blank=True, db_column="thanaId"
     )
 
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
+    status = models.CharField(max_length=18, choices=Status.choices, default=Status.DRAFT)
+    # Always holds the note for the *current* status only — never a
+    # history of past notes (that lives in ListingStatusChangeLog instead).
+    # Required by validate() when status is rejected/changes_requested,
+    # optional otherwise; null whenever no note was given for that event.
+    note = models.TextField(null=True, blank=True)
+
+    deleted_at = models.DateTimeField(db_column="deletedAt", null=True, blank=True)
+
+    objects = ActiveListingManager()
+    # Unfiltered — only for checking slug uniqueness against every row,
+    # soft-deleted included, since the DB's unique constraint on `slug`
+    # doesn't care that a row is soft-deleted.
+    all_objects = models.Manager()
 
     class Meta:
         db_table = "listings"
@@ -171,6 +218,11 @@ class Listing(AuditedModel):
             GinIndex(fields=["sizes"], name="listings_sizes_gin"),
             GinIndex(fields=["attributes"], name="listings_attributes_gin"),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.discounted_price is None:
+            self.discounted_price = self.price
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title
@@ -183,10 +235,19 @@ class ListingPriceTier(AuditedModel):
     min_qty = models.IntegerField(db_column="minQty")
     max_qty = models.IntegerField(db_column="maxQty", null=True, blank=True)
     price = models.DecimalField(max_digits=12, decimal_places=2)
+    # Equals `price` when no discount is given — save() fills it in.
+    discounted_price = models.DecimalField(
+        db_column="discountedPrice", max_digits=12, decimal_places=2, blank=True
+    )
 
     class Meta:
         db_table = "listingPriceTiers"
         ordering = ["min_qty"]
+
+    def save(self, *args, **kwargs):
+        if self.discounted_price is None:
+            self.discounted_price = self.price
+        super().save(*args, **kwargs)
 
 
 class ListingMedia(AuditedModel):
@@ -203,3 +264,32 @@ class ListingMedia(AuditedModel):
     class Meta:
         db_table = "listingMedia"
         verbose_name_plural = "listing media"
+
+
+class ListingStatusChangeLog(models.Model):
+    """Append-only history of every status change on a Listing — who
+    changed it, to what, and why (for a rejection or a changes-requested).
+    Written once on Listing creation and again on every update that
+    changes status; never updated or deleted afterwards, so this isn't an
+    AuditedModel — there's no updated_by/updated_at to track on a row that
+    never changes after it's written. Mirrors SellerVerificationLog."""
+
+    listing = models.ForeignKey(
+        Listing, on_delete=models.CASCADE, related_name="status_change_logs", db_column="listingId"
+    )
+    status = models.CharField(max_length=18, choices=Listing.Status.choices)
+    note = models.TextField(null=True, blank=True)
+
+    created_by = models.BigIntegerField(db_column="createdBy", null=True, blank=True)
+    creator_type = models.CharField(
+        db_column="creatorType", max_length=10, choices=ActorType.choices, default=ActorType.SYSTEM
+    )
+    creator_name = models.CharField(db_column="creatorName", max_length=255, null=True, blank=True)
+    created_at = models.DateTimeField(db_column="createdAt", auto_now_add=True)
+
+    class Meta:
+        db_table = "listingStatusChangeLogs"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Listing #{self.listing_id} -> {self.status}"
