@@ -1,0 +1,4450 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Egoola API",
+        "version": "1.0.0",
+        "description": "Backend API for the Egoola marketplace rebuild."
+    },
+    "paths": {
+        "/api/v1/accounts/admins/": {
+            "get": {
+                "operationId": "v1_accounts_admins_list",
+                "description": "Admin Management. Media is handled through this same API (see\nAdminSerializer) — there's no separate /admins/{id}/media/ endpoint.\n\nAdmin-only (IsAdminActor) — Seller/Buyer actors can't manage Admins,\nSellers or Buyers yet; that's the current phase's scope, not a\npermanent rule.",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return per page.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "description": "The initial index from which to return the results.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "required": false,
+                        "in": "query",
+                        "description": "A search term.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "active",
+                                "inactive"
+                            ]
+                        },
+                        "description": "* `active` - Active\n* `inactive` - Inactive"
+                    },
+                    {
+                        "in": "query",
+                        "name": "type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "admin",
+                                "moderator",
+                                "super_admin",
+                                "support"
+                            ]
+                        },
+                        "description": "* `super_admin` - Super Admin\n* `admin` - Admin\n* `moderator` - Moderator\n* `support` - Support"
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedAdminListList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "v1_accounts_admins_create",
+                "description": "Admin Management. Media is handled through this same API (see\nAdminSerializer) — there's no separate /admins/{id}/media/ endpoint.\n\nAdmin-only (IsAdminActor) — Seller/Buyer actors can't manage Admins,\nSellers or Buyers yet; that's the current phase's scope, not a\npermanent rule.",
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Admin"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Admin"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Admin"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Admin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/accounts/admins/{id}/": {
+            "get": {
+                "operationId": "v1_accounts_admins_retrieve",
+                "description": "Admin Management. Media is handled through this same API (see\nAdminSerializer) — there's no separate /admins/{id}/media/ endpoint.\n\nAdmin-only (IsAdminActor) — Seller/Buyer actors can't manage Admins,\nSellers or Buyers yet; that's the current phase's scope, not a\npermanent rule.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this admin.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Admin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "v1_accounts_admins_update",
+                "description": "Admin Management. Media is handled through this same API (see\nAdminSerializer) — there's no separate /admins/{id}/media/ endpoint.\n\nAdmin-only (IsAdminActor) — Seller/Buyer actors can't manage Admins,\nSellers or Buyers yet; that's the current phase's scope, not a\npermanent rule.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this admin.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Admin"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Admin"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Admin"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Admin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "v1_accounts_admins_partial_update",
+                "description": "Admin Management. Media is handled through this same API (see\nAdminSerializer) — there's no separate /admins/{id}/media/ endpoint.\n\nAdmin-only (IsAdminActor) — Seller/Buyer actors can't manage Admins,\nSellers or Buyers yet; that's the current phase's scope, not a\npermanent rule.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this admin.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedAdmin"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedAdmin"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedAdmin"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Admin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "v1_accounts_admins_destroy",
+                "description": "Admin Management. Media is handled through this same API (see\nAdminSerializer) — there's no separate /admins/{id}/media/ endpoint.\n\nAdmin-only (IsAdminActor) — Seller/Buyer actors can't manage Admins,\nSellers or Buyers yet; that's the current phase's scope, not a\npermanent rule.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this admin.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1/accounts/buyers/": {
+            "get": {
+                "operationId": "v1_accounts_buyers_list",
+                "description": "Buyer management — model is `User` (see models.py docstring). Media\nis handled through this same API (see UserSerializer) — there's no\nseparate /buyers/{id}/media/ endpoint.",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return per page.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "description": "The initial index from which to return the results.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "required": false,
+                        "in": "query",
+                        "description": "A search term.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "active",
+                                "suspended"
+                            ]
+                        },
+                        "description": "* `active` - Active\n* `suspended` - Suspended"
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedBuyerListList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "v1_accounts_buyers_create",
+                "description": "Buyer management — model is `User` (see models.py docstring). Media\nis handled through this same API (see UserSerializer) — there's no\nseparate /buyers/{id}/media/ endpoint.",
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/User"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/User"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/User"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/accounts/buyers/{id}/": {
+            "get": {
+                "operationId": "v1_accounts_buyers_retrieve",
+                "description": "Buyer management — model is `User` (see models.py docstring). Media\nis handled through this same API (see UserSerializer) — there's no\nseparate /buyers/{id}/media/ endpoint.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this user.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "v1_accounts_buyers_update",
+                "description": "Buyer management — model is `User` (see models.py docstring). Media\nis handled through this same API (see UserSerializer) — there's no\nseparate /buyers/{id}/media/ endpoint.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this user.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/User"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/User"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/User"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "v1_accounts_buyers_partial_update",
+                "description": "Buyer management — model is `User` (see models.py docstring). Media\nis handled through this same API (see UserSerializer) — there's no\nseparate /buyers/{id}/media/ endpoint.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this user.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedUser"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedUser"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedUser"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "v1_accounts_buyers_destroy",
+                "description": "Buyer management — model is `User` (see models.py docstring). Media\nis handled through this same API (see UserSerializer) — there's no\nseparate /buyers/{id}/media/ endpoint.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this user.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1/accounts/sellers/": {
+            "get": {
+                "operationId": "v1_accounts_sellers_list",
+                "description": "Seller Management. Media and the business-info profile are handled\nthrough this same API (see SellerSerializer) — there's no separate\n/sellers/{id}/media/ or /sellers/{id}/info/ endpoint.",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return per page.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "description": "The initial index from which to return the results.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "required": false,
+                        "in": "query",
+                        "description": "A search term.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "active",
+                                "suspended"
+                            ]
+                        },
+                        "description": "* `active` - Active\n* `suspended` - Suspended"
+                    },
+                    {
+                        "in": "query",
+                        "name": "verification_status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "rejected",
+                                "unverified",
+                                "verified"
+                            ]
+                        },
+                        "description": "* `unverified` - Unverified\n* `pending` - Pending\n* `verified` - Verified\n* `rejected` - Rejected"
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedSellerListList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "v1_accounts_sellers_create",
+                "description": "Seller Management. Media and the business-info profile are handled\nthrough this same API (see SellerSerializer) — there's no separate\n/sellers/{id}/media/ or /sellers/{id}/info/ endpoint.",
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Seller"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Seller"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Seller"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Seller"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/accounts/sellers/{id}/": {
+            "get": {
+                "operationId": "v1_accounts_sellers_retrieve",
+                "description": "Seller Management. Media and the business-info profile are handled\nthrough this same API (see SellerSerializer) — there's no separate\n/sellers/{id}/media/ or /sellers/{id}/info/ endpoint.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this seller.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Seller"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "v1_accounts_sellers_update",
+                "description": "Seller Management. Media and the business-info profile are handled\nthrough this same API (see SellerSerializer) — there's no separate\n/sellers/{id}/media/ or /sellers/{id}/info/ endpoint.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this seller.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Seller"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Seller"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Seller"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Seller"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "v1_accounts_sellers_partial_update",
+                "description": "Seller Management. Media and the business-info profile are handled\nthrough this same API (see SellerSerializer) — there's no separate\n/sellers/{id}/media/ or /sellers/{id}/info/ endpoint.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this seller.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedSeller"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedSeller"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedSeller"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Seller"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "v1_accounts_sellers_destroy",
+                "description": "Seller Management. Media and the business-info profile are handled\nthrough this same API (see SellerSerializer) — there's no separate\n/sellers/{id}/media/ or /sellers/{id}/info/ endpoint.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this seller.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/admin/login/": {
+            "post": {
+                "operationId": "v1_auth_admin_login_create",
+                "tags": [
+                    "v1"
+                ],
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/buyer/login/": {
+            "post": {
+                "operationId": "v1_auth_buyer_login_create",
+                "tags": [
+                    "v1"
+                ],
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/seller/login/": {
+            "post": {
+                "operationId": "v1_auth_seller_login_create",
+                "tags": [
+                    "v1"
+                ],
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/token/refresh/": {
+            "post": {
+                "operationId": "v1_auth_token_refresh_create",
+                "description": "Takes a refresh type JSON web token and returns an access type JSON web\ntoken if the refresh token is valid.",
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TokenRefresh"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TokenRefresh"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TokenRefresh"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TokenRefresh"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/geography/cities/": {
+            "get": {
+                "operationId": "v1_geography_cities_list",
+                "description": "Admin-managed reference data — Create, Update, List (filter by\ncountry/state, search by name), Delete. No retrieve, same as\nCountryViewSet.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "country",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return per page.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "description": "The initial index from which to return the results.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "required": false,
+                        "in": "query",
+                        "description": "A search term.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "state",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedCityListList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "v1_geography_cities_create",
+                "description": "Admin-managed reference data — Create, Update, List (filter by\ncountry/state, search by name), Delete. No retrieve, same as\nCountryViewSet.",
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/City"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/City"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/City"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/City"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/geography/cities/{id}/": {
+            "put": {
+                "operationId": "v1_geography_cities_update",
+                "description": "Admin-managed reference data — Create, Update, List (filter by\ncountry/state, search by name), Delete. No retrieve, same as\nCountryViewSet.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this city.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/City"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/City"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/City"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/City"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "v1_geography_cities_partial_update",
+                "description": "Admin-managed reference data — Create, Update, List (filter by\ncountry/state, search by name), Delete. No retrieve, same as\nCountryViewSet.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this city.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedCity"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedCity"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedCity"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/City"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "v1_geography_cities_destroy",
+                "description": "Admin-managed reference data — Create, Update, List (filter by\ncountry/state, search by name), Delete. No retrieve, same as\nCountryViewSet.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this city.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1/geography/countries/": {
+            "get": {
+                "operationId": "v1_geography_countries_list",
+                "description": "Admin-managed reference data — Create, Update, List (search by name),\nDelete. No retrieve: the client never needs a single country's detail\non its own.",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return per page.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "description": "The initial index from which to return the results.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "required": false,
+                        "in": "query",
+                        "description": "A search term.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedCountryList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "v1_geography_countries_create",
+                "description": "Admin-managed reference data — Create, Update, List (search by name),\nDelete. No retrieve: the client never needs a single country's detail\non its own.",
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Country"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Country"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Country"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Country"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/geography/countries/{id}/": {
+            "put": {
+                "operationId": "v1_geography_countries_update",
+                "description": "Admin-managed reference data — Create, Update, List (search by name),\nDelete. No retrieve: the client never needs a single country's detail\non its own.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this country.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Country"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Country"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Country"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Country"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "v1_geography_countries_partial_update",
+                "description": "Admin-managed reference data — Create, Update, List (search by name),\nDelete. No retrieve: the client never needs a single country's detail\non its own.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this country.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedCountry"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedCountry"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedCountry"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Country"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "v1_geography_countries_destroy",
+                "description": "Admin-managed reference data — Create, Update, List (search by name),\nDelete. No retrieve: the client never needs a single country's detail\non its own.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this country.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1/geography/states/": {
+            "get": {
+                "operationId": "v1_geography_states_list",
+                "description": "Admin-managed reference data — Create, Update, List (filter by\ncountry, search by name), Delete. No retrieve, same as CountryViewSet.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "country",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return per page.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "description": "The initial index from which to return the results.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "required": false,
+                        "in": "query",
+                        "description": "A search term.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedStateListList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "v1_geography_states_create",
+                "description": "Admin-managed reference data — Create, Update, List (filter by\ncountry, search by name), Delete. No retrieve, same as CountryViewSet.",
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/State"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/State"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/State"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/State"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/geography/states/{id}/": {
+            "put": {
+                "operationId": "v1_geography_states_update",
+                "description": "Admin-managed reference data — Create, Update, List (filter by\ncountry, search by name), Delete. No retrieve, same as CountryViewSet.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this state.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/State"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/State"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/State"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/State"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "v1_geography_states_partial_update",
+                "description": "Admin-managed reference data — Create, Update, List (filter by\ncountry, search by name), Delete. No retrieve, same as CountryViewSet.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this state.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedState"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedState"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedState"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/State"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "v1_geography_states_destroy",
+                "description": "Admin-managed reference data — Create, Update, List (filter by\ncountry, search by name), Delete. No retrieve, same as CountryViewSet.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this state.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1/geography/thanas/": {
+            "get": {
+                "operationId": "v1_geography_thanas_list",
+                "description": "Admin-managed reference data — Create, Update, List (filter by\ncountry/state/city, search by name), Delete. No retrieve, same as\nCountryViewSet.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "city",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "country",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return per page.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "description": "The initial index from which to return the results.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "required": false,
+                        "in": "query",
+                        "description": "A search term.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "state",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedThanaListList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "v1_geography_thanas_create",
+                "description": "Admin-managed reference data — Create, Update, List (filter by\ncountry/state/city, search by name), Delete. No retrieve, same as\nCountryViewSet.",
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Thana"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Thana"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Thana"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Thana"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/geography/thanas/{id}/": {
+            "put": {
+                "operationId": "v1_geography_thanas_update",
+                "description": "Admin-managed reference data — Create, Update, List (filter by\ncountry/state/city, search by name), Delete. No retrieve, same as\nCountryViewSet.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this thana.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Thana"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Thana"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Thana"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Thana"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "v1_geography_thanas_partial_update",
+                "description": "Admin-managed reference data — Create, Update, List (filter by\ncountry/state/city, search by name), Delete. No retrieve, same as\nCountryViewSet.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this thana.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedThana"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedThana"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedThana"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Thana"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "v1_geography_thanas_destroy",
+                "description": "Admin-managed reference data — Create, Update, List (filter by\ncountry/state/city, search by name), Delete. No retrieve, same as\nCountryViewSet.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this thana.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Admin": {
+                "type": "object",
+                "description": "Media (NID, certificates, gallery images...) is managed entirely\nthrough this parent's own create/update — there's no separate media\nendpoint any more. The client sends `media_for` + `media_file` pairs\n(matched by position — the Nth media_for goes with the Nth media_file)\nto add media, and `media_delete_ids` to remove existing rows.\n\nThere's no in-place edit of an existing file: replacing one is a\ndelete + a new upload, which avoids needing separate partial-update\nsemantics for something that doesn't really have a partial form.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254
+                    },
+                    "mobile": {
+                        "type": "string",
+                        "maxLength": 32
+                    },
+                    "password": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "profile_pic": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "writeOnly": true
+                    },
+                    "profile_pic_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "profile_pic_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/TypeEnum"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/StatusA3eEnum"
+                    },
+                    "skills": {
+                        "nullable": true
+                    },
+                    "experiences": {
+                        "nullable": true
+                    },
+                    "interests": {
+                        "nullable": true
+                    },
+                    "educations": {
+                        "nullable": true
+                    },
+                    "present_address": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "permanent_address": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "country": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "state": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "city": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "thana": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "last_logged_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "media": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AdminMedia"
+                        },
+                        "readOnly": true
+                    },
+                    "media_for": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MediaFor0f0Enum"
+                        },
+                        "writeOnly": true
+                    },
+                    "media_file": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uri"
+                        },
+                        "writeOnly": true
+                    },
+                    "media_delete_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "writeOnly": true
+                    }
+                },
+                "required": [
+                    "email",
+                    "id",
+                    "last_logged_at",
+                    "media",
+                    "mobile",
+                    "name",
+                    "profile_pic_path",
+                    "profile_pic_url",
+                    "type"
+                ]
+            },
+            "AdminList": {
+                "type": "object",
+                "description": "List page — basic information only. No media (a separate table,\njoining/serializing it for every row in a list is pure overhead the\nlist doesn't need) and no geography (same reason). Both are on the\ndetail page instead.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254
+                    },
+                    "mobile": {
+                        "type": "string",
+                        "maxLength": 32
+                    },
+                    "profile_pic_url": {
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "uri",
+                                "maxLength": 500
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/TypeEnum"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/StatusA3eEnum"
+                    },
+                    "last_logged_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "email",
+                    "id",
+                    "mobile",
+                    "name",
+                    "type"
+                ]
+            },
+            "AdminMedia": {
+                "type": "object",
+                "description": "Read-only — shown on an Admin's detail page. Writes happen through\nAdminSerializer's media_for/media_file/media_delete_ids instead.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "media_type": {
+                        "$ref": "#/components/schemas/MediaTypeEnum"
+                    },
+                    "media_for": {
+                        "$ref": "#/components/schemas/MediaFor0f0Enum"
+                    },
+                    "media_path": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "media_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "id",
+                    "media_for",
+                    "media_path",
+                    "media_type",
+                    "media_url"
+                ]
+            },
+            "BuyerList": {
+                "type": "object",
+                "description": "List page — basic information only (see AdminListSerializer).",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254
+                    },
+                    "phone": {
+                        "type": "string",
+                        "maxLength": 32
+                    },
+                    "profile_pic_url": {
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "uri",
+                                "maxLength": 500
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
+                    },
+                    "wallet_balance": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/StatusE75Enum"
+                    }
+                },
+                "required": [
+                    "email",
+                    "id",
+                    "name",
+                    "phone"
+                ]
+            },
+            "BuyerMedia": {
+                "type": "object",
+                "description": "Read-only — shown on a Buyer's detail page. Writes happen through\nUserSerializer's media_for/media_file/media_delete_ids instead.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "media_type": {
+                        "$ref": "#/components/schemas/MediaTypeEnum"
+                    },
+                    "media_for": {
+                        "$ref": "#/components/schemas/MediaFor0f0Enum"
+                    },
+                    "media_path": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "media_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "id",
+                    "media_for",
+                    "media_path",
+                    "media_type",
+                    "media_url"
+                ]
+            },
+            "City": {
+                "type": "object",
+                "description": "Client sends `name`, `country` and `state` — slug and city_code are\nalways server-generated. A city's name only has to be unique within its\nown state (see validate()); `country` is denormalized alongside `state`\n(DB Redesign 3.1) so it's cross-checked against `state.country` rather\nthan trusted on its own.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "country": {
+                        "type": "integer"
+                    },
+                    "state": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "readOnly": true,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "city_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "flag_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "flag_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "creator_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CreatorTypeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "creator_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updated_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updater_type": {
+                        "readOnly": true,
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/UpdaterTypeEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/NullEnum"
+                            }
+                        ]
+                    },
+                    "updater_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "city_code",
+                    "country",
+                    "created_by",
+                    "creator_name",
+                    "creator_type",
+                    "flag_path",
+                    "flag_url",
+                    "id",
+                    "name",
+                    "slug",
+                    "state",
+                    "updated_by",
+                    "updater_name",
+                    "updater_type"
+                ]
+            },
+            "CityList": {
+                "type": "object",
+                "description": "Read-only shape for List — embeds the parent Country and State\ninstead of just their ids.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "country": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CountryNested"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "state": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StateNested"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "readOnly": true,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "city_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "flag_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "flag_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "creator_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CreatorTypeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "creator_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updated_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updater_type": {
+                        "readOnly": true,
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/UpdaterTypeEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/NullEnum"
+                            }
+                        ]
+                    },
+                    "updater_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "city_code",
+                    "country",
+                    "created_by",
+                    "creator_name",
+                    "creator_type",
+                    "flag_path",
+                    "flag_url",
+                    "id",
+                    "name",
+                    "slug",
+                    "state",
+                    "updated_by",
+                    "updater_name",
+                    "updater_type"
+                ]
+            },
+            "CityNested": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "city_code": {
+                        "type": "string",
+                        "maxLength": 20
+                    }
+                },
+                "required": [
+                    "city_code",
+                    "id",
+                    "name",
+                    "slug"
+                ]
+            },
+            "Country": {
+                "type": "object",
+                "description": "Client only ever sends `name` — slug and country_code are always\nserver-generated (see create()/validate_name()). flag_path/flag_url\naren't accepted from the client yet (no upload step defined for them\nso far), so they're read-only here too.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "readOnly": true,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "country_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "flag_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "flag_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "creator_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CreatorTypeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "creator_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updated_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updater_type": {
+                        "readOnly": true,
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/UpdaterTypeEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/NullEnum"
+                            }
+                        ]
+                    },
+                    "updater_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "country_code",
+                    "created_by",
+                    "creator_name",
+                    "creator_type",
+                    "flag_path",
+                    "flag_url",
+                    "id",
+                    "name",
+                    "slug",
+                    "updated_by",
+                    "updater_name",
+                    "updater_type"
+                ]
+            },
+            "CountryNested": {
+                "type": "object",
+                "description": "Trimmed shape for a parent Country embedded in another resource's\nlist rows — just enough to display a name without a separate lookup,\nnot the full audit trail.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "country_code": {
+                        "type": "string",
+                        "maxLength": 10
+                    }
+                },
+                "required": [
+                    "country_code",
+                    "id",
+                    "name",
+                    "slug"
+                ]
+            },
+            "CreatorTypeEnum": {
+                "enum": [
+                    "admin",
+                    "seller",
+                    "user",
+                    "system"
+                ],
+                "type": "string",
+                "description": "* `admin` - Admin\n* `seller` - Seller\n* `user` - User\n* `system` - System"
+            },
+            "MediaFor0f0Enum": {
+                "enum": [
+                    "nid",
+                    "birth_certificate",
+                    "profile_document",
+                    "other"
+                ],
+                "type": "string",
+                "description": "* `nid` - NID\n* `birth_certificate` - Birth Certificate\n* `profile_document` - Profile Document\n* `other` - Other"
+            },
+            "MediaFor472Enum": {
+                "enum": [
+                    "nid",
+                    "birth_certificate",
+                    "certificate",
+                    "gallery_image",
+                    "gallery_video",
+                    "other"
+                ],
+                "type": "string",
+                "description": "* `nid` - NID\n* `birth_certificate` - Birth Certificate\n* `certificate` - Certificate\n* `gallery_image` - Gallery Image\n* `gallery_video` - Gallery Video\n* `other` - Other"
+            },
+            "MediaTypeEnum": {
+                "enum": [
+                    "image",
+                    "video",
+                    "document"
+                ],
+                "type": "string",
+                "description": "* `image` - Image\n* `video` - Video\n* `document` - Document"
+            },
+            "NullEnum": {
+                "enum": [
+                    null
+                ]
+            },
+            "PaginatedAdminListList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=400&limit=100"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=200&limit=100"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AdminList"
+                        }
+                    }
+                }
+            },
+            "PaginatedBuyerListList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=400&limit=100"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=200&limit=100"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BuyerList"
+                        }
+                    }
+                }
+            },
+            "PaginatedCityListList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=400&limit=100"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=200&limit=100"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CityList"
+                        }
+                    }
+                }
+            },
+            "PaginatedCountryList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=400&limit=100"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=200&limit=100"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Country"
+                        }
+                    }
+                }
+            },
+            "PaginatedSellerListList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=400&limit=100"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=200&limit=100"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SellerList"
+                        }
+                    }
+                }
+            },
+            "PaginatedStateListList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=400&limit=100"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=200&limit=100"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/StateList"
+                        }
+                    }
+                }
+            },
+            "PaginatedThanaListList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=400&limit=100"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=200&limit=100"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ThanaList"
+                        }
+                    }
+                }
+            },
+            "PatchedAdmin": {
+                "type": "object",
+                "description": "Media (NID, certificates, gallery images...) is managed entirely\nthrough this parent's own create/update — there's no separate media\nendpoint any more. The client sends `media_for` + `media_file` pairs\n(matched by position — the Nth media_for goes with the Nth media_file)\nto add media, and `media_delete_ids` to remove existing rows.\n\nThere's no in-place edit of an existing file: replacing one is a\ndelete + a new upload, which avoids needing separate partial-update\nsemantics for something that doesn't really have a partial form.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254
+                    },
+                    "mobile": {
+                        "type": "string",
+                        "maxLength": 32
+                    },
+                    "password": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "profile_pic": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "writeOnly": true
+                    },
+                    "profile_pic_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "profile_pic_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/TypeEnum"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/StatusA3eEnum"
+                    },
+                    "skills": {
+                        "nullable": true
+                    },
+                    "experiences": {
+                        "nullable": true
+                    },
+                    "interests": {
+                        "nullable": true
+                    },
+                    "educations": {
+                        "nullable": true
+                    },
+                    "present_address": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "permanent_address": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "country": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "state": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "city": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "thana": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "last_logged_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "media": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AdminMedia"
+                        },
+                        "readOnly": true
+                    },
+                    "media_for": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MediaFor0f0Enum"
+                        },
+                        "writeOnly": true
+                    },
+                    "media_file": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uri"
+                        },
+                        "writeOnly": true
+                    },
+                    "media_delete_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "writeOnly": true
+                    }
+                }
+            },
+            "PatchedCity": {
+                "type": "object",
+                "description": "Client sends `name`, `country` and `state` — slug and city_code are\nalways server-generated. A city's name only has to be unique within its\nown state (see validate()); `country` is denormalized alongside `state`\n(DB Redesign 3.1) so it's cross-checked against `state.country` rather\nthan trusted on its own.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "country": {
+                        "type": "integer"
+                    },
+                    "state": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "readOnly": true,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "city_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "flag_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "flag_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "creator_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CreatorTypeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "creator_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updated_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updater_type": {
+                        "readOnly": true,
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/UpdaterTypeEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/NullEnum"
+                            }
+                        ]
+                    },
+                    "updater_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                }
+            },
+            "PatchedCountry": {
+                "type": "object",
+                "description": "Client only ever sends `name` — slug and country_code are always\nserver-generated (see create()/validate_name()). flag_path/flag_url\naren't accepted from the client yet (no upload step defined for them\nso far), so they're read-only here too.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "readOnly": true,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "country_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "flag_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "flag_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "creator_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CreatorTypeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "creator_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updated_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updater_type": {
+                        "readOnly": true,
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/UpdaterTypeEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/NullEnum"
+                            }
+                        ]
+                    },
+                    "updater_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                }
+            },
+            "PatchedSeller": {
+                "type": "object",
+                "description": "Media (NID, certificates, gallery images...) is managed entirely\nthrough this parent's own create/update — there's no separate media\nendpoint any more. The client sends `media_for` + `media_file` pairs\n(matched by position — the Nth media_for goes with the Nth media_file)\nto add media, and `media_delete_ids` to remove existing rows.\n\nThere's no in-place edit of an existing file: replacing one is a\ndelete + a new upload, which avoids needing separate partial-update\nsemantics for something that doesn't really have a partial form.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254
+                    },
+                    "phone": {
+                        "type": "string",
+                        "maxLength": 32
+                    },
+                    "password": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "profile_pic": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "writeOnly": true
+                    },
+                    "profile_pic_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "profile_pic_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "email_verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "phone_verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "verification_status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/VerificationStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "verification_note": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "skills": {
+                        "nullable": true
+                    },
+                    "education": {
+                        "nullable": true
+                    },
+                    "experience": {
+                        "nullable": true
+                    },
+                    "interest": {
+                        "nullable": true
+                    },
+                    "present_address": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "permanent_address": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "country": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "state": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "city": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "thana": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "wallet_balance": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "bonus_balance": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/StatusE75Enum"
+                    },
+                    "last_logged_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "media": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SellerMedia"
+                        },
+                        "readOnly": true
+                    },
+                    "media_for": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MediaFor472Enum"
+                        },
+                        "writeOnly": true
+                    },
+                    "media_file": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uri"
+                        },
+                        "writeOnly": true
+                    },
+                    "media_delete_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "writeOnly": true
+                    },
+                    "info": {
+                        "writeOnly": true
+                    },
+                    "business_info": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SellerInfo"
+                            }
+                        ],
+                        "readOnly": true
+                    }
+                }
+            },
+            "PatchedState": {
+                "type": "object",
+                "description": "Client sends `name` and `country` — slug and state_code are always\nserver-generated. A state's name only has to be unique within its own\ncountry (see validate()), since the same name can legitimately show up\nunder two different countries.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "country": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "readOnly": true,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "state_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "flag_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "flag_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "creator_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CreatorTypeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "creator_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updated_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updater_type": {
+                        "readOnly": true,
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/UpdaterTypeEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/NullEnum"
+                            }
+                        ]
+                    },
+                    "updater_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                }
+            },
+            "PatchedThana": {
+                "type": "object",
+                "description": "Client sends `name`, `country`, `state` and `city` — slug and\nthana_code are always server-generated. A thana's name only has to be\nunique within its own city (see validate()); `country`/`state` are\ndenormalized alongside `city` (DB Redesign 3.1) so they're cross-checked\nagainst `city.state`/`city.state.country` rather than trusted on their\nown.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "country": {
+                        "type": "integer"
+                    },
+                    "state": {
+                        "type": "integer"
+                    },
+                    "city": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "readOnly": true,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "thana_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "flag_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "flag_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "creator_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CreatorTypeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "creator_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updated_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updater_type": {
+                        "readOnly": true,
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/UpdaterTypeEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/NullEnum"
+                            }
+                        ]
+                    },
+                    "updater_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                }
+            },
+            "PatchedUser": {
+                "type": "object",
+                "description": "Buyer serializer — model is named `User` (see models.py docstring),\nnot Django's own auth user.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254
+                    },
+                    "phone": {
+                        "type": "string",
+                        "maxLength": 32
+                    },
+                    "password": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "profile_pic": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "writeOnly": true
+                    },
+                    "profile_pic_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "profile_pic_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "skills": {
+                        "nullable": true
+                    },
+                    "experiences": {
+                        "nullable": true
+                    },
+                    "interests": {
+                        "nullable": true
+                    },
+                    "educations": {
+                        "nullable": true
+                    },
+                    "email_verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "phone_verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "address_line": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 255
+                    },
+                    "country": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "state": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "city": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "thana": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "wallet_balance": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/StatusE75Enum"
+                    },
+                    "media": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BuyerMedia"
+                        },
+                        "readOnly": true
+                    },
+                    "media_for": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MediaFor0f0Enum"
+                        },
+                        "writeOnly": true
+                    },
+                    "media_file": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uri"
+                        },
+                        "writeOnly": true
+                    },
+                    "media_delete_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "writeOnly": true
+                    }
+                }
+            },
+            "Seller": {
+                "type": "object",
+                "description": "Media (NID, certificates, gallery images...) is managed entirely\nthrough this parent's own create/update — there's no separate media\nendpoint any more. The client sends `media_for` + `media_file` pairs\n(matched by position — the Nth media_for goes with the Nth media_file)\nto add media, and `media_delete_ids` to remove existing rows.\n\nThere's no in-place edit of an existing file: replacing one is a\ndelete + a new upload, which avoids needing separate partial-update\nsemantics for something that doesn't really have a partial form.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254
+                    },
+                    "phone": {
+                        "type": "string",
+                        "maxLength": 32
+                    },
+                    "password": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "profile_pic": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "writeOnly": true
+                    },
+                    "profile_pic_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "profile_pic_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "email_verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "phone_verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "verification_status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/VerificationStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "verification_note": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "skills": {
+                        "nullable": true
+                    },
+                    "education": {
+                        "nullable": true
+                    },
+                    "experience": {
+                        "nullable": true
+                    },
+                    "interest": {
+                        "nullable": true
+                    },
+                    "present_address": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "permanent_address": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "country": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "state": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "city": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "thana": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "wallet_balance": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "bonus_balance": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/StatusE75Enum"
+                    },
+                    "last_logged_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "media": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SellerMedia"
+                        },
+                        "readOnly": true
+                    },
+                    "media_for": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MediaFor472Enum"
+                        },
+                        "writeOnly": true
+                    },
+                    "media_file": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uri"
+                        },
+                        "writeOnly": true
+                    },
+                    "media_delete_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "writeOnly": true
+                    },
+                    "info": {
+                        "writeOnly": true
+                    },
+                    "business_info": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SellerInfo"
+                            }
+                        ],
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "bonus_balance",
+                    "business_info",
+                    "email",
+                    "email_verified_at",
+                    "id",
+                    "last_logged_at",
+                    "media",
+                    "name",
+                    "phone",
+                    "phone_verified_at",
+                    "profile_pic_path",
+                    "profile_pic_url",
+                    "verification_note",
+                    "verification_status",
+                    "wallet_balance"
+                ]
+            },
+            "SellerInfo": {
+                "type": "object",
+                "properties": {
+                    "business_type": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "main_product": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "owner_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "employees_range": {
+                        "type": "string",
+                        "maxLength": 50
+                    },
+                    "annual_revenue": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "established_year": {
+                        "type": "string",
+                        "maxLength": 10
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "public_email": {
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "email",
+                                "maxLength": 254
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
+                    },
+                    "whatsapp": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 32
+                    },
+                    "facebook": {
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "uri",
+                                "maxLength": 500
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
+                    },
+                    "wechat": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 100
+                    },
+                    "skype": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 100
+                    },
+                    "country": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "state": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "city": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "thana": {
+                        "type": "integer",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "annual_revenue",
+                    "business_type",
+                    "employees_range",
+                    "established_year",
+                    "main_product",
+                    "owner_name"
+                ]
+            },
+            "SellerList": {
+                "type": "object",
+                "description": "List page — basic information only (see AdminListSerializer).",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254
+                    },
+                    "phone": {
+                        "type": "string",
+                        "maxLength": 32
+                    },
+                    "profile_pic_url": {
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "uri",
+                                "maxLength": 500
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
+                    },
+                    "verification_status": {
+                        "$ref": "#/components/schemas/VerificationStatusEnum"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/StatusE75Enum"
+                    },
+                    "wallet_balance": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "bonus_balance": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "last_logged_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "email",
+                    "id",
+                    "name",
+                    "phone"
+                ]
+            },
+            "SellerMedia": {
+                "type": "object",
+                "description": "Read-only — shown on a Seller's detail page. Writes happen through\nSellerSerializer's media_for/media_file/media_delete_ids instead.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "media_type": {
+                        "$ref": "#/components/schemas/MediaTypeEnum"
+                    },
+                    "media_for": {
+                        "$ref": "#/components/schemas/MediaFor472Enum"
+                    },
+                    "media_path": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "media_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "id",
+                    "media_for",
+                    "media_path",
+                    "media_type",
+                    "media_url"
+                ]
+            },
+            "State": {
+                "type": "object",
+                "description": "Client sends `name` and `country` — slug and state_code are always\nserver-generated. A state's name only has to be unique within its own\ncountry (see validate()), since the same name can legitimately show up\nunder two different countries.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "country": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "readOnly": true,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "state_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "flag_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "flag_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "creator_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CreatorTypeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "creator_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updated_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updater_type": {
+                        "readOnly": true,
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/UpdaterTypeEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/NullEnum"
+                            }
+                        ]
+                    },
+                    "updater_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "country",
+                    "created_by",
+                    "creator_name",
+                    "creator_type",
+                    "flag_path",
+                    "flag_url",
+                    "id",
+                    "name",
+                    "slug",
+                    "state_code",
+                    "updated_by",
+                    "updater_name",
+                    "updater_type"
+                ]
+            },
+            "StateList": {
+                "type": "object",
+                "description": "Read-only shape for List — embeds the parent Country instead of just\nits id, so a table/dropdown doesn't need a separate lookup per row.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "country": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CountryNested"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "readOnly": true,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "state_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "flag_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "flag_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "creator_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CreatorTypeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "creator_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updated_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updater_type": {
+                        "readOnly": true,
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/UpdaterTypeEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/NullEnum"
+                            }
+                        ]
+                    },
+                    "updater_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "country",
+                    "created_by",
+                    "creator_name",
+                    "creator_type",
+                    "flag_path",
+                    "flag_url",
+                    "id",
+                    "name",
+                    "slug",
+                    "state_code",
+                    "updated_by",
+                    "updater_name",
+                    "updater_type"
+                ]
+            },
+            "StateNested": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "state_code": {
+                        "type": "string",
+                        "maxLength": 20
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "slug",
+                    "state_code"
+                ]
+            },
+            "StatusA3eEnum": {
+                "enum": [
+                    "active",
+                    "inactive"
+                ],
+                "type": "string",
+                "description": "* `active` - Active\n* `inactive` - Inactive"
+            },
+            "StatusE75Enum": {
+                "enum": [
+                    "active",
+                    "suspended"
+                ],
+                "type": "string",
+                "description": "* `active` - Active\n* `suspended` - Suspended"
+            },
+            "Thana": {
+                "type": "object",
+                "description": "Client sends `name`, `country`, `state` and `city` — slug and\nthana_code are always server-generated. A thana's name only has to be\nunique within its own city (see validate()); `country`/`state` are\ndenormalized alongside `city` (DB Redesign 3.1) so they're cross-checked\nagainst `city.state`/`city.state.country` rather than trusted on their\nown.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "country": {
+                        "type": "integer"
+                    },
+                    "state": {
+                        "type": "integer"
+                    },
+                    "city": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "readOnly": true,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "thana_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "flag_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "flag_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "creator_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CreatorTypeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "creator_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updated_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updater_type": {
+                        "readOnly": true,
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/UpdaterTypeEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/NullEnum"
+                            }
+                        ]
+                    },
+                    "updater_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "city",
+                    "country",
+                    "created_by",
+                    "creator_name",
+                    "creator_type",
+                    "flag_path",
+                    "flag_url",
+                    "id",
+                    "name",
+                    "slug",
+                    "state",
+                    "thana_code",
+                    "updated_by",
+                    "updater_name",
+                    "updater_type"
+                ]
+            },
+            "ThanaList": {
+                "type": "object",
+                "description": "Read-only shape for List — embeds the parent Country, State and City\ninstead of just their ids.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "country": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CountryNested"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "state": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StateNested"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "city": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CityNested"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "readOnly": true,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "thana_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "flag_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "flag_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "creator_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CreatorTypeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "creator_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updated_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "updater_type": {
+                        "readOnly": true,
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/UpdaterTypeEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/NullEnum"
+                            }
+                        ]
+                    },
+                    "updater_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "city",
+                    "country",
+                    "created_by",
+                    "creator_name",
+                    "creator_type",
+                    "flag_path",
+                    "flag_url",
+                    "id",
+                    "name",
+                    "slug",
+                    "state",
+                    "thana_code",
+                    "updated_by",
+                    "updater_name",
+                    "updater_type"
+                ]
+            },
+            "TokenRefresh": {
+                "type": "object",
+                "properties": {
+                    "access": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "refresh": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "access",
+                    "refresh"
+                ]
+            },
+            "TypeEnum": {
+                "enum": [
+                    "super_admin",
+                    "admin",
+                    "moderator",
+                    "support"
+                ],
+                "type": "string",
+                "description": "* `super_admin` - Super Admin\n* `admin` - Admin\n* `moderator` - Moderator\n* `support` - Support"
+            },
+            "UpdaterTypeEnum": {
+                "enum": [
+                    "admin",
+                    "seller",
+                    "user",
+                    "system"
+                ],
+                "type": "string",
+                "description": "* `admin` - Admin\n* `seller` - Seller\n* `user` - User\n* `system` - System"
+            },
+            "User": {
+                "type": "object",
+                "description": "Buyer serializer — model is named `User` (see models.py docstring),\nnot Django's own auth user.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254
+                    },
+                    "phone": {
+                        "type": "string",
+                        "maxLength": 32
+                    },
+                    "password": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "profile_pic": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "writeOnly": true
+                    },
+                    "profile_pic_path": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "profile_pic_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "skills": {
+                        "nullable": true
+                    },
+                    "experiences": {
+                        "nullable": true
+                    },
+                    "interests": {
+                        "nullable": true
+                    },
+                    "educations": {
+                        "nullable": true
+                    },
+                    "email_verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "phone_verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "address_line": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 255
+                    },
+                    "country": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "state": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "city": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "thana": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "wallet_balance": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/StatusE75Enum"
+                    },
+                    "media": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BuyerMedia"
+                        },
+                        "readOnly": true
+                    },
+                    "media_for": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MediaFor0f0Enum"
+                        },
+                        "writeOnly": true
+                    },
+                    "media_file": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uri"
+                        },
+                        "writeOnly": true
+                    },
+                    "media_delete_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "writeOnly": true
+                    }
+                },
+                "required": [
+                    "email",
+                    "email_verified_at",
+                    "id",
+                    "media",
+                    "name",
+                    "phone",
+                    "phone_verified_at",
+                    "profile_pic_path",
+                    "profile_pic_url",
+                    "wallet_balance"
+                ]
+            },
+            "VerificationStatusEnum": {
+                "enum": [
+                    "unverified",
+                    "pending",
+                    "verified",
+                    "rejected"
+                ],
+                "type": "string",
+                "description": "* `unverified` - Unverified\n* `pending` - Pending\n* `verified` - Verified\n* `rejected` - Rejected"
+            }
+        }
+    }
+}

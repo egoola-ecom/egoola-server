@@ -1,0 +1,750 @@
+{
+  "info": {
+    "name": "Egoola API — Accounts & Auth",
+    "_postman_id": "6f1e6a6a-2b3d-4f6a-9c9a-egoola-accounts-auth",
+    "description": "Covers what's built so far: Admin/Seller/Buyer login (JWT) + token refresh, and Admin-only Admin/Seller/Buyer management.\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run any request in **Auth** first — its \"Tests\" script saves the returned `access`/`refresh` tokens into collection variables automatically.\n3. Every request under **Accounts** already sends `Authorization: Bearer {{access_token}}` — no manual copy-pasting needed.\n4. When a 401 says the token expired, run **Auth > Refresh Token** — it re-saves `access_token` the same way.\n\nAll accounts endpoints require an Admin token (401 = no/invalid token, 403 = valid token but wrong role — see docs/authentication.md in the repo).\n\nFor Country/State/City/Thana reference-data management, see the separate Egoola API — Geography collection. For the full Seller Verification workflow (verify/reject with a mandatory note, verification_logs history) and deeper Seller-only coverage (business info, media upload), see the separate Egoola API — Seller collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "seller_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "buyer_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/admin/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "admin",
+                "login",
+                ""
+              ]
+            },
+            "description": "Public endpoint — no token needed to call this. Returns access + refresh JWTs carrying actor_type=admin."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    pm.collectionVariables.set('refresh_token', body.refresh);",
+                  "    pm.collectionVariables.set('admin_id', body.id);",
+                  "    console.log('Saved admin access/refresh tokens.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seller Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.seller@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "login",
+                ""
+              ]
+            },
+            "description": "Public endpoint. Returns a token carrying actor_type=seller — will get 403 on every Accounts endpoint below (those are Admin-only), which is expected until Seller self-service routes exist."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('seller_token', body.access);",
+                  "    console.log('Saved seller access token as seller_token (not used by Accounts requests below — those need an admin token).');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buyer Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.buyer@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/buyer/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "buyer",
+                "login",
+                ""
+              ]
+            },
+            "description": "Public endpoint. Returns a token carrying actor_type=user (buyer)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('buyer_token', body.access);",
+                  "    console.log('Saved buyer access token as buyer_token (not used by Accounts requests below — those need an admin token).');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/token/refresh/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "token",
+                "refresh",
+                ""
+              ]
+            },
+            "description": "Exchanges the saved refresh token (14-day life) for a new access token (1-hour life) — the actor_type/actor_id claims carry over automatically. Run this instead of logging in again once the access token expires."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    console.log('Refreshed access_token.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Accounts",
+      "item": [
+        {
+          "name": "Admins",
+          "item": [
+            {
+              "name": "List Admins",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/admins/?search=&type=&status=",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "admins",
+                    ""
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "matches name, email, mobile"
+                    },
+                    {
+                      "key": "type",
+                      "value": "",
+                      "description": "super_admin | admin | moderator | support"
+                    },
+                    {
+                      "key": "status",
+                      "value": "",
+                      "description": "active | inactive"
+                    }
+                  ]
+                },
+                "description": "Admin-only. Returns the list-view fields (no media, no full geography — see AdminListSerializer)."
+              }
+            },
+            {
+              "name": "Create Admin",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"New Admin\",\n  \"email\": \"new.admin@egoola.com\",\n  \"mobile\": \"01700000010\",\n  \"password\": \"Test@12345\",\n  \"type\": \"admin\",\n  \"status\": \"active\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/admins/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "admins",
+                    ""
+                  ]
+                },
+                "description": "`password` is required on create (hashed server-side), optional on update. `type` choices: super_admin, admin, moderator, support."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) { pm.collectionVariables.set('admin_id', pm.response.json().id); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Retrieve Admin",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/admins/{{admin_id}}/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "admins",
+                    "{{admin_id}}",
+                    ""
+                  ]
+                },
+                "description": "Full detail view — includes media[] and geography fields, unlike the list view."
+              }
+            },
+            {
+              "name": "Update Admin (full — PUT)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"New Admin (Updated)\",\n  \"email\": \"new.admin@egoola.com\",\n  \"mobile\": \"01700000010\",\n  \"type\": \"admin\",\n  \"status\": \"active\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/admins/{{admin_id}}/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "admins",
+                    "{{admin_id}}",
+                    ""
+                  ]
+                },
+                "description": "PUT replaces the whole record — `password` can be left out on update (only re-hashed if you send a new one)."
+              }
+            },
+            {
+              "name": "Update Admin (partial — PATCH)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"inactive\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/admins/{{admin_id}}/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "admins",
+                    "{{admin_id}}",
+                    ""
+                  ]
+                },
+                "description": "Preferred for small edits — only send the field(s) you're changing."
+              }
+            },
+            {
+              "name": "Delete Admin",
+              "request": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/admins/{{admin_id}}/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "admins",
+                    "{{admin_id}}",
+                    ""
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sellers",
+          "item": [
+            {
+              "name": "List Sellers",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/sellers/?search=&verification_status=&status=",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "sellers",
+                    ""
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "matches name, email, phone"
+                    },
+                    {
+                      "key": "verification_status",
+                      "value": "",
+                      "description": "unverified | pending | verified | rejected"
+                    },
+                    {
+                      "key": "status",
+                      "value": "",
+                      "description": "active | suspended"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Seller",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"New Seller\",\n  \"email\": \"new.seller@egoola.com\",\n  \"phone\": \"01700000020\",\n  \"password\": \"Test@12345\",\n  \"info\": {\n    \"business_type\": \"Retail\",\n    \"main_product\": \"Electronics\",\n    \"owner_name\": \"New Seller\",\n    \"employees_range\": \"1-10\",\n    \"annual_revenue\": \"< $50,000\",\n    \"established_year\": \"2024\"\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/sellers/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "sellers",
+                    ""
+                  ]
+                },
+                "description": "`info` is the seller's business profile (1:1) — created/updated in the same call. `verification_status`/`verification_note` are now writable (see the dedicated Egoola API — Seller collection for the full verification workflow, including the mandatory rejection note and the verification_logs history); wallet/bonus fields stay read-only from the client, managed by the (future) wallet flow instead."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) { pm.collectionVariables.set('seller_id', pm.response.json().id); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Retrieve Seller",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "sellers",
+                    "{{seller_id}}",
+                    ""
+                  ]
+                },
+                "description": "Includes `business_info` (the validated SellerInfo row) and `media[]`."
+              }
+            },
+            {
+              "name": "Update Seller (partial — PATCH)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"New Seller (Updated)\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "sellers",
+                    "{{seller_id}}",
+                    ""
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Seller",
+              "request": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "sellers",
+                    "{{seller_id}}",
+                    ""
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buyers",
+          "item": [
+            {
+              "name": "List Buyers",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/buyers/?search=&status=",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "buyers",
+                    ""
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "matches name, email, phone"
+                    },
+                    {
+                      "key": "status",
+                      "value": "",
+                      "description": "active | suspended"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Buyer",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"New Buyer\",\n  \"email\": \"new.buyer@egoola.com\",\n  \"phone\": \"01700000030\",\n  \"password\": \"Test@12345\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/buyers/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "buyers",
+                    ""
+                  ]
+                },
+                "description": "Note: the model/table is called `User` in code (see apps/accounts/models.py docstring) — this is the Buyer, not Django's own auth user."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) { pm.collectionVariables.set('buyer_id', pm.response.json().id); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Retrieve Buyer",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/buyers/{{buyer_id}}/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "buyers",
+                    "{{buyer_id}}",
+                    ""
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Buyer (partial — PATCH)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"suspended\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/buyers/{{buyer_id}}/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "buyers",
+                    "{{buyer_id}}",
+                    ""
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Buyer",
+              "request": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{base_url}}/api/v1/accounts/buyers/{{buyer_id}}/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "accounts",
+                    "buyers",
+                    "{{buyer_id}}",
+                    ""
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
