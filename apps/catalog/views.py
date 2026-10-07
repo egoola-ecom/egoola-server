@@ -1,14 +1,24 @@
 from collections import defaultdict
 
-from rest_framework import mixins, viewsets
+from django.db.models import ProtectedError
+from django.utils import timezone
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.authentication.permissions import IsAdminActor
+from apps.core.models import ActorType
 from apps.core.mixins import AuditedViewSetMixin
 
-from .models import Category, Measurement
-from .serializers import CategoryBriefSerializer, CategorySerializer, MeasurementSerializer
+from .models import Brand, Category, Listing, ListingStatusChangeLog, Measurement
+from .serializers import (
+    BrandSerializer,
+    CategoryBriefSerializer,
+    CategorySerializer,
+    ListingListSerializer,
+    ListingSerializer,
+    MeasurementSerializer,
+)
 
 
 class CategoryViewSet(
@@ -153,3 +163,124 @@ class MeasurementViewSet(
     queryset = Measurement.objects.all()
     serializer_class = MeasurementSerializer
     search_fields = ["name"]
+
+
+class BrandViewSet(
+    AuditedViewSetMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.ListModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Admin-managed Brand list under the Listing module — Create, Update,
+    List (filter by name via `?name=` substring, or `?search=`; also
+    `?is_active=`), Delete. A brand still used by a listing can't be
+    deleted — deactivate it (is_active=false) instead."""
+
+    permission_classes = [IsAdminActor]
+    queryset = Brand.objects.all()
+    serializer_class = BrandSerializer
+    filterset_fields = ["is_active"]
+    search_fields = ["name"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        name = self.request.query_params.get("name")
+        if name:
+            queryset = queryset.filter(name__icontains=name)
+        return queryset
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {"detail": "This brand is used by one or more listings. Deactivate it instead of deleting."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+
+class ListingViewSet(AuditedViewSetMixin, viewsets.ModelViewSet):
+    """Admin Listing Management & Moderation. Price tiers, media, and
+    status-change history are handled through this same API (see
+    ListingSerializer) — there's no separate /listings/{id}/media/ or
+    /listings/{id}/price-tiers/ endpoint, same approach as Seller
+    Management.
+
+    Delete is soft: destroy() stamps deleted_at instead of removing the
+    row, and Listing's default manager (ActiveListingManager) already
+    excludes soft-deleted rows from every other query, so a deleted
+    listing simply stops appearing anywhere without any extra filtering
+    here."""
+
+    permission_classes = [IsAdminActor]
+    filterset_fields = ["status", "catalog_type", "listing_type", "category", "brand", "seller", "buyer"]
+    search_fields = ["title", "brand__name", "model"]
+
+    def get_serializer_class(self):
+        return ListingListSerializer if self.action == "list" else ListingSerializer
+
+    def get_queryset(self):
+        if self.action == "list":
+            return Listing.objects.select_related("category", "brand", "seller", "buyer")
+        return Listing.objects.select_related(
+            "category", "brand", "seller", "buyer", "measurement", "country", "state", "city", "thana"
+        ).prefetch_related("price_tiers", "media", "status_change_logs")
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.deleted_at = timezone.now()
+        instance.save(update_fields=["deleted_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=["post"], url_path="bulk-moderate")
+    def bulk_moderate(self, request):
+        """POST /listings/bulk-moderate/
+        {"listing_ids": [1, 2, 3], "status": "approved", "note": "..."}
+
+        Applies one status to many listings in one call (an admin
+        selecting several rows and approving/rejecting/requesting changes
+        on all of them at once). Writes one ListingStatusChangeLog row per
+        listing whose status actually changes; a listing already at the
+        requested status is left alone (no-op, no log-row noise) and
+        reported back as skipped rather than updated.
+        """
+        listing_ids = request.data.get("listing_ids") or []
+        new_status = request.data.get("status")
+        note = request.data.get("note") or None
+
+        valid_statuses = {Listing.Status.APPROVED, Listing.Status.REJECTED, Listing.Status.CHANGES_REQUESTED}
+        if new_status not in valid_statuses:
+            return Response(
+                {"status": f"Must be one of: {', '.join(sorted(valid_statuses))}."}, status=400
+            )
+        if new_status in (Listing.Status.REJECTED, Listing.Status.CHANGES_REQUESTED) and not note:
+            return Response(
+                {"note": "A note is required when rejecting or requesting changes."},
+                status=400,
+            )
+        if not listing_ids:
+            return Response({"listing_ids": "Provide one or more listing ids."}, status=400)
+
+        actor = request.user
+        updated_ids = []
+        skipped_ids = []
+        for listing in Listing.objects.filter(id__in=listing_ids):
+            if listing.status == new_status:
+                skipped_ids.append(listing.id)
+                continue
+            listing.status = new_status
+            listing.note = note
+            listing.save(update_fields=["status", "note"])
+            ListingStatusChangeLog.objects.create(
+                listing=listing,
+                status=new_status,
+                note=note,
+                created_by=getattr(actor, "id", None),
+                creator_type=getattr(actor, "actor_type", ActorType.SYSTEM),
+                creator_name=getattr(actor, "name", None),
+            )
+            updated_ids.append(listing.id)
+
+        return Response({"updated": updated_ids, "skipped": skipped_ids})
