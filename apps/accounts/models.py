@@ -24,8 +24,6 @@ class Admin(AuditedModel):
     class AdminType(models.TextChoices):
         SUPER_ADMIN = "super_admin", "Super Admin"
         ADMIN = "admin", "Admin"
-        MODERATOR = "moderator", "Moderator"
-        SUPPORT = "support", "Support"
 
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
