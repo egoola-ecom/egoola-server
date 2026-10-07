@@ -1,0 +1,2023 @@
+{
+  "info": {
+    "name": "Egoola API — Listing",
+    "description": "Admin Listing Management: Listing CRUD + moderation (status + note + full history), and the Brand list that listings pick from.\n\nKey rules:\n- Listings can be created by an Admin without a seller or buyer. Admin-created = `approved` by default.\n- `listing_type: brand` requires `brand` = id of an active Brand (no free-text brand).\n- `price` is the original price; `discounted_price` (optional, never higher than price; defaults to price) is the price charged — same on every price tier.\n- `rejected` / `changes_requested` require `note`. `Listing.note` holds only the latest change's note (null if none); every change is kept in `status_change_logs`.\n- Delete is soft for listings; a Brand used by any listing can't be deleted (409) — deactivate it.\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run **Auth > Admin Login**.\n3. Check the reference-data collection variables (`category_id`, `service_category_id`, `measurement_id`, `country_id`, `state_id`, `city_id`) — they must exist in your database.\n4. Run **Brands** then **Listings** then **Cleanup** top to bottom (\"Run collection\") — each request saves the ids the next one needs.\n5. \"Update Listing — upload media\" needs real files chosen in the Postman app; skip it in Newman.\n\nSee also: Egoola API — Category, Measurement, Seller and Accounts & Auth collections.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "category_id",
+      "value": "18",
+      "type": "string"
+    },
+    {
+      "key": "service_category_id",
+      "value": "29",
+      "type": "string"
+    },
+    {
+      "key": "measurement_id",
+      "value": "13",
+      "type": "string"
+    },
+    {
+      "key": "country_id",
+      "value": "126",
+      "type": "string"
+    },
+    {
+      "key": "state_id",
+      "value": "12",
+      "type": "string"
+    },
+    {
+      "key": "city_id",
+      "value": "8",
+      "type": "string"
+    },
+    {
+      "key": "brand_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "brand_name",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "inactive_brand_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "listing_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "plain_listing_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "service_listing_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pending_listing_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "nodisc_listing_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/admin/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "admin",
+                "login",
+                ""
+              ]
+            },
+            "description": "Public endpoint — no token needed. Returns access + refresh JWTs carrying actor_type=admin. Every Brand and Listing endpoint below is Admin-only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    pm.collectionVariables.set('refresh_token', body.refresh);",
+                  "    console.log('Saved admin access/refresh tokens.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/token/refresh/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "token",
+                "refresh",
+                ""
+              ]
+            },
+            "description": "Exchanges the saved refresh token (14-day life) for a new access token (1-hour life). Run this instead of logging in again once the access token expires."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    console.log('Refreshed access_token.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Brands",
+      "item": [
+        {
+          "name": "Create Brand",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Demo Brand {{$timestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "brands",
+                ""
+              ]
+            },
+            "description": "Only `name` is required. `slug` is generated from the name and is unique across the whole project (a name whose slug already exists returns 400). `is_active` defaults to true. `created_by` / `creator_name` / `creator_type` are stamped from the Admin token and are read-only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('brand_id', pm.response.json().id); pm.collectionVariables.set('brand_name', pm.response.json().name); }",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('is_active defaults to true', () => pm.expect(pm.response.json().is_active).to.eql(true));",
+                  "pm.test('slug generated', () => pm.expect(pm.response.json().slug).to.be.a('string').and.not.empty);",
+                  "pm.test('creator stamped as admin', () => pm.expect(pm.response.json().creator_type).to.eql('admin'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Brand — inactive",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Demo Inactive Brand {{$timestamp}}\",\n  \"is_active\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "brands",
+                ""
+              ]
+            },
+            "description": "Creates a brand that cannot be picked by a listing (see 'Create Listing — inactive brand rejected')."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('inactive_brand_id', pm.response.json().id); }",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('is_active is false', () => pm.expect(pm.response.json().is_active).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Brand — duplicate name (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{brand_name}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "brands",
+                ""
+              ]
+            },
+            "description": "Same name (or any name with the same slug, e.g. different casing) is rejected: \"A brand with this name already exists.\""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('name error', () => pm.expect(pm.response.json()).to.have.property('name'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Brand — missing name (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "brands",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('name error', () => pm.expect(pm.response.json()).to.have.property('name'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Brand — rename",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Demo Brand Renamed {{$timestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/{{brand_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "brands",
+                "{{brand_id}}",
+                ""
+              ]
+            },
+            "description": "The slug is regenerated from the new name. PUT works too but needs `name`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) { pm.collectionVariables.set('brand_name', pm.response.json().name); }",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('slug follows name', () => pm.expect(pm.response.json().slug).to.include('renamed'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Brand — deactivate / reactivate",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/{{brand_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "brands",
+                "{{brand_id}}",
+                ""
+              ]
+            },
+            "description": "Soft way to retire a brand that listings still use (a used brand cannot be deleted). Send `true` to re-enable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('inactive', () => pm.expect(pm.response.json().is_active).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Brand — reactivate",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/{{brand_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "brands",
+                "{{brand_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('active', () => pm.expect(pm.response.json().is_active).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Brands",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/?name=Demo&is_active=&search=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "brands",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "name",
+                  "value": "Demo",
+                  "description": "case-insensitive substring match on name"
+                },
+                {
+                  "key": "is_active",
+                  "value": "",
+                  "description": "true | false"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "alternative name search"
+                }
+              ]
+            },
+            "description": "Paginated. Filter by name with `?name=` (substring, case-insensitive)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('paginated results', () => pm.expect(pm.response.json()).to.have.property('results'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Brands — no token (expect 401)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "brands",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Listings",
+      "item": [
+        {
+          "name": "List Listings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/?status=&catalog_type=&listing_type=&category=&brand=&seller=&buyer=&search=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "draft | pending | approved | rejected | changes_requested"
+                },
+                {
+                  "key": "catalog_type",
+                  "value": "",
+                  "description": "product | service"
+                },
+                {
+                  "key": "listing_type",
+                  "value": "",
+                  "description": "general | used | village | retail | wholesale | brand"
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": "category id"
+                },
+                {
+                  "key": "brand",
+                  "value": "",
+                  "description": "brand id"
+                },
+                {
+                  "key": "seller",
+                  "value": "",
+                  "description": "seller id"
+                },
+                {
+                  "key": "buyer",
+                  "value": "",
+                  "description": "buyer id"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "title, brand name, model"
+                }
+              ]
+            },
+            "description": "Lightweight rows only (no tiers / media / history) — those appear on Retrieve."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing — brand listing (admin-created)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{category_id}},\n  \"catalog_type\": \"product\",\n  \"listing_type\": \"brand\",\n  \"brand\": {{brand_id}},\n  \"title\": \"Demo Branded Phone {{$timestamp}}\",\n  \"description\": \"Admin-created brand listing (no seller or buyer attached).\",\n  \"model\": \"Galaxy A15\",\n  \"price\": \"150.00\",\n  \"discounted_price\": \"120.00\",\n  \"currency\": \"BDT\",\n  \"stock_qty\": 40,\n  \"measurement\": {{measurement_id}},\n  \"country\": {{country_id}},\n  \"state\": {{state_id}},\n  \"city\": {{city_id}},\n  \"price_tiers\": [\n    {\n      \"min_qty\": 1,\n      \"max_qty\": 9,\n      \"price\": \"150.00\",\n      \"discounted_price\": \"120.00\"\n    },\n    {\n      \"min_qty\": 10,\n      \"max_qty\": 49,\n      \"price\": \"140.00\",\n      \"discounted_price\": \"110.00\"\n    },\n    {\n      \"min_qty\": 50,\n      \"max_qty\": null,\n      \"price\": \"130.00\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "description": "Admin-created listing: **no `seller` and no `buyer`** is fine. Because an Admin creates it, `status` defaults to `approved` and one `status_change_logs` row is written. `listing_type: brand` makes `brand` mandatory — it must be the id of an **active** Brand (see the Brand folder), not a free-text name. `price` is the original price; `discounted_price` (optional, never higher than `price`) is the price actually charged; when you don't send it, it is set to `price`. The same two fields exist on every price tier."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('listing_id', pm.response.json().id); }",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test('approved by default', () => pm.expect(b.status).to.eql('approved'));",
+                  "pm.test('no owner', () => { pm.expect(b.seller).to.be.null; pm.expect(b.buyer).to.be.null; });",
+                  "pm.test('brand attached', () => pm.expect(b.brand_name).to.eql(pm.collectionVariables.get('brand_name')));",
+                  "pm.test('price / discounted_price', () => { pm.expect(b.price).to.eql('150.00'); pm.expect(b.discounted_price).to.eql('120.00'); });",
+                  "pm.test('3 tiers, tier discount saved (no discount -> equals tier price)', () => { pm.expect(b.price_tiers.length).to.eql(3); pm.expect(b.price_tiers[0].discounted_price).to.eql('120.00'); pm.expect(b.price_tiers[2].discounted_price).to.eql('130.00'); });",
+                  "pm.test('one history row', () => pm.expect(b.status_change_logs.length).to.eql(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing — minimal (no brand, no owner)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{category_id}},\n  \"catalog_type\": \"product\",\n  \"title\": \"Demo Plain Listing {{$timestamp}}\",\n  \"description\": \"Smallest valid payload.\",\n  \"price\": \"10.00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "description": "Required: `category`, `catalog_type`, `title`, `description`, `price`. Everything else is optional."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('plain_listing_id', pm.response.json().id); }",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('brand is null', () => pm.expect(pm.response.json().brand).to.be.null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing — service listing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{service_category_id}},\n  \"catalog_type\": \"service\",\n  \"posted_by_role\": \"seller_offer\",\n  \"title\": \"Demo Home Cleaning {{$timestamp}}\",\n  \"description\": \"Deep cleaning, 2 days.\",\n  \"price\": \"4000.00\",\n  \"discounted_price\": \"3500.00\",\n  \"price_type\": \"fixed\",\n  \"delivery_days\": 2,\n  \"urgent\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "description": "`posted_by_role: seller_offer` with no seller is allowed (Admin-owned). Setting a `buyer` here would be a 400."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('service_listing_id', pm.response.json().id); }",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing — pending (explicit status)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{category_id}},\n  \"catalog_type\": \"product\",\n  \"status\": \"pending\",\n  \"title\": \"Demo Pending Listing {{$timestamp}}\",\n  \"description\": \"Explicit status is honoured.\",\n  \"price\": \"25.00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('pending_listing_id', pm.response.json().id); }",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('pending', () => pm.expect(pm.response.json().status).to.eql('pending'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing — brand listing without brand (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{category_id}},\n  \"catalog_type\": \"product\",\n  \"listing_type\": \"brand\",\n  \"title\": \"Should Fail\",\n  \"description\": \"x\",\n  \"price\": \"10.00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "description": "\"A brand listing must select a brand.\""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('brand error', () => pm.expect(pm.response.json()).to.have.property('brand'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing — inactive brand rejected (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{category_id}},\n  \"catalog_type\": \"product\",\n  \"listing_type\": \"brand\",\n  \"brand\": {{inactive_brand_id}},\n  \"title\": \"Should Fail\",\n  \"description\": \"x\",\n  \"price\": \"10.00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "description": "A newly selected brand must be active: \"This brand is inactive.\""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('brand error', () => pm.expect(pm.response.json()).to.have.property('brand'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing — unknown brand id (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{category_id}},\n  \"catalog_type\": \"product\",\n  \"listing_type\": \"brand\",\n  \"brand\": 99999999,\n  \"title\": \"Should Fail\",\n  \"description\": \"x\",\n  \"price\": \"10.00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing — no discounted_price (defaults to price)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{category_id}},\n  \"catalog_type\": \"product\",\n  \"title\": \"Demo No Discount {{$timestamp}}\",\n  \"description\": \"No discounted_price sent.\",\n  \"price\": \"80.00\",\n  \"price_tiers\": [\n    {\n      \"min_qty\": 1,\n      \"price\": \"80.00\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "description": "`discounted_price` omitted (or sent as null) → it equals `price`. Same for every tier."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('nodisc_listing_id', pm.response.json().id); }",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('discounted_price = price', () => pm.expect(pm.response.json().discounted_price).to.eql('80.00'));",
+                  "pm.test('tier discounted_price = tier price', () => pm.expect(pm.response.json().price_tiers[0].discounted_price).to.eql('80.00'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Listing — no-discount listing follows a new price",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": \"90.00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{nodisc_listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{nodisc_listing_id}}",
+                ""
+              ]
+            },
+            "description": "A listing whose discounted_price equals its price (no discount) keeps them equal when only `price` changes. A listing with a real discount keeps its discount."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('follows price', () => pm.expect(pm.response.json().discounted_price).to.eql('90.00'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing — discounted_price higher than price (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{category_id}},\n  \"catalog_type\": \"product\",\n  \"title\": \"Should Fail\",\n  \"description\": \"x\",\n  \"price\": \"100.00\",\n  \"discounted_price\": \"120.00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "description": "`discounted_price` can equal `price` (no discount) but never exceed it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('discounted_price error', () => pm.expect(pm.response.json()).to.have.property('discounted_price'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing — tier discount above tier price (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{category_id}},\n  \"catalog_type\": \"product\",\n  \"title\": \"Should Fail\",\n  \"description\": \"x\",\n  \"price\": \"100.00\",\n  \"price_tiers\": [\n    {\n      \"min_qty\": 1,\n      \"price\": \"50.00\",\n      \"discounted_price\": \"60.00\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing — seller_offer with a buyer (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{category_id}},\n  \"catalog_type\": \"product\",\n  \"posted_by_role\": \"seller_offer\",\n  \"buyer\": 1,\n  \"title\": \"Should Fail\",\n  \"description\": \"x\",\n  \"price\": \"10.00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "description": "Owner is optional, but a seller_offer can't have a buyer, a buyer_request can't have a seller, and a listing never has both."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve Listing",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "Full detail: brand + brand_name, price / discounted_price, price_tiers, media, and the whole `status_change_logs` history."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has history', () => pm.expect(pm.response.json().status_change_logs).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Listing — change brand & prices",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"discounted_price\": \"99.00\",\n  \"price_tiers\": [\n    {\n      \"min_qty\": 1,\n      \"max_qty\": null,\n      \"price\": \"150.00\",\n      \"discounted_price\": \"99.00\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "Partial update. `price_tiers`, when sent, **replaces** the whole tier list; omit the key to leave tiers alone. Send `\"discounted_price\": null` to remove the discount (it becomes equal to `price`). Status / note / history are untouched because `status` isn't in the payload."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('discount updated', () => pm.expect(pm.response.json().discounted_price).to.eql('99.00'));",
+                  "pm.test('tiers replaced', () => pm.expect(pm.response.json().price_tiers.length).to.eql(1));",
+                  "pm.test('no new history row', () => pm.expect(pm.response.json().status_change_logs.length).to.eql(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Listing — discounted_price above price (expect 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"discounted_price\": \"500.00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "Checked against the stored `price` when only one of the two is sent."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Listing — clear brand on a non-brand listing",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing_type\": \"general\",\n  \"brand\": null\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('brand cleared', () => pm.expect(pm.response.json().brand).to.be.null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Listing — back to brand listing with brand",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing_type\": \"brand\",\n  \"brand\": {{brand_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Listing — brand listing without brand (expect 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing_type\": \"brand\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{plain_listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{plain_listing_id}}",
+                ""
+              ]
+            },
+            "description": "Switching a brandless listing to `brand` type without picking a brand is rejected."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Moderation — reject without note (expect 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"rejected\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "`note` is mandatory for `rejected` and `changes_requested`, optional for every other status."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('note error', () => pm.expect(pm.response.json()).to.have.property('note'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Moderation — reject with note",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"rejected\",\n  \"note\": \"Photos are low quality\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('note stored on listing', () => pm.expect(b.note).to.eql('Photos are low quality'));",
+                  "pm.test('history has 2 rows', () => pm.expect(b.status_change_logs.length).to.eql(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Moderation — request changes",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"changes_requested\",\n  \"note\": \"Please add more photos\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('history has 3 rows', () => pm.expect(pm.response.json().status_change_logs.length).to.eql(3));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Moderation — approve (no note: Listing.note clears to null)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "`Listing.note` always holds only the latest change's note — null here. Earlier notes stay in `status_change_logs`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('note cleared', () => pm.expect(b.note).to.be.null);",
+                  "pm.test('history has 4 rows, newest first', () => { pm.expect(b.status_change_logs.length).to.eql(4); pm.expect(b.status_change_logs[0].status).to.eql('approved'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bulk moderate — reject without note (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing_ids\": [\n    {{plain_listing_id}},\n    {{pending_listing_id}}\n  ],\n  \"status\": \"rejected\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/bulk-moderate/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "bulk-moderate",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bulk moderate — approve many",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing_ids\": [\n    {{plain_listing_id}},\n    {{pending_listing_id}}\n  ],\n  \"status\": \"approved\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/bulk-moderate/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "bulk-moderate",
+                ""
+              ]
+            },
+            "description": "`status` must be approved | rejected | changes_requested. Listings already at that status are returned in `skipped` (no history row); the rest in `updated`, one history row each."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('pending one updated, approved one skipped', () => { const b = pm.response.json(); pm.expect(b.updated.length).to.eql(1); pm.expect(b.skipped.length).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bulk moderate — reject many with note",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing_ids\": [\n    {{plain_listing_id}},\n    {{pending_listing_id}}\n  ],\n  \"status\": \"rejected\",\n  \"note\": \"Bulk rejected\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/bulk-moderate/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "bulk-moderate",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('both updated', () => pm.expect(pm.response.json().updated.length).to.eql(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Listing — upload media (multipart)",
+          "request": {
+            "method": "PATCH",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "Repeat `media_file` once per file; `media_type` (image / video / document) is read from the file's content type. Remove files with JSON `{\"media_delete_ids\": [id, ...]}`. **Select real files by hand in the Postman app** — a shared collection can't carry file paths, so this request returns 400 under Newman/CLI."
+          }
+        },
+        {
+          "name": "Delete Listing (soft delete)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "Soft delete: returns 204, the row stays in the database with `deletedAt` set and disappears from list/retrieve."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve deleted Listing (expect 404)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the other demo listings",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{plain_listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{plain_listing_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete service demo listing",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{service_listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{service_listing_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete no-discount demo listing",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{nodisc_listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{nodisc_listing_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete pending demo listing",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{pending_listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{pending_listing_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Cleanup",
+      "item": [
+        {
+          "name": "Delete Brand — in use by a listing (expect 409)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/{{brand_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "brands",
+                "{{brand_id}}",
+                ""
+              ]
+            },
+            "description": "A brand referenced by any listing — including soft-deleted ones — can't be deleted (409). Deactivate it with PATCH `is_active: false` instead."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Brand — unused (expect 204)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/{{inactive_brand_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "brands",
+                "{{inactive_brand_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
