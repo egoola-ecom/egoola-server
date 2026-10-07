@@ -3,6 +3,7 @@ from rest_framework.viewsets import ModelViewSet
 from apps.authentication.permissions import IsAdminActor
 from apps.core.mixins import AuditedViewSetMixin
 
+from .filters import BuyerFilter
 from .models import Admin, Seller, User
 from .serializers import (
     AdminListSerializer,
@@ -14,7 +15,7 @@ from .serializers import (
 )
 
 
-class AdminViewSet(ModelViewSet):
+class AdminViewSet(AuditedViewSetMixin, ModelViewSet):
     """Admin Management. Media is handled through this same API (see
     AdminSerializer) — there's no separate /admins/{id}/media/ endpoint.
 
@@ -60,13 +61,13 @@ class SellerViewSet(AuditedViewSetMixin, ModelViewSet):
         ).prefetch_related("media", "verification_logs")
 
 
-class BuyerViewSet(ModelViewSet):
+class BuyerViewSet(AuditedViewSetMixin, ModelViewSet):
     """Buyer management — model is `User` (see models.py docstring). Media
     is handled through this same API (see UserSerializer) — there's no
-    separate /buyers/{id}/media/ endpoint."""
+    separate /buyers/{id}/media/ endpoint. Filters: see BuyerFilter."""
 
     permission_classes = [IsAdminActor]
-    filterset_fields = ["status"]
+    filterset_class = BuyerFilter
     search_fields = ["name", "email", "phone"]
 
     def get_serializer_class(self):
