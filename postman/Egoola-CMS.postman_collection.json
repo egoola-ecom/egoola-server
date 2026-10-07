@@ -1,0 +1,1570 @@
+{
+  "info": {
+    "name": "Egoola API — CMS & Site Settings",
+    "description": "Admin-side content management: Banners, Email Templates, Site Settings and the Site Logo.\n\nAll endpoints need an Admin token. Lists are paginated (limit/offset).\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run **Auth > Admin Login**.\n3. Run the folders top to bottom. Requests that upload an image (banners, site logo) need a real file chosen in the Postman app — they can't run under Newman.\n4. `category_id` must be an existing product category in your database.\n\nSee docs/cms-api-guide.md for every payload and error case.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "category_id",
+      "value": "18",
+      "type": "string"
+    },
+    {
+      "key": "banner_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sidebar_banner_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "template_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "template_key",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/admin/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "admin",
+                "login",
+                ""
+              ]
+            },
+            "description": "Public endpoint — no token needed. Returns access + refresh JWTs carrying actor_type=admin. Every CMS endpoint below needs an Admin token (a plain admin is enough)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    pm.collectionVariables.set('refresh_token', body.refresh);",
+                  "    console.log('Saved admin access/refresh tokens.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/token/refresh/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "token",
+                "refresh",
+                ""
+              ]
+            },
+            "description": "Exchanges the saved refresh token (14-day life) for a new access token (1-hour life). Run this instead of logging in again once the access token expires."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    console.log('Refreshed access_token.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Banners",
+      "item": [
+        {
+          "name": "Create Banner — hero",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "placement",
+                  "value": "hero",
+                  "type": "text"
+                },
+                {
+                  "key": "heading",
+                  "value": "Eid Collection is Here {{$timestamp}}",
+                  "type": "text"
+                },
+                {
+                  "key": "small_heading",
+                  "value": "Up to 40% off",
+                  "type": "text"
+                },
+                {
+                  "key": "link_url",
+                  "value": "/categories/electronics",
+                  "type": "text"
+                },
+                {
+                  "key": "sort_order",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "type": "text"
+                },
+                {
+                  "key": "starts_at",
+                  "value": "2026-08-01T00:00:00Z",
+                  "type": "text"
+                },
+                {
+                  "key": "ends_at",
+                  "value": "2999-08-31T23:59:59Z",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/banners/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "banners",
+                ""
+              ]
+            },
+            "description": "Multipart form data. Required: `placement` (hero | sidebar | category) and `image`. Optional: heading, small_heading, link_url, status (active default | inactive), sort_order, starts_at / ends_at (ISO datetimes, ends_at must be after starts_at), category (sidebar only). **Choose a real image file in the Postman app** — a shared collection can't carry file paths, so under Newman/CLI this request is skipped-by-failure (400)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('banner_id', pm.response.json().id); }",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('image stored', () => pm.expect(pm.response.json().image_url).to.be.a('string').and.not.empty);",
+                  "pm.test('active by default', () => pm.expect(pm.response.json().status).to.eql('active'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Banner — sidebar with category",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "placement",
+                  "value": "sidebar",
+                  "type": "text"
+                },
+                {
+                  "key": "heading",
+                  "value": "Electronics Deals {{$timestamp}}",
+                  "type": "text"
+                },
+                {
+                  "key": "category",
+                  "value": "{{category_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "sort_order",
+                  "value": "2",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "inactive",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/banners/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "banners",
+                ""
+              ]
+            },
+            "description": "`category` is allowed on sidebar banners only. **Choose a real image file in the Postman app** — a shared collection can't carry file paths, so under Newman/CLI this request is skipped-by-failure (400)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('sidebar_banner_id', pm.response.json().id); }",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('category saved', () => pm.expect(String(pm.response.json().category)).to.eql(pm.collectionVariables.get('category_id')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Banner — category on hero (expect 400)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "placement",
+                  "value": "hero",
+                  "type": "text"
+                },
+                {
+                  "key": "heading",
+                  "value": "Bad",
+                  "type": "text"
+                },
+                {
+                  "key": "category",
+                  "value": "{{category_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/banners/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "banners",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('category error', () => pm.expect(pm.response.json()).to.have.property('category'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Banner — ends_at before starts_at (expect 400)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "placement",
+                  "value": "hero",
+                  "type": "text"
+                },
+                {
+                  "key": "heading",
+                  "value": "Bad",
+                  "type": "text"
+                },
+                {
+                  "key": "starts_at",
+                  "value": "2026-12-02T00:00:00Z",
+                  "type": "text"
+                },
+                {
+                  "key": "ends_at",
+                  "value": "2026-12-01T00:00:00Z",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/banners/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "banners",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('ends_at error', () => pm.expect(pm.response.json()).to.have.property('ends_at'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Banner — no image (expect 400)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "placement",
+                  "value": "hero",
+                  "type": "text"
+                },
+                {
+                  "key": "heading",
+                  "value": "No image",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/banners/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "banners",
+                ""
+              ]
+            },
+            "description": "\"A banner needs an image.\""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('image error', () => pm.expect(pm.response.json()).to.have.property('image'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve Banner",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/banners/{{banner_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "banners",
+                "{{banner_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Banner — text fields (JSON)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"heading\": \"Eid Sale \\u2014 Updated\",\n  \"status\": \"inactive\",\n  \"sort_order\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/banners/{{banner_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "banners",
+                "{{banner_id}}",
+                ""
+              ]
+            },
+            "description": "Plain JSON is fine when you don't send an image. Use `status: inactive` to hide a banner without deleting it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('updated', () => pm.expect(pm.response.json().heading).to.eql('Eid Sale — Updated'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Banner — move sidebar banner to hero and clear category",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placement\": \"hero\",\n  \"category\": null\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/banners/{{sidebar_banner_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "banners",
+                "{{sidebar_banner_id}}",
+                ""
+              ]
+            },
+            "description": "Changing a sidebar banner's placement without clearing `category` is a 400."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('category cleared', () => pm.expect(pm.response.json().category).to.be.null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Banner — replace image (multipart)",
+          "request": {
+            "method": "PATCH",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/banners/{{banner_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "banners",
+                "{{banner_id}}",
+                ""
+              ]
+            },
+            "description": "Sending `image` replaces the file and deletes the old one from storage. **Choose a real image file in the Postman app** — a shared collection can't carry file paths, so under Newman/CLI this request is skipped-by-failure (400)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Banners",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/banners/?placement=&status=&category=&active_now=&search=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "banners",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "placement",
+                  "value": "",
+                  "description": "hero | sidebar | category"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "active | inactive"
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": "category id"
+                },
+                {
+                  "key": "active_now",
+                  "value": "",
+                  "description": "true = active and inside its schedule window right now; false = everything else"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "heading or small heading"
+                }
+              ]
+            },
+            "description": "Paginated (limit/offset), ordered by placement then sort_order."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('paginated', () => pm.expect(pm.response.json()).to.have.property('results'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Banner",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/banners/{{banner_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "banners",
+                "{{banner_id}}",
+                ""
+              ]
+            },
+            "description": "Hard delete; the image file is removed too."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Banner — second demo banner",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/banners/{{sidebar_banner_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "banners",
+                "{{sidebar_banner_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Email Templates",
+      "item": [
+        {
+          "name": "Create Email Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"demo_order_approved_{{$timestamp}}\",\n  \"subject\": \"Your Egoola order has been approved\",\n  \"content\": \"Hi {{buyerName}}, your order #{{orderId}} has been approved.\",\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/email-templates/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "email-templates",
+                ""
+              ]
+            },
+            "description": "`key` is the stable id application code looks the template up by: lowercase letters, digits and underscores, starting with a letter, unique, and **cannot be changed later**. `content` may contain `{{variables}}`. `is_active` (default true) controls whether the app actually sends it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('template_id', pm.response.json().id); pm.collectionVariables.set('template_key', pm.response.json().key); }",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Email Template — duplicate key (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"{{template_key}}\",\n  \"subject\": \"x\",\n  \"content\": \"y\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/email-templates/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "email-templates",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('key error', () => pm.expect(pm.response.json()).to.have.property('key'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Email Template — invalid key (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"Bad-Key\",\n  \"subject\": \"x\",\n  \"content\": \"y\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/email-templates/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "email-templates",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve Email Template",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/email-templates/{{template_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "email-templates",
+                "{{template_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Email Template — subject, content, active flag",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject\": \"Order approved!\",\n  \"content\": \"Hi {{buyerName}}\",\n  \"is_active\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/email-templates/{{template_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "email-templates",
+                "{{template_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('deactivated', () => pm.expect(pm.response.json().is_active).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Email Template — change key (expect 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"another_key\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/email-templates/{{template_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "email-templates",
+                "{{template_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Email Templates",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/email-templates/?search=demo&is_active=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "email-templates",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "demo",
+                  "description": "key or subject"
+                },
+                {
+                  "key": "is_active",
+                  "value": "",
+                  "description": "true | false"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Email Template",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/email-templates/{{template_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "email-templates",
+                "{{template_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "Create Setting — number",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"demo_commission_rate_default\",\n  \"value\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/settings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "settings",
+                ""
+              ]
+            },
+            "description": "Generic key -> JSON value. `key`: lowercase letters, digits, underscores, starts with a letter; unique; can't be changed later. `value`: any JSON (number, string, boolean, list or object), required."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('value stored', () => pm.expect(pm.response.json().value).to.eql(10));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Setting — object",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"demo_contact\",\n  \"value\": {\n    \"email\": \"help@egoola.com\",\n    \"phones\": [\n      \"+8801700000000\"\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/settings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "settings",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Setting — duplicate key (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"demo_contact\",\n  \"value\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/settings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "settings",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Setting — reserved logo key (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"site_logo_url\",\n  \"value\": \"x\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/settings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "settings",
+                ""
+              ]
+            },
+            "description": "`site_logo_path` and `site_logo_url` are written only by the Site Logo endpoint."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve Setting",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/settings/demo_commission_rate_default/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "settings",
+                "demo_commission_rate_default",
+                ""
+              ]
+            },
+            "description": "Addressed by key, not by id."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Setting — change value",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 12\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/settings/demo_commission_rate_default/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "settings",
+                "demo_commission_rate_default",
+                ""
+              ]
+            },
+            "description": "The value can change to any other JSON type. The key is fixed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('updated', () => pm.expect(pm.response.json().value).to.eql(12));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Settings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/settings/?search=demo",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "settings",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "demo",
+                  "description": "key contains"
+                }
+              ]
+            },
+            "description": "Also shows `site_logo_path` / `site_logo_url` when a logo is set (read-only here)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Setting",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/settings/demo_commission_rate_default/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "settings",
+                "demo_commission_rate_default",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Setting — object",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/settings/demo_contact/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "settings",
+                "demo_contact",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Site Logo",
+      "item": [
+        {
+          "name": "Get Site Logo",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/site-logo/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "site-logo",
+                ""
+              ]
+            },
+            "description": "`{\"path\": ..., \"url\": ...}`; both null when no logo is set."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload Site Logo",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/site-logo/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "site-logo",
+                ""
+              ]
+            },
+            "description": "Multipart, one `image` file. Stores the new logo in the settings `site_logo_path` and `site_logo_url`, and deletes the previous logo file. PUT does the same. **Choose a real image file in the Postman app** — a shared collection can't carry file paths, so under Newman/CLI this request is skipped-by-failure (400)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('url set', () => pm.expect(pm.response.json().url).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload Site Logo — no image (expect 400)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": []
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/site-logo/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "site-logo",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Site Logo",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/site-logo/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "site-logo",
+                ""
+              ]
+            },
+            "description": "Clears both settings and removes the file. Safe to call when no logo exists."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
