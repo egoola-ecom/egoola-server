@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+from django.db import transaction
 from django.db.models import ProtectedError
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
@@ -230,8 +231,12 @@ class ListingViewSet(AuditedViewSetMixin, viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
+        actor = request.user
         instance.deleted_at = timezone.now()
-        instance.save(update_fields=["deleted_at"])
+        instance.updated_by = getattr(actor, "id", None)
+        instance.updater_type = getattr(actor, "actor_type", ActorType.SYSTEM)
+        instance.updater_name = getattr(actor, "name", None)
+        instance.save(update_fields=["deleted_at", "updated_by", "updater_type", "updater_name", "updated_at"])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=["post"], url_path="bulk-moderate")
@@ -247,6 +252,10 @@ class ListingViewSet(AuditedViewSetMixin, viewsets.ModelViewSet):
         reported back as skipped rather than updated.
         """
         listing_ids = request.data.get("listing_ids") or []
+        if not isinstance(listing_ids, list) or not all(
+            isinstance(i, int) and not isinstance(i, bool) for i in listing_ids
+        ):
+            return Response({"listing_ids": "Must be a list of listing ids (integers)."}, status=400)
         new_status = request.data.get("status")
         note = request.data.get("note") or None
 
@@ -264,23 +273,40 @@ class ListingViewSet(AuditedViewSetMixin, viewsets.ModelViewSet):
             return Response({"listing_ids": "Provide one or more listing ids."}, status=400)
 
         actor = request.user
+        actor_id = getattr(actor, "id", None)
+        actor_type = getattr(actor, "actor_type", ActorType.SYSTEM)
+        actor_name = getattr(actor, "name", None)
         updated_ids = []
         skipped_ids = []
-        for listing in Listing.objects.filter(id__in=listing_ids):
-            if listing.status == new_status:
-                skipped_ids.append(listing.id)
-                continue
-            listing.status = new_status
-            listing.note = note
-            listing.save(update_fields=["status", "note"])
-            ListingStatusChangeLog.objects.create(
-                listing=listing,
-                status=new_status,
-                note=note,
-                created_by=getattr(actor, "id", None),
-                creator_type=getattr(actor, "actor_type", ActorType.SYSTEM),
-                creator_name=getattr(actor, "name", None),
-            )
-            updated_ids.append(listing.id)
+        # All-or-nothing: a failure part-way must not leave some listings
+        # moderated without their history row.
+        with transaction.atomic():
+            found = {listing.id: listing for listing in Listing.objects.filter(id__in=listing_ids)}
+            # Request order, each id once; unknown / deleted ids drop out.
+            for listing in (found[i] for i in dict.fromkeys(listing_ids) if i in found):
+                if listing.status == new_status:
+                    skipped_ids.append(listing.id)
+                    continue
+                listing.status = new_status
+                listing.note = note
+                # Same audit stamp a single PATCH gets from AuditedViewSetMixin;
+                # updated_at must be listed too, or save(update_fields) skips it.
+                listing.updated_by = actor_id
+                listing.updater_type = actor_type
+                listing.updater_name = actor_name
+                listing.save(
+                    update_fields=[
+                        "status", "note", "updated_by", "updater_type", "updater_name", "updated_at",
+                    ]
+                )
+                ListingStatusChangeLog.objects.create(
+                    listing=listing,
+                    status=new_status,
+                    note=note,
+                    created_by=actor_id,
+                    creator_type=actor_type,
+                    creator_name=actor_name,
+                )
+                updated_ids.append(listing.id)
 
         return Response({"updated": updated_ids, "skipped": skipped_ids})
