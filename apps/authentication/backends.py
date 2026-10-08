@@ -5,6 +5,7 @@ an `actor_type` claim ("admin"/"seller"/"user") alongside the usual
 `actor_id` — this looks the id up in the matching table.
 """
 
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
 
@@ -30,6 +31,14 @@ class ActorJWTAuthentication(JWTAuthentication):
             actor = model.objects.get(id=actor_id)
         except model.DoesNotExist:
             raise InvalidToken("No such actor for this token.")
+
+        # Login already refuses a non-active account (see views.py), but an
+        # access token issued earlier stays valid until it expires. Checking
+        # the freshly loaded row here makes a deactivated admin or a
+        # suspended seller/buyer lose access on their next request instead
+        # of up to an hour later.
+        if actor.status != model.Status.ACTIVE:
+            raise AuthenticationFailed("This account is not active.", code="user_inactive")
 
         # DRF's IsAuthenticated (and everything downstream) only ever checks
         # `request.user.is_authenticated` — Admin/Seller/User aren't Django
