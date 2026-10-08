@@ -5,11 +5,11 @@ Everything in this file was tested against the running server before being
 written down — the example responses are real, not made up.
 
 Also in this repo:
-- **[Egoola.postman_collection.json](Egoola.postman_collection.json)** +
-  **[Egoola-Local.postman_environment.json](Egoola-Local.postman_environment.json)**
+- **[Egoola.postman_collection.json](../postman/Egoola.postman_collection.json)** +
+  **[Egoola-Local.postman_environment.json](../postman/Egoola-Local.postman_environment.json)**
   — import both into Postman and you can call every endpoint below without
   typing anything by hand. Logging in auto-saves the token for you.
-- **[openapi.json](openapi.json)** — the exact, always-up-to-date machine
+- **[openapi.json](../postman/openapi.json)** — the exact, always-up-to-date machine
   schema (field names, types, required/optional). If this guide and that
   file ever disagree, trust `openapi.json` — it's generated straight from
   the code, this file is hand-written and can go stale.
@@ -35,7 +35,8 @@ environment you're pointed at (staging/production URLs aren't decided yet).
 
 ## 2. The one rule that matters: everything needs a token, unless it's login
 
-Every endpoint requires a valid token **except** the three login endpoints.
+Every endpoint requires a valid token **except** the three login endpoints
+and `POST /api/v1/auth/token/refresh/`.
 There is no "public browsing" of accounts data — an Admin, Seller, or Buyer
 must be logged in for literally everything else in this guide.
 
@@ -104,8 +105,14 @@ for a new `access` token:
 
 **Response — `200`:**
 ```json
-{ "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }
+{
+  "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
 ```
+
+Refresh tokens are **rotated**: every refresh call returns a *new* `refresh`
+token as well. Save it and use it for the next refresh.
 
 Practical suggestion: wrap your HTTP client so that on any `401`, it tries
 this refresh call once and retries the original request — that way nobody
@@ -121,7 +128,7 @@ login again.
 
 | Status | Meaning | Example |
 |---|---|---|
-| `401` | No token, or an invalid/expired one | `{"detail": "Authentication credentials were not provided."}` |
+| `401` | No token, an invalid/expired one, or the account was deactivated/suspended after the token was issued | `{"detail": "Authentication credentials were not provided."}` or `{"detail": "This account is not active."}` |
 | `403` | Valid token, but this actor isn't allowed here | `{"detail": "Only an authenticated Admin can access this endpoint."}` |
 | `400` | The request body itself is wrong | see below |
 
@@ -197,7 +204,7 @@ across a few fields) plus filters specific to that resource.
 |---|---|---|
 | Admins | name, email, mobile | `?type=` (`super_admin` \| `admin`), `?status=` (`active` \| `inactive`) |
 | Sellers | name, email, phone | `?verification_status=` (`unverified` \| `pending` \| `verified` \| `rejected`), `?status=` (`active` \| `suspended`) |
-| Buyers | name, email, phone | `?status=` (`active` \| `suspended`) |
+| Buyers | name, email, phone | `?status=` (`active` \| `suspended`), `?country=` `?state=` `?city=` `?thana=` (ids), `?email_verified=` / `?phone_verified=` (`true` \| `false`), `?created_from=` / `?created_to=` (`YYYY-MM-DD`, inclusive) |
 
 Example: `GET /api/v1/accounts/sellers/?search=arafat&verification_status=pending`
 
@@ -208,8 +215,8 @@ Filters combine — they're AND'd together, and combine fine with
 
 ## 7. Admin Management
 
-Base path: `/api/v1/accounts/admins/` — **Admin-only** (any Seller or Buyer
-token gets `403` here).
+Base path: `/api/v1/accounts/admins/` — **super-admin only**. A Seller, a
+Buyer or a plain `admin` token gets `403` here.
 
 ### List — `GET /api/v1/accounts/admins/`
 
@@ -353,7 +360,8 @@ Base path: `/api/v1/accounts/sellers/` — **Admin-only**, same as above.
   "status": "active",
   "last_logged_at": "2026-09-25T18:28:28.814709+06:00",
   "media": [],
-  "business_info": null
+  "business_info": null,
+  "verification_logs": []
 }
 ```
 
@@ -365,10 +373,14 @@ your side rather than trusting JSON number precision.
 Create/Update below) — it's the Seller's public company profile (business
 type, main product, owner name, etc.).
 
-`email_verified_at`, `phone_verified_at`, `verification_status`,
-`verification_note`, `wallet_balance`, `bonus_balance` are all **read-only**
-— there's no verification/wallet-adjustment flow built yet (see §11), so
-none of these can be set through this endpoint.
+`email_verified_at`, `phone_verified_at`, `wallet_balance` and
+`bonus_balance` are **read-only** — there's no OTP or wallet-adjustment flow
+built yet (see §11), so none of these can be set through this endpoint.
+
+`verification_status` and `verification_note` are **writable** — that is how an
+Admin approves or rejects a seller (rejecting needs a note). Every real
+status change adds a row to `verification_logs` (newest first), and the
+note is only read when the status changes. See `docs/seller-verification-guide.md`.
 
 ### Create — `POST /api/v1/accounts/sellers/`
 
@@ -390,13 +402,14 @@ none of these can be set through this endpoint.
 ```
 
 - `name`, `email`, `phone`, `password` required.
-- `info` is **optional on create, but if you send it**, these five fields
+- `info` is **optional on create, but if you send it**, these six fields
   inside it are required: `business_type`, `main_product`, `owner_name`,
   `employees_range`, `annual_revenue`, `established_year`. (`description`,
-  `public_email`, `whatsapp`, `facebook`, `wechat`, `skype` inside `info`
-  are optional.)
+  `public_email`, `whatsapp`, `facebook`, `wechat`, `skype`, and the
+  location ids `country`, `state`, `city`, `thana` inside `info` are
+  optional.)
 - Send `info` again on a later `PATCH` to update the business profile —
-  it's saved as one row, so a partial `info` object still needs those five
+  it's saved as one row, so a partial `info` object still needs those six
   required sub-fields filled in (it's a full replace of the profile, not a
   per-field patch of it).
 - What comes back in the response is `business_info`, not `info` — `info`
@@ -512,8 +525,9 @@ Don't build screens against these — they don't exist on the backend yet:
 - **OTP / email-verification / password-reset flows.** The fields exist in
   the database but nothing exposes them over the API yet — that's why
   `email_verified_at` etc. show as read-only above.
-- **Seller wallet/bonus adjustments and verification approval.** Read-only
-  for the same reason — the workflow that changes them hasn't been built.
+- **Seller wallet/bonus adjustments.** Read-only — the workflow that changes
+  them hasn't been built. (Seller *verification* approval does exist: see §8
+  and `docs/seller-verification-guide.md`.)
 
 If frontend work needs any of these sooner, flag it — the plan is to build
 them "gradually" per actor, not all at once.

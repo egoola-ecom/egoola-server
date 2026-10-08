@@ -7,6 +7,7 @@ Header: `Authorization: Bearer <admin access token>`.
 | Token | Result |
 |---|---|
 | none / invalid | `401` |
+| valid token, but the account was suspended or deleted after it was issued | `401` `{"detail": "This account is not active."}` |
 | buyer or seller token | `403` |
 | admin | allowed |
 
@@ -65,6 +66,7 @@ Full
   "id": 14, "name": "Mahin Rahman", "email": "mahin@example.com",
   "phone": "+8801711000222", "profile_pic_path": null, "profile_pic_url": null,
   "description": "Interior designer", "skills": ["design"],
+  "experiences": null, "interests": null, "educations": null,
   "address_line": "Road 1, Gulshan", "country": 126, "state": 12, "city": 8, "thana": null,
   "email_verified_at": null, "phone_verified_at": null,
   "wallet_balance": "0.00", "status": "active", "media": []
@@ -122,4 +124,5 @@ Filters combine, e.g. `/buyers/?status=suspended&city=8&created_from=2026-10-01`
 
 49 / 49 checks passed (create and validation, retrieve, update including
 password change and login, profile picture, every list filter, 401/403, creator
-stamping, delete). Test data was removed afterwards.
+stamping, delete). Run as a curl-based smoke script against the dev server (the script
+is not stored in the repo). Test data was removed afterwards.
