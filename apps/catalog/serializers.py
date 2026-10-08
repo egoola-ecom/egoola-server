@@ -1,6 +1,7 @@
 from django.utils.text import slugify
 from rest_framework import serializers
 
+from apps.core.location import LocationConsistencyMixin
 from apps.core.models import ActorType
 from config.storage import infer_media_type, save_upload
 
@@ -200,9 +201,16 @@ class ListingPriceTierSerializer(serializers.ModelSerializer):
     class Meta:
         model = ListingPriceTier
         fields = ["id", "min_qty", "max_qty", "price", "discounted_price"]
-        extra_kwargs = {"discounted_price": {"required": False, "allow_null": True}}
+        extra_kwargs = {
+            "min_qty": {"min_value": 1},
+            "max_qty": {"min_value": 1},
+            "price": {"min_value": 0},
+            "discounted_price": {"required": False, "allow_null": True, "min_value": 0},
+        }
 
     def validate(self, attrs):
+        if attrs.get("max_qty") is not None and attrs["max_qty"] < attrs["min_qty"]:
+            raise serializers.ValidationError({"max_qty": "Must be equal to or greater than min_qty."})
         # No discount given -> the tier's discounted_price is its price.
         if attrs.get("discounted_price") is None:
             attrs["discounted_price"] = attrs["price"]
@@ -230,7 +238,7 @@ class ListingListSerializer(serializers.ModelSerializer):
         ]
 
 
-class ListingSerializer(serializers.ModelSerializer):
+class ListingSerializer(LocationConsistencyMixin, serializers.ModelSerializer):
     """Full detail/write serializer for a Listing.
 
     `price_tiers` is a plain nested list: when the key is present in the
@@ -275,20 +283,60 @@ class ListingSerializer(serializers.ModelSerializer):
             "created_at", "updated_at",
         ]
         read_only_fields = ["slug", "created_at", "updated_at"]
-        extra_kwargs = {"discounted_price": {"required": False, "allow_null": True}}
+        extra_kwargs = {
+            "discounted_price": {"required": False, "allow_null": True, "min_value": 0},
+            "price": {"min_value": 0},
+            "hourly_rate": {"min_value": 0},
+            "delivery_days": {"min_value": 0},
+            "min_order_qty": {"min_value": 1},
+            "stock_qty": {"min_value": 0},
+            "reserved_qty": {"min_value": 0},
+        }
+
+    def validate_price_tiers(self, tiers):
+        # Quantity ranges must not overlap: once sorted by min_qty, each
+        # tier has to start after the previous one ends, and only the last
+        # tier may be open-ended (no max_qty).
+        ordered = sorted(tiers, key=lambda tier: tier["min_qty"])
+        for previous, current in zip(ordered, ordered[1:]):
+            if previous.get("max_qty") is None or current["min_qty"] <= previous["max_qty"]:
+                raise serializers.ValidationError(
+                    "Price tier quantity ranges must not overlap, and only the last tier can have no max_qty."
+                )
+        return tiers
 
     def validate(self, attrs):
         instance = self.instance
-        # Only fires when THIS request is the one setting status to
+        self._check_location(attrs)
+        # Only fires when THIS request actually moves the listing into
         # rejected/changes_requested — falling back to the instance's
         # current status here would wrongly demand a note on every later,
-        # unrelated update to an already-rejected listing.
-        if attrs.get("status") in (Listing.Status.REJECTED, Listing.Status.CHANGES_REQUESTED) and not attrs.get(
-            "note"
-        ):
+        # unrelated update to an already-rejected listing, and re-sending
+        # the unchanged status (e.g. a PUT of the whole form) is not a
+        # status change, so it needs no note either.
+        status_changes = "status" in attrs and (instance is None or attrs["status"] != instance.status)
+        if status_changes and attrs["status"] in (
+            Listing.Status.REJECTED, Listing.Status.CHANGES_REQUESTED
+        ) and not attrs.get("note"):
             raise serializers.ValidationError(
                 {"note": "A note is required when rejecting a listing or requesting changes."}
             )
+
+        # The category must be of the listing's catalog type (a service
+        # category can't hold a product), and a listing can only be put into
+        # an active category — checked when either is being set, and the
+        # active check only for a category newly chosen, so an already-
+        # attached category deactivated later doesn't block other edits.
+        category = attrs["category"] if "category" in attrs else getattr(instance, "category", None)
+        catalog_type = attrs.get("catalog_type", getattr(instance, "catalog_type", None))
+        if category is not None and ("category" in attrs or "catalog_type" in attrs):
+            if category.type != catalog_type:
+                raise serializers.ValidationError(
+                    {"category": f"This is a {category.type} category; a {catalog_type} listing needs a {catalog_type} category."}
+                )
+        if "category" in attrs and category is not None and getattr(instance, "category_id", None) != category.id:
+            if category.status != Category.Status.ACTIVE:
+                raise serializers.ValidationError({"category": "This category is inactive."})
 
         # seller/buyer are both optional (an Admin can create a listing
         # owned by neither), but a listing never has both, and the one that
@@ -404,6 +452,12 @@ class ListingSerializer(serializers.ModelSerializer):
             # change. So a status-changing update always sets it, to
             # whatever was provided this time or to null if it wasn't.
             validated_data["note"] = validated_data.get("note") or None
+        else:
+            # A note belongs to a status change (it is that change's
+            # reason, and is copied to its history row). With no status
+            # change there is nothing to attach it to, so it is ignored —
+            # otherwise the row's note could drift from the latest log entry.
+            validated_data.pop("note", None)
         if "title" in validated_data and validated_data["title"] != instance.title:
             validated_data["slug"] = self._generate_slug(validated_data["title"])
 
