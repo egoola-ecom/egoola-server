@@ -47,8 +47,12 @@ carries over from a previous status change. Every time you change `verification_
 So if you want the previous note to still show up after a status change, you have to resend it
 yourself — the API will not do that for you.
 
-An update that doesn't touch `verification_status` at all (e.g. just changing `name` or
-`status`) leaves `verification_note` completely untouched, and writes nothing to the log.
+An update that doesn't change `verification_status` (e.g. just changing `name` or
+`status`, or re-sending the status the seller already has, as a full `PUT` does) leaves
+`verification_note` completely untouched, and writes nothing to the log. A `verification_note`
+sent without a real status change is ignored — a note is the reason for a status change, so the
+note on the seller always matches the newest log entry. Because of this, re-sending
+`"verification_status": "rejected"` on an already-rejected seller needs no note (and changes nothing).
 
 ## `verification_logs` — the change history
 
@@ -91,7 +95,7 @@ POST /api/v1/accounts/sellers/
   "verification_logs": [
     { "id": 5, "verification_status": "verified", "verification_note": null,
       "created_by": 10, "creator_type": "admin", "creator_name": "Test Admin",
-      "created_at": "2026-09-28T02:26:18.68Z" }
+      "created_at": "2026-09-28T08:26:18.680000+06:00" }
   ]
 }
 ```
