@@ -66,6 +66,9 @@ tokens it looks like:
 }
 ```
 
+(The real payload also carries the library's own bookkeeping claims —
+`token_type`, `iat` and `jti` — which are left out here for readability.)
+
 Since anyone can read this, the security doesn't come from hiding it —
 it comes from the third part, the **signature**. The signature is a
 scramble of the payload plus a secret key that only the server knows
@@ -83,13 +86,18 @@ just trust the payload. On every request, it:
 2. Reads `actor_id` and `actor_type` from the payload.
 3. Actually looks that row up in the database — `Admin.objects.get(id=10)`,
    for example.
+4. Checks the row is still **active**. A deactivated Admin, or a
+   suspended Seller or Buyer, is refused with
+   `401 {"detail": "This account is not active."}`.
 
-That third step matters. Say an Admin gets suspended right now, mid-day
+Steps 3 and 4 matter. Say an Admin gets deactivated right now, mid-day
 — their token is still validly signed and not expired, but the very
-next request they make fails, because the lookup in step 3 no longer
-finds an active account. The token is a claim ("I was Admin #10 at
-login time"); the database lookup is what keeps that claim honest a
-minute, an hour, or a day later.
+next request they make fails, because the fresh lookup finds an account
+that is no longer active (or no account at all, if it was deleted). The
+token is a claim ("I was Admin #10 at login time"); the database lookup
+is what keeps that claim honest a minute, an hour, or a day later. The
+same goes for a role change: demote a super-admin and the very next
+request is already treated as a plain admin.
 
 This whole lookup lives in one file:
 [`apps/authentication/backends.py`](../apps/authentication/backends.py),
@@ -100,6 +108,9 @@ in a class called `ActorJWTAuthentication`.
 sends its `refresh` token (valid 14 days) to
 `POST /api/v1/auth/token/refresh/` and gets a new access token back —
 with the same `actor_type`/`actor_id` carried over automatically.
+Refresh tokens are rotated (`ROTATE_REFRESH_TOKENS`), so the response
+holds a new `refresh` token too; the client should store it and use it
+next time. This endpoint is public (it needs no `Authorization` header).
 
 ### Why not just use Django's built-in login?
 
@@ -124,8 +135,11 @@ other, every request.
 
 1. **Authentication** — "who is this?" `ActorJWTAuthentication` answers
    this. It sets `request.user` to the actual `Admin`/`Seller`/`User`
-   row that matches the token. If there's no token, or it's invalid,
-   `request.user` becomes an anonymous placeholder instead — nobody.
+   row that matches the token. If there's no token at all,
+   `request.user` becomes an anonymous placeholder instead — nobody. A
+   token that is sent but is bad, expired, or belongs to an inactive
+   account is different: the request is rejected with `401` straight
+   away, even on a public route.
 
 2. **Permission** — "is *this* person allowed *here*?" This runs next,
    using whatever role the person turned out to have.
@@ -133,10 +147,13 @@ other, every request.
 ### Where the role check lives
 
 [`apps/authentication/permissions.py`](../apps/authentication/permissions.py)
-has three small classes:
+has four small classes:
 
 ```python
 class IsAdminActor(_IsActor):
+    actor_type = ActorType.ADMIN
+
+class IsSuperAdminActor(_IsActor):      # an Admin whose own type is super_admin
     actor_type = ActorType.ADMIN
 
 class IsSellerActor(_IsActor):
@@ -150,18 +167,25 @@ Each one just asks: "does this request's role match the one I care
 about?" A view (an endpoint, roughly) picks which one applies to it:
 
 ```python
-class AdminViewSet(ModelViewSet):
+class SellerViewSet(ModelViewSet):
     permission_classes = [IsAdminActor]
+
+class AdminViewSet(ModelViewSet):
+    permission_classes = [IsSuperAdminActor]
 ```
 
-This line is the entire rule for "only an Admin can manage
-Admins/Sellers/Buyers." If a Seller's or Buyer's token hits this
-endpoint, the role check fails and they get rejected — same code path,
-just a different answer.
+The first line is the entire rule for "only an Admin can manage
+Sellers" (Buyers work the same way). If a Seller's or Buyer's token hits
+that endpoint, the role check fails and they get rejected — same code
+path, just a different answer. Admin Management is stricter: only a
+**super-admin** gets in, so a plain `admin` token is refused there too
+(`403`), although it still works everywhere `IsAdminActor` is used.
 
 ### The two failure codes, and why they're different
 
 - **No token at all → `401 Unauthorized`.** "I don't know who you are."
+  The same `401` is returned for a bad or expired token, and for a valid
+  token whose account is no longer active.
 - **Valid token, wrong role → `403 Forbidden`.** "I know exactly who you
   are, and the answer is no."
 
@@ -171,10 +195,11 @@ specific to this project — a `401` means "log in first," a `403` means
 
 ### What's actually protected today
 
-Only Admin/Seller/Buyer *management* (an Admin creating, editing, or
-listing Seller and Buyer records —
-[`apps/accounts/views.py`](../apps/accounts/views.py)) uses
-`IsAdminActor` right now. `IsSellerActor` and `IsBuyerActor` already
+Every admin-panel endpoint uses `IsAdminActor`: Seller and Buyer
+management ([`apps/accounts/views.py`](../apps/accounts/views.py)), the
+catalog (categories, measurements, brands, listings), geography, and the
+CMS (banners, email templates, settings, site logo). Admin Management is
+the one exception and uses `IsSuperAdminActor`. `IsSellerActor` and `IsBuyerActor` already
 exist and work exactly the same way, but nothing uses them yet, because
 Sellers and Buyers don't have any of their own routes yet (their own
 product listings, their own orders, etc. — those apps haven't been
@@ -190,7 +215,9 @@ that Seller" is the same one-line pattern:
 
 Project-wide, every endpoint requires a valid, real token unless it says
 otherwise (`DEFAULT_PERMISSION_CLASSES` in
-[`config/settings.py`](../config/settings.py)). A "public" route is one
+[`config/settings.py`](../config/settings.py)). The public routes today are
+the three login views, `/auth/token/refresh/`, and the API docs at
+`/api/docs/` and `/api/schema/`. A "public" route is one
 that explicitly opts back out of that default — it's an exception you
 have to ask for, not something that happens by accident.
 
