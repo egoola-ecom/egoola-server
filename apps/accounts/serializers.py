@@ -1,6 +1,9 @@
 from django.contrib.auth.hashers import make_password
+from django.contrib.auth.password_validation import validate_password as run_password_validators
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from apps.core.location import LocationConsistencyMixin
 from apps.core.models import ActorType
 from config.storage import infer_media_type, save_upload
 
@@ -23,6 +26,15 @@ class PasswordWriteMixin:
     password-reset flow built yet, so exposing them would be dead, unsafe
     surface area. They come back once that flow is built.
     """
+
+    def validate_password(self, value):
+        # The project's AUTH_PASSWORD_VALIDATORS (min length 8, not a common
+        # or all-numeric password) — only runs when a password is sent.
+        try:
+            run_password_validators(value)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError(list(error.messages))
+        return value
 
     def validate(self, attrs):
         if self.instance is None and not attrs.get("password"):
@@ -143,7 +155,9 @@ class AdminListSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "email", "mobile", "profile_pic_url", "type", "status", "last_logged_at"]
 
 
-class AdminSerializer(MediaSyncMixin, ProfilePicUploadMixin, PasswordWriteMixin, serializers.ModelSerializer):
+class AdminSerializer(
+    LocationConsistencyMixin, MediaSyncMixin, ProfilePicUploadMixin, PasswordWriteMixin, serializers.ModelSerializer
+):
     password = serializers.CharField(write_only=True, required=False, style={"input_type": "password"})
     profile_pic = serializers.ImageField(write_only=True, required=False)
     media = AdminMediaSerializer(many=True, read_only=True)
@@ -216,7 +230,7 @@ class SellerVerificationLogSerializer(serializers.ModelSerializer):
         ]
 
 
-class SellerInfoSerializer(serializers.ModelSerializer):
+class SellerInfoSerializer(LocationConsistencyMixin, serializers.ModelSerializer):
     class Meta:
         model = SellerInfo
         fields = [
@@ -238,7 +252,9 @@ class SellerListSerializer(serializers.ModelSerializer):
         ]
 
 
-class SellerSerializer(MediaSyncMixin, ProfilePicUploadMixin, PasswordWriteMixin, serializers.ModelSerializer):
+class SellerSerializer(
+    LocationConsistencyMixin, MediaSyncMixin, ProfilePicUploadMixin, PasswordWriteMixin, serializers.ModelSerializer
+):
     password = serializers.CharField(write_only=True, required=False, style={"input_type": "password"})
     profile_pic = serializers.ImageField(write_only=True, required=False)
     media = SellerMediaSerializer(many=True, read_only=True)
@@ -293,7 +309,13 @@ class SellerSerializer(MediaSyncMixin, ProfilePicUploadMixin, PasswordWriteMixin
         }
 
     def validate(self, attrs):
-        if attrs.get("verification_status") == Seller.VerificationStatus.REJECTED and not attrs.get(
+        # Only a real move into "rejected" needs a note; re-sending the
+        # unchanged status (e.g. a PUT of the whole form) does not.
+        instance = self.instance
+        status_changes = "verification_status" in attrs and (
+            instance is None or attrs["verification_status"] != instance.verification_status
+        )
+        if status_changes and attrs["verification_status"] == Seller.VerificationStatus.REJECTED and not attrs.get(
             "verification_note"
         ):
             raise serializers.ValidationError(
@@ -353,6 +375,11 @@ class SellerSerializer(MediaSyncMixin, ProfilePicUploadMixin, PasswordWriteMixin
             # change. So a status-changing update always sets it, to
             # whatever was provided this time or to null if it wasn't.
             validated_data["verification_note"] = validated_data.get("verification_note") or None
+        else:
+            # A note is the reason for a status change. With no change there
+            # is nothing to attach it to, so it is ignored — otherwise the
+            # row's note could drift from the latest history entry.
+            validated_data.pop("verification_note", None)
         instance = super().update(instance, validated_data)
         if info_data:
             self._save_info(instance, info_data)
@@ -385,7 +412,9 @@ class BuyerListSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "email", "phone", "profile_pic_url", "wallet_balance", "status"]
 
 
-class UserSerializer(MediaSyncMixin, ProfilePicUploadMixin, PasswordWriteMixin, serializers.ModelSerializer):
+class UserSerializer(
+    LocationConsistencyMixin, MediaSyncMixin, ProfilePicUploadMixin, PasswordWriteMixin, serializers.ModelSerializer
+):
     """Buyer serializer — model is named `User` (see models.py docstring),
     not Django's own auth user."""
 
