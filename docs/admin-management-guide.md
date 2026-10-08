@@ -13,6 +13,7 @@ this API.
 | Token | Result on every `/admins/` endpoint |
 |---|---|
 | none / invalid | `401` |
+| an admin whose account was deactivated after the token was issued | `401` `{"detail": "This account is not active."}` |
 | seller or buyer | `403` |
 | `admin` | `403` `{"detail": "Only a super-admin can access Admin Management."}` |
 | `super_admin` | allowed |
@@ -118,7 +119,8 @@ Unknown id → `404`.
 52 / 52 checks passed: access control for every role, create and validation,
 promote / demote with immediate effect, deactivate and re-login, password
 change, self-protection, filters, creator stamping, delete. Also re-run through
-Newman for the Postman Auth + Admins folders. Test data was removed.
+Newman for the Postman Auth + Admins folders. The checks are a curl-based smoke script run
+against the dev server (not stored in the repo). Test data was removed.
 
 ## Dev accounts
 
