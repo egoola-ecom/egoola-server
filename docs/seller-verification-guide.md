@@ -15,8 +15,25 @@ on that resource.
 ## Default verification_status on create
 
 - **Admin creates the Seller** (`POST /api/v1/accounts/sellers/`) → `verification_status` defaults to `verified` if you don't pass one.
-- Any other creation path (e.g. a future public seller sign-up) → defaults to `unverified`.
+- **The seller registers themselves** (`POST /api/v1/auth/seller/register/`) → always `unverified`, with `status: inactive` and `is_seller_request: true`. The registration writes the first history entry, created by the seller. See [`seller-onboarding-guide.md`](seller-onboarding-guide.md).
+- Any other creation path → defaults to `unverified`.
 - You can still pass `verification_status` explicitly on create to override the default (e.g. create straight into `pending`).
+
+## Approving a self-registered seller
+
+A seller who signed up by themselves cannot log in until their account is `active`. So approving
+them takes both fields in one request:
+
+```
+PATCH /api/v1/accounts/sellers/{id}/
+{ "verification_status": "verified", "status": "active" }
+```
+
+The first time an admin really changes `verification_status` or `status`, the seller's
+`is_seller_request` flag turns `false` and they leave the admin's Seller Request list
+(`GET /api/v1/accounts/sellers/requests/`). Editing other fields does not. A rejection that fails
+because the note is missing changes nothing, so the seller stays in the list. See
+[`seller-onboarding-guide.md`](seller-onboarding-guide.md).
 
 ## Changing verification_status later
 
@@ -63,6 +80,8 @@ endpoint. A new entry is written:
 - Again, every time an update actually **changes** `verification_status` (setting it to the
   value it already had does not write a new entry).
 
+For a self-registered seller the first entry has `creator_type: "seller"` (the seller is its own creator).
+
 Each entry:
 
 ```json
@@ -77,8 +96,8 @@ Each entry:
 }
 ```
 
-`created_by` / `creator_type` / `creator_name` identify whoever made *that* change (currently
-always an Admin, since only Admins can reach this API today).
+`created_by` / `creator_type` / `creator_name` identify whoever made *that* change: an Admin, or
+the seller themselves for the registration entry of a self-registered account.
 
 ## Full walkthrough
 
