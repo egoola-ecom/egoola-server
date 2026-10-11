@@ -18,6 +18,7 @@ this API.
 | `admin` | `403` `{"detail": "Only a super-admin can access Admin Management."}` |
 | `super_admin` | allowed |
 
+The admin login response includes `admin_type` so the panel can hide this section for a plain admin.
 The role is read from the database on each request, so promoting or demoting an
 admin takes effect immediately (even with a token that was issued earlier).
 
@@ -40,13 +41,13 @@ Postman: **Auth > Super-Admin Login**, then the **Admins** folder in
 | name | **required** |
 | email | **required**, unique |
 | mobile | **required**, unique |
-| password | **required on create**, write only, stored hashed; optional on update |
+| password | **required on create**, write only, stored hashed; optional on update. Must be at least 8 characters, not a very common password and not all digits |
 | type | **required**: `super_admin` \| `admin` |
 | status | `active` (default) \| `inactive` |
 | profile_pic | image file, write only (multipart) → `profile_pic_url` |
 | skills, experiences, interests, educations | JSON, optional |
 | present_address, permanent_address | text, optional |
-| country, state, city, thana | ids, optional |
+| country, state, city, thana | ids, optional. Must match: the state belongs to the country, the city to the state, the thana to the city |
 | last_logged_at | read only |
 | media | read only; add with `media_for` + `media_file`, remove with `media_delete_ids` |
 
@@ -69,7 +70,7 @@ the super-admin's token.
 {
   "name": "Nadia Karim", "email": "nadia@egoola.com", "mobile": "+8801711000444",
   "password": "Adm@12345", "type": "super_admin", "status": "active",
-  "present_address": "Dhaka", "country": 126, "state": 12, "city": 8, "skills": ["operations"]
+  "present_address": "Dhaka", "country": 126, "state": 13, "city": 8, "skills": ["operations"]
 }
 ```
 
@@ -78,6 +79,8 @@ the super-admin's token.
 | `type` missing | `400` `{"type": ["This field is required."]}` |
 | `type` = `moderator`, `support` or anything else | `400` `"… is not a valid choice."` |
 | no `password` | `400` `{"password": ["This field is required when creating a new record."]}` |
+| weak `password` (too short, too common, all digits) | `400` `{"password": ["This password is too short. It must contain at least 8 characters."]}` |
+| a city / state / thana that does not belong to the level above | `400` `{"city": ["This city does not belong to the selected state."]}` |
 | duplicate `email` or `mobile` | `400` on that field |
 | plain `admin` token | `403` |
 
@@ -119,8 +122,8 @@ Unknown id → `404`.
 52 / 52 checks passed: access control for every role, create and validation,
 promote / demote with immediate effect, deactivate and re-login, password
 change, self-protection, filters, creator stamping, delete. Also re-run through
-Newman for the Postman Auth + Admins folders. The checks are a curl-based smoke script run
-against the dev server (not stored in the repo). Test data was removed.
+Newman for the Postman Auth + Admins folders. The checks are `scripts/smoke/admin_smoke.sh`, run
+against the dev server (see `scripts/smoke/README.md`). Test data was removed.
 
 ## Dev accounts
 
