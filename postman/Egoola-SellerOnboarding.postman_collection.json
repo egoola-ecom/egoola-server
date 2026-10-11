@@ -1,0 +1,2286 @@
+{
+  "info": {
+    "name": "Egoola API — Seller Onboarding & Requests",
+    "_postman_id": "4f1b8c2d-7a35-4e6b-9c0d-egoola-onboarding",
+    "description": "Seller self-registration with KYC documents (public) and the admin Seller Request queue (cursor pagination, filters, approve / reject). Run top to bottom: Auth, Public lookups, Registration, Seller Request queue, Admin actions. **The registration requests with file rows need a real JPG / PNG / WEBP / PDF chosen in the Postman app** (file paths cannot be shared in a collection).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "request_seller_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "request_seller_email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "request_seller_phone",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "full_seller_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "full_seller_email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "country_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lookup_state_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lookup_city_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "page1_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "request_next",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// A fresh value for every request, so emails and phones never repeat (the built-in {{$timestamp}} only changes once a second).",
+          "pm.variables.set('uniq', String(Date.now()) + String(Math.floor(Math.random() * 900) + 100));"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/admin/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "admin",
+                "login",
+                ""
+              ]
+            },
+            "description": "Public endpoint — no token needed. Returns access + refresh JWTs carrying actor_type=admin. Every Seller Management endpoint below is Admin-only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    pm.collectionVariables.set('refresh_token', body.refresh);",
+                  "    console.log('Saved admin access/refresh tokens.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/token/refresh/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "token",
+                "refresh",
+                ""
+              ]
+            },
+            "description": "Exchanges the saved refresh token (14-day life) for a new access token (1-hour life). Run this instead of logging in again once the access token expires."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    console.log('Refreshed access_token.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Public lookups (no login)",
+      "item": [
+        {
+          "name": "Countries (dropdown 1)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/geography/countries/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "geography",
+                "countries",
+                ""
+              ]
+            },
+            "description": "Public, read-only, no token. Fills the country dropdown on the sign-up form. Rows: id, name, slug, country_code, flag_url.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"has countries\", () => { const r = pm.response.json().results; pm.expect(r.length).to.be.at.least(1); pm.expect(r[0]).to.have.all.keys('id','name','slug','country_code','flag_url'); });",
+                  "pm.test(\"no audit data\", () => { pm.expect(pm.response.json().results[0]).to.not.have.property('creator_name'); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('country_id', String(pm.response.json().results[0].id)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "States of the chosen country (dropdown 2)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/geography/states/?country={{country_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "geography",
+                "states",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "country",
+                  "value": "{{country_id}}"
+                }
+              ]
+            },
+            "description": "Call again whenever the country changes. Rows: id, name, slug, country.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"every state belongs to the country\", () => { pm.response.json().results.forEach(r => pm.expect(String(r.country)).to.eql(pm.collectionVariables.get('country_id'))); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('lookup_state_id', String((pm.response.json().results[0] || {}).id)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cities of the chosen state (dropdown 3)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/geography/cities/?state={{lookup_state_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "geography",
+                "cities",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "state",
+                  "value": "{{lookup_state_id}}"
+                }
+              ]
+            },
+            "description": "Filters: `country`, `state`. Rows: id, name, slug, country, state.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"every city belongs to the state\", () => { pm.response.json().results.forEach(r => pm.expect(String(r.state)).to.eql(pm.collectionVariables.get('lookup_state_id'))); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('lookup_city_id', String((pm.response.json().results[0] || {}).id)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Thanas of the chosen city (dropdown 4, optional)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/geography/thanas/?city={{lookup_city_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "geography",
+                "thanas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "city",
+                  "value": "{{lookup_city_id}}"
+                }
+              ]
+            },
+            "description": "Filters: `country`, `state`, `city`. The thana is optional on the sign-up form, so an empty list is normal.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"is a list\", () => { pm.expect(pm.response.json().results).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search by name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/geography/states/?search=a",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "geography",
+                "states",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "a"
+                }
+              ]
+            },
+            "description": "`search` matches part of the name. Every list also takes `limit` (default 500, max 1000) and `offset`.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"wrapped list\", () => { pm.expect(pm.response.json()).to.have.property('count'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A stale token does not break a public read",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/geography/countries/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "geography",
+                "countries",
+                ""
+              ]
+            },
+            "description": "Public routes ignore the Authorization header, so an expired token in the browser can never cause a 401 here.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Public lists are read-only (POST -> 405)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/geography/countries/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "geography",
+                "countries",
+                ""
+              ]
+            },
+            "description": "Creating, editing and deleting geography stays on the admin API (`/api/v1/geography/`).",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nowhere\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 405', () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Registration (public)",
+      "item": [
+        {
+          "name": "Register Seller — minimal (1 NID)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "register",
+                ""
+              ]
+            },
+            "description": "Public — no token. Multipart form. The seller is created unverified and inactive and joins the admin's Seller Request queue. **Pick a JPG, PNG, WEBP or PDF file for each `media_file` row in the Postman app** — a shared collection can't carry file paths, so under Newman these file rows are empty and the request fails with 400.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Postman Applicant {{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "postman.applicant.{{uniq}}@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+880{{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "Sell@12345",
+                  "type": "text"
+                },
+                {
+                  "key": "present_address",
+                  "value": "House 12, Road 5, Feni Sadar",
+                  "type": "text"
+                },
+                {
+                  "key": "permanent_address",
+                  "value": "Village Pashchim Para, Feni",
+                  "type": "text"
+                },
+                {
+                  "key": "country",
+                  "value": "126",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "13",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "8",
+                  "type": "text"
+                },
+                {
+                  "key": "media_for",
+                  "value": "nid",
+                  "type": "text"
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"unverified\", () => { pm.expect(pm.response.json().verification_status).to.eql('unverified'); });",
+                  "pm.test(\"inactive\", () => { pm.expect(pm.response.json().status).to.eql('inactive'); });",
+                  "pm.test(\"is_seller_request true\", () => { pm.expect(pm.response.json().is_seller_request).to.eql(true); });",
+                  "pm.test(\"password and tokens are not returned\", () => { const b = pm.response.json(); pm.expect(b).to.not.have.property('password'); pm.expect(b).to.not.have.property('access'); });",
+                  "pm.test(\"has a message\", () => { pm.expect(pm.response.json().message).to.be.a('string').and.not.empty; });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('request_seller_id', String(pm.response.json().id)); }",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('request_seller_email', String(pm.response.json().email)); }",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('request_seller_phone', String(pm.response.json().phone)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Seller — with business profile, certificate and photo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "register",
+                ""
+              ]
+            },
+            "description": "Same endpoint with the optional parts: more documents (`media_for` + `media_file` pairs, same order), a profile photo, and the business profile as a JSON string in `info` (every business field is required when `info` is sent). **Pick a JPG, PNG, WEBP or PDF file for each `media_file` row in the Postman app** — a shared collection can't carry file paths, so under Newman these file rows are empty and the request fails with 400.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Postman Applicant {{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "postman.applicant.{{uniq}}@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+880{{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "Sell@12345",
+                  "type": "text"
+                },
+                {
+                  "key": "present_address",
+                  "value": "House 12, Road 5, Feni Sadar",
+                  "type": "text"
+                },
+                {
+                  "key": "permanent_address",
+                  "value": "Village Pashchim Para, Feni",
+                  "type": "text"
+                },
+                {
+                  "key": "country",
+                  "value": "126",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "13",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "8",
+                  "type": "text"
+                },
+                {
+                  "key": "media_for",
+                  "value": "nid",
+                  "type": "text"
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "media_for",
+                  "value": "certificate",
+                  "type": "text"
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "profile_pic",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "info",
+                  "value": "{\"business_type\": \"Retail\", \"main_product\": \"Shoes\", \"owner_name\": \"Postman Owner\", \"employees_range\": \"1-10\", \"annual_revenue\": \"< $50,000\", \"established_year\": \"2020\", \"country\": 126, \"state\": 13, \"city\": 8}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"still unverified and inactive\", () => { const b = pm.response.json(); pm.expect(b.verification_status).to.eql('unverified'); pm.expect(b.status).to.eql('inactive'); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('full_seller_id', String(pm.response.json().id)); }",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('full_seller_email', String(pm.response.json().email)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Seller — no documents (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "register",
+                ""
+              ]
+            },
+            "description": "At least one NID file is required.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Postman Applicant {{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "postman.applicant.{{uniq}}@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+880{{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "Sell@12345",
+                  "type": "text"
+                },
+                {
+                  "key": "present_address",
+                  "value": "House 12, Road 5, Feni Sadar",
+                  "type": "text"
+                },
+                {
+                  "key": "permanent_address",
+                  "value": "Village Pashchim Para, Feni",
+                  "type": "text"
+                },
+                {
+                  "key": "country",
+                  "value": "126",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "13",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "8",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test(\"names the missing documents\", () => { const b = pm.response.json(); pm.expect(b.media_for || b.media_file).to.exist; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Seller — certificate but no NID (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "register",
+                ""
+              ]
+            },
+            "description": "A certificate does not replace the NID. **Pick a JPG, PNG, WEBP or PDF file for each `media_file` row in the Postman app** — a shared collection can't carry file paths, so under Newman these file rows are empty and the request fails with 400.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Postman Applicant {{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "postman.applicant.{{uniq}}@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+880{{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "Sell@12345",
+                  "type": "text"
+                },
+                {
+                  "key": "present_address",
+                  "value": "House 12, Road 5, Feni Sadar",
+                  "type": "text"
+                },
+                {
+                  "key": "permanent_address",
+                  "value": "Village Pashchim Para, Feni",
+                  "type": "text"
+                },
+                {
+                  "key": "country",
+                  "value": "126",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "13",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "8",
+                  "type": "text"
+                },
+                {
+                  "key": "media_for",
+                  "value": "certificate",
+                  "type": "text"
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test(\"asks for an NID\", () => { pm.expect(JSON.stringify(pm.response.json().media_for)).to.include('NID'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Seller — duplicate email (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "register",
+                ""
+              ]
+            },
+            "description": "Run after the first registration. The check ignores upper/lower case. **Pick a JPG, PNG, WEBP or PDF file for each `media_file` row in the Postman app** — a shared collection can't carry file paths, so under Newman these file rows are empty and the request fails with 400.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Postman Applicant {{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "{{request_seller_email}}",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+880{{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "Sell@12345",
+                  "type": "text"
+                },
+                {
+                  "key": "present_address",
+                  "value": "House 12, Road 5, Feni Sadar",
+                  "type": "text"
+                },
+                {
+                  "key": "permanent_address",
+                  "value": "Village Pashchim Para, Feni",
+                  "type": "text"
+                },
+                {
+                  "key": "country",
+                  "value": "126",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "13",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "8",
+                  "type": "text"
+                },
+                {
+                  "key": "media_for",
+                  "value": "nid",
+                  "type": "text"
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test(\"email error\", () => { pm.expect(pm.response.json()).to.have.property('email'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Seller — duplicate phone (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "register",
+                ""
+              ]
+            },
+            "description": "Run after the first registration. **Pick a JPG, PNG, WEBP or PDF file for each `media_file` row in the Postman app** — a shared collection can't carry file paths, so under Newman these file rows are empty and the request fails with 400.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Postman Applicant {{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "postman.applicant.{{uniq}}@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "{{request_seller_phone}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "Sell@12345",
+                  "type": "text"
+                },
+                {
+                  "key": "present_address",
+                  "value": "House 12, Road 5, Feni Sadar",
+                  "type": "text"
+                },
+                {
+                  "key": "permanent_address",
+                  "value": "Village Pashchim Para, Feni",
+                  "type": "text"
+                },
+                {
+                  "key": "country",
+                  "value": "126",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "13",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "8",
+                  "type": "text"
+                },
+                {
+                  "key": "media_for",
+                  "value": "nid",
+                  "type": "text"
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test(\"phone error\", () => { pm.expect(pm.response.json()).to.have.property('phone'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Seller — weak password (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "register",
+                ""
+              ]
+            },
+            "description": "The password must pass the project's password rules (8+ characters, not common, not all digits). **Pick a JPG, PNG, WEBP or PDF file for each `media_file` row in the Postman app** — a shared collection can't carry file paths, so under Newman these file rows are empty and the request fails with 400.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Postman Applicant {{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "postman.applicant.{{uniq}}@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+880{{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "abc1",
+                  "type": "text"
+                },
+                {
+                  "key": "present_address",
+                  "value": "House 12, Road 5, Feni Sadar",
+                  "type": "text"
+                },
+                {
+                  "key": "permanent_address",
+                  "value": "Village Pashchim Para, Feni",
+                  "type": "text"
+                },
+                {
+                  "key": "country",
+                  "value": "126",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "13",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "8",
+                  "type": "text"
+                },
+                {
+                  "key": "media_for",
+                  "value": "nid",
+                  "type": "text"
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test(\"password error\", () => { pm.expect(pm.response.json()).to.have.property('password'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Seller — city from another state (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "register",
+                ""
+              ]
+            },
+            "description": "State, city (and thana) must belong together. **Pick a JPG, PNG, WEBP or PDF file for each `media_file` row in the Postman app** — a shared collection can't carry file paths, so under Newman these file rows are empty and the request fails with 400.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Postman Applicant {{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "postman.applicant.{{uniq}}@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+880{{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "Sell@12345",
+                  "type": "text"
+                },
+                {
+                  "key": "present_address",
+                  "value": "House 12, Road 5, Feni Sadar",
+                  "type": "text"
+                },
+                {
+                  "key": "permanent_address",
+                  "value": "Village Pashchim Para, Feni",
+                  "type": "text"
+                },
+                {
+                  "key": "country",
+                  "value": "126",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "12",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "8",
+                  "type": "text"
+                },
+                {
+                  "key": "media_for",
+                  "value": "nid",
+                  "type": "text"
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test(\"city error\", () => { pm.expect(pm.response.json()).to.have.property('city'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Seller — missing address and location (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "register",
+                ""
+              ]
+            },
+            "description": "Both addresses and country, state and city are required. **Pick a JPG, PNG, WEBP or PDF file for each `media_file` row in the Postman app** — a shared collection can't carry file paths, so under Newman these file rows are empty and the request fails with 400.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Postman Applicant {{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "postman.applicant.{{uniq}}@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+880{{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "Sell@12345",
+                  "type": "text"
+                },
+                {
+                  "key": "media_for",
+                  "value": "nid",
+                  "type": "text"
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test(\"each missing field is named\", () => { const b = pm.response.json(); ['present_address','permanent_address','country','state','city'].forEach(k => pm.expect(b).to.have.property(k)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pending seller cannot log in (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "login",
+                ""
+              ]
+            },
+            "description": "Right password, but the account is inactive until an admin approves it. The message says the registration is under review.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{request_seller_email}}\",\n  \"password\": \"Sell@12345\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test(\"under review\", () => { pm.expect(pm.response.json().detail).to.include('under review'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Seller Request queue (admin)",
+      "item": [
+        {
+          "name": "List requests (newest first)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/?search=Postman%20Applicant",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman%20Applicant"
+                }
+              ]
+            },
+            "description": "The admin's Seller Request queue: only self-registered sellers nobody has acted on yet. **Cursor pagination** — the response has `next` / `previous` links and no `count`. Newest first by default."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"cursor response shape\", () => { const b = pm.response.json(); pm.expect(b).to.have.property('next'); pm.expect(b).to.have.property('previous'); pm.expect(b.results).to.be.an('array'); pm.expect(b).to.not.have.property('count'); });",
+                  "pm.test(\"both registrations are in the queue\", () => { const ids = pm.response.json().results.map(r => String(r.id)); pm.expect(ids).to.include(pm.collectionVariables.get('request_seller_id')); pm.expect(ids).to.include(pm.collectionVariables.get('full_seller_id')); });",
+                  "pm.test(\"every row is a request\", () => { pm.response.json().results.forEach(r => pm.expect(r.is_seller_request).to.eql(true)); });",
+                  "pm.test(\"newest first\", () => { const r = pm.response.json().results; for (let i = 1; i < r.length; i++) pm.expect(new Date(r[i-1].created_at) >= new Date(r[i].created_at)).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List requests — oldest first",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/?search=Postman%20Applicant&ordering=created_at",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman%20Applicant"
+                },
+                {
+                  "key": "ordering",
+                  "value": "created_at"
+                }
+              ]
+            },
+            "description": "`ordering` takes `created_at`, `name` or `id`, with a leading `-` to reverse."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"oldest first\", () => { const r = pm.response.json().results; for (let i = 1; i < r.length; i++) pm.expect(new Date(r[i-1].created_at) <= new Date(r[i].created_at)).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List requests — page 1 (limit=1)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/?search=Postman%20Applicant&limit=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman%20Applicant"
+                },
+                {
+                  "key": "limit",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "`limit` sets the page size (default 20, max 100). The `next` link carries an opaque `cursor`; the next request below follows it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"one row and a next link\", () => { const b = pm.response.json(); pm.expect(b.results.length).to.eql(1); pm.expect(b.next).to.be.a('string'); });",
+                  "pm.test(\"no previous link on the first page\", () => { pm.expect(pm.response.json().previous).to.eql(null); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('page1_id', String(pm.response.json().results[0].id)); }",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('request_next', String(pm.response.json().next)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List requests — follow the next link",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{request_next}}",
+            "description": "Paste nothing — the previous request saved the full `next` URL in `request_next`. Use the URL exactly as given."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"a different row\", () => { const b = pm.response.json(); pm.expect(b.results.length).to.eql(1); pm.expect(String(b.results[0].id)).to.not.eql(pm.collectionVariables.get('page1_id')); });",
+                  "pm.test(\"has a previous link\", () => { pm.expect(pm.response.json().previous).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List requests — filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/?search=Postman%20Applicant&status=inactive&verification_status=unverified&creator_type=seller&country=126&state=13&city=8&email_verified=false&phone_verified=false",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman%20Applicant"
+                },
+                {
+                  "key": "status",
+                  "value": "inactive"
+                },
+                {
+                  "key": "verification_status",
+                  "value": "unverified"
+                },
+                {
+                  "key": "creator_type",
+                  "value": "seller"
+                },
+                {
+                  "key": "country",
+                  "value": "126"
+                },
+                {
+                  "key": "state",
+                  "value": "13"
+                },
+                {
+                  "key": "city",
+                  "value": "8"
+                },
+                {
+                  "key": "email_verified",
+                  "value": "false"
+                },
+                {
+                  "key": "phone_verified",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Filters: `status`, `verification_status` (also `__in=a,b`), `creator_type`, `country`, `state`, `city`, `thana`, `email_verified`, `phone_verified`, `has_business_profile`, `business_type`, `created_from`, `created_to`, `search` (name, email, phone), `ordering`, `limit`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"both registrations match\", () => { const ids = pm.response.json().results.map(r => String(r.id)); pm.expect(ids).to.include(pm.collectionVariables.get('request_seller_id')); pm.expect(ids).to.include(pm.collectionVariables.get('full_seller_id')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List requests — only those with a business profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/?search=Postman%20Applicant&has_business_profile=true&business_type=retail",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman%20Applicant"
+                },
+                {
+                  "key": "has_business_profile",
+                  "value": "true"
+                },
+                {
+                  "key": "business_type",
+                  "value": "retail"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"only the full registration\", () => { const ids = pm.response.json().results.map(r => String(r.id)); pm.expect(ids).to.include(pm.collectionVariables.get('full_seller_id')); pm.expect(ids).to.not.include(pm.collectionVariables.get('request_seller_id')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List requests — status=active is empty",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/?search=Postman%20Applicant&status=active",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman%20Applicant"
+                },
+                {
+                  "key": "status",
+                  "value": "active"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"empty\", () => { pm.expect(pm.response.json().results.length).to.eql(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Waiting requests — count for a menu badge",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/?is_seller_request=true&limit=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "is_seller_request",
+                  "value": "true"
+                },
+                {
+                  "key": "limit",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "The queue has no `count` (cursor pagination). The normal Seller list does, and accepts `is_seller_request=true`, so use it for a \"Seller Request (n)\" badge."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"count is a number\", () => { pm.expect(pm.response.json().count).to.be.a('number').and.at.least(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve a request — documents and history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{request_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{request_seller_id}}",
+                ""
+              ]
+            },
+            "description": "The detail page the reviewer works from: `media` holds the uploaded documents (`media_for`, `media_url`), `business_info`, addresses, and `verification_logs` (the first entry is the registration itself)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"is a request\", () => { pm.expect(pm.response.json().is_seller_request).to.eql(true); });",
+                  "pm.test(\"NID uploaded\", () => { const m = pm.response.json().media; pm.expect(m.length).to.be.at.least(1); pm.expect(m.map(x => x.media_for)).to.include('nid'); m.forEach(x => pm.expect(x.media_url).to.be.a('string').and.not.empty); });",
+                  "pm.test(\"registration is in the history\", () => { const l = pm.response.json().verification_logs; pm.expect(l[l.length - 1].creator_type).to.eql('seller'); pm.expect(l[l.length - 1].verification_status).to.eql('unverified'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Queue without a token (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin actions",
+      "item": [
+        {
+          "name": "Edit an address — stays in the queue",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{request_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{request_seller_id}}",
+                ""
+              ]
+            },
+            "description": "Only an action on `verification_status` or `status` takes a seller out of the queue. Other edits leave it there.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"present_address\": \"New address, Feni\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"still a request\", () => { pm.expect(pm.response.json().is_seller_request).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve — verified + active",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{request_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{request_seller_id}}",
+                ""
+              ]
+            },
+            "description": "Approving takes two fields: `verification_status` (the KYC decision) and `status` (lets the seller log in). Send both in one request. Either one leaving its old value clears `is_seller_request`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_status\": \"verified\",\n  \"status\": \"active\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"approved\", () => { const b = pm.response.json(); pm.expect(b.verification_status).to.eql('verified'); pm.expect(b.status).to.eql('active'); });",
+                  "pm.test(\"left the queue\", () => { pm.expect(pm.response.json().is_seller_request).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approved seller is out of the queue",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/?search=Postman%20Applicant&limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman%20Applicant"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"approved one is gone, the other waits\", () => { const ids = pm.response.json().results.map(r => String(r.id)); pm.expect(ids).to.not.include(pm.collectionVariables.get('request_seller_id')); pm.expect(ids).to.include(pm.collectionVariables.get('full_seller_id')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approved seller can log in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "login",
+                ""
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{request_seller_email}}\",\n  \"password\": \"Sell@12345\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"token returned\", () => { pm.expect(pm.response.json().access).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject without a note (expect 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{full_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{full_seller_id}}",
+                ""
+              ]
+            },
+            "description": "A rejection always needs a note. The failed request changes nothing — the seller stays in the queue.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_status\": \"rejected\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test(\"note error\", () => { pm.expect(pm.response.json()).to.have.property('verification_note'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject with a note",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{full_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{full_seller_id}}",
+                ""
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_status\": \"rejected\",\n  \"verification_note\": \"NID photo is unreadable. Please apply again.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"rejected and out of the queue\", () => { const b = pm.response.json(); pm.expect(b.verification_status).to.eql('rejected'); pm.expect(b.is_seller_request).to.eql(false); });",
+                  "pm.test(\"history has the registration and the rejection\", () => { pm.expect(pm.response.json().verification_logs.length).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rejected seller still cannot log in (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "login",
+                ""
+              ]
+            },
+            "description": "Once an admin has acted, the message is the generic one (the \"under review\" message is only for sellers still in the queue).",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{full_seller_email}}\",\n  \"password\": \"Sell@12345\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test(\"generic message\", () => { pm.expect(pm.response.json().detail).to.eql('This account is not active.'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "The flag cannot be set by a client",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{request_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{request_seller_id}}",
+                ""
+              ]
+            },
+            "description": "`is_seller_request` is read-only: only registration sets it and only an admin action on the status clears it.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_seller_request\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"still false\", () => { pm.expect(pm.response.json().is_seller_request).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the approved seller",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{request_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{request_seller_id}}",
+                ""
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the rejected seller",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{full_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{full_seller_id}}",
+                ""
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
