@@ -34,7 +34,8 @@ Base URL: `http://127.0.0.1:8000`
 ```
 The response has `access` (1 hour) and `refresh` (14 days). Send
 `Authorization: Bearer <access>`. A wrong password, a suspended buyer/seller or
-an inactive admin cannot log in (403). See `authentication.md`.
+an inactive admin cannot log in (401). A token issued before an account was
+suspended or deactivated also stops working (401). See `authentication.md`.
 
 In Postman (`postman/` folder): **Auth > Admin Login**, **Super-Admin Login**,
 **Seller Login**, **Buyer Login** use these accounts and save the tokens.
@@ -46,7 +47,12 @@ In Postman (`postman/` folder): **Auth > Admin Login**, **Super-Admin Login**,
 | Product category "Electronics" | 18 |
 | Service category "Cleaning" | 29 |
 | Measurement "Box" | 13 |
-| Country Bangladesh / State Dhaka / City Feni | 126 / 12 / 8 |
+| Country Bangladesh | 126 |
+| State Dhaka / State Chittagong | 12 / 13 |
+| City Feni (belongs to Chittagong) / City Noakhali (Chittagong) | 8 / 9 |
+
+The API checks that country, state, city and thana belong together, so use
+`126 / 13 / 8` (Bangladesh / Chittagong / Feni) — not state 12 with city 8.
 
 If the database is rebuilt these ids will differ — check with the list APIs.
 
