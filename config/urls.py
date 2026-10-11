@@ -15,6 +15,9 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 API_V1 = [
     path("geography/", include("apps.geography.urls")),
+    # Read-only lists that need no login (sign-up form dropdowns) — see
+    # apps/geography/public_views.py.
+    path("public/geography/", include("apps.geography.public_urls")),
     path("accounts/", include("apps.accounts.urls")),
     # Login (one endpoint per actor table) + token refresh — see
     # apps.authentication. Kept as its own app/urls.py rather than
