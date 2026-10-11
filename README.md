@@ -42,10 +42,15 @@ One Django app per module of the Database Redesign document
 (`egoola-document/database/Egolola DB Re-Design.docx`, Section 3), plus
 `core` for the shared audit-trail base model every other app builds on:
 
-`core`, `geography`, `accounts`, `catalog`, `bidding`, `orders`,
-`inquiries`, `messaging`, `engagement`, `notifications`, `cms`.
+`core`, `geography`, `accounts`, `authentication`, `catalog`, `bidding`,
+`orders`, `inquiries`, `messaging`, `engagement`, `notifications`, `cms`.
 
 Every endpoint is versioned: `/api/v1/<app>/...`.
+
+## Smoke tests
+
+Curl-based checks for the admin-panel APIs live in `scripts/smoke/` — start the dev
+server, then run `scripts/smoke/run_all.sh`. See `scripts/smoke/README.md`.
 
 ## Test accounts
 
