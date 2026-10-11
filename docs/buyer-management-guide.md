@@ -21,12 +21,12 @@ Postman: **Buyers** folder in `postman/Egoola.postman_collection.json`.
 | name | string | **required** |
 | email | string | **required**, unique |
 | phone | string | **required**, unique |
-| password | string | **required on create**, write only, stored hashed; optional on update |
+| password | string | **required on create**, write only, stored hashed; optional on update. Must be at least 8 characters, not a very common password and not all digits |
 | profile_pic | image file | write only (multipart); read back as `profile_pic_path` / `profile_pic_url` |
 | description | text | optional |
 | skills, experiences, interests, educations | JSON, optional | |
 | address_line | string | optional |
-| country, state, city, thana | ids | optional |
+| country, state, city, thana | ids | optional. Must match: the state belongs to the country, the city to the state, the thana to the city |
 | status | `active` \| `suspended` | default `active`; a suspended buyer cannot log in |
 | email_verified_at, phone_verified_at | datetime | read only |
 | wallet_balance | decimal | read only (changed by the wallet flow, never here) |
@@ -56,7 +56,7 @@ Full
   "description": "Interior designer",
   "skills": ["design"],
   "address_line": "Road 1, Gulshan",
-  "country": 126, "state": 12, "city": 8,
+  "country": 126, "state": 13, "city": 8,
   "status": "active"
 }
 ```
@@ -67,7 +67,7 @@ Full
   "phone": "+8801711000222", "profile_pic_path": null, "profile_pic_url": null,
   "description": "Interior designer", "skills": ["design"],
   "experiences": null, "interests": null, "educations": null,
-  "address_line": "Road 1, Gulshan", "country": 126, "state": 12, "city": 8, "thana": null,
+  "address_line": "Road 1, Gulshan", "country": 126, "state": 13, "city": 8, "thana": null,
   "email_verified_at": null, "phone_verified_at": null,
   "wallet_balance": "0.00", "status": "active", "media": []
 }
@@ -76,6 +76,8 @@ Full
 | Case | Result |
 |---|---|
 | no `password` | `400` `{"password": ["This field is required when creating a new record."]}` |
+| weak `password` (too short, too common, all digits) | `400` `{"password": ["This password is too short. It must contain at least 8 characters."]}` |
+| a city / state / thana that does not belong to the level above | `400` `{"city": ["This city does not belong to the selected state."]}` |
 | missing `name` / `email` / `phone` | `400` per field |
 | email or phone already used | `400` on that field |
 | `status` not `active`/`suspended` | `400` |
@@ -124,5 +126,5 @@ Filters combine, e.g. `/buyers/?status=suspended&city=8&created_from=2026-10-01`
 
 49 / 49 checks passed (create and validation, retrieve, update including
 password change and login, profile picture, every list filter, 401/403, creator
-stamping, delete). Run as a curl-based smoke script against the dev server (the script
-is not stored in the repo). Test data was removed afterwards.
+stamping, delete). Run with `scripts/smoke/buyer_smoke.sh` against the dev server (see
+`scripts/smoke/README.md`). Test data was removed afterwards.
