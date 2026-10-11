@@ -39,9 +39,13 @@ the server hands back two tokens:
   "actor_type": "admin",
   "id": 10,
   "name": "Test Admin",
-  "email": "test.admin@egoola.com"
+  "email": "test.admin@egoola.com",
+  "admin_type": "admin"
 }
 ```
+(`admin_type` — `super_admin` or `admin` — is only added for admin logins, so the admin panel knows
+whether to show Admin Management. It is not part of the token: the server re-reads the role from the
+database on every request.)
 
 **Step 2 — The client stores the `access` token** and sends it on every
 later request, in a header:
