@@ -18,8 +18,8 @@ class AdminMediaAdmin(admin.ModelAdmin):
 
 @admin.register(Seller)
 class SellerAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "email", "verification_status", "status", "wallet_balance")
-    list_filter = ("verification_status", "status")
+    list_display = ("id", "name", "email", "verification_status", "status", "is_seller_request", "wallet_balance")
+    list_filter = ("verification_status", "status", "is_seller_request")
     search_fields = ("name", "email", "phone")
 
 
