@@ -208,7 +208,7 @@ written only by this endpoint.
 
 ## Testing
 
-97 / 97 smoke checks passed (access control for every endpoint, every
+97 / 97 smoke checks passed (`scripts/smoke/cms_smoke.sh`; access control for every endpoint, every
 validation and filter, file replace/delete behaviour on disk, creator
 stamping), plus Newman: 49 assertions, 0 failed. All test data and uploaded
 files were removed afterwards.
