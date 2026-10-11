@@ -42,6 +42,7 @@ all data comes from `egoola-server` over REST only. Follow the patterns already 
 | **Listings (start here)** | **`listing-complete-guide.md`** (relations, how to create every kind of listing, moderation) and `listing-module-guide.md` (endpoint reference) | `Egoola-Listing.postman_collection.json` |
 | **Attributes, values, SKUs** | **`attribute-sku-guide.md`** | **`Egoola-Attribute.postman_collection.json`** |
 | Sellers + verification | `seller-verification-guide.md`, `frontend-api-guide.md` §8 | `Egoola-Seller.postman_collection.json` |
+| **Seller Requests (new sign-ups to review)** | **`seller-onboarding-guide.md`** | **`Egoola-SellerOnboarding.postman_collection.json`** |
 | Buyers | `buyer-management-guide.md` | `Egoola.postman_collection.json` → Accounts → Buyers |
 | Admins (super-admin only) | `admin-management-guide.md` | `Egoola.postman_collection.json` → Auth → Super-Admin Login, then Accounts → Admins |
 | CMS (banners, email templates, settings, logo) | `cms-api-guide.md` | `Egoola-CMS.postman_collection.json` |
@@ -172,6 +173,29 @@ real endpoint when the backend ships it.
 6. File uploads (banner image, site logo, listing media, profile pictures, documents) are multipart; never set `Content-Type` yourself for them
    (`authFetch` already handles `FormData`).
 
+### Task G — Seller Requests screen (admin)
+
+New backend feature: sellers can sign up by themselves with KYC documents (`POST /auth/seller/register/`, public). Admin needs a
+**Seller Requests** list under Sellers. Read **`seller-onboarding-guide.md`** first.
+
+- List: `GET /accounts/sellers/requests/` — **cursor pagination** (follow `next` / `previous` exactly as given; there is **no `count`** and no
+  page numbers). Build it as "Load more" / infinite scroll, not numbered pages. Newest first; `ordering=created_at` for oldest first.
+- Filters to offer: search, `verification_status`, `status`, `country`/`state`/`city`/`thana` (use `geography-fields`), `has_business_profile`,
+  `business_type`, `created_from`/`created_to`. Reset the cursor whenever a filter or the sort changes.
+- Menu badge "Seller Request (n)": `GET /accounts/sellers/?is_seller_request=true&limit=1` and read `count` (the queue itself has none).
+- Review view: the seller detail (`GET /accounts/sellers/{id}/`) — show the documents from `media` (`media_for`, `media_type`, open `media_url`;
+  on a local server it is a path, put the API host in front), the business profile, both addresses, and the history.
+- **Approve** = one `PATCH` with **both** `{"verification_status": "verified", "status": "active"}`. **Reject** = `{"verification_status": "rejected",
+  "verification_note": "..."}` (note required). After either, the row leaves the queue; refresh the list and the badge.
+- The seller `status` now has three values: `active`, `inactive`, `suspended`. Update the Seller list/form filters and badges. Add the
+  `is_seller_request` flag (read-only) where useful.
+- Failed logins are now `401` (they were `403`), and a seller still waiting gets
+  "Your registration is under review. You can log in once an admin approves it." — show the message on the seller login page.
+- The sign-up form's country / state / city / thana dropdowns must use the **public** lists `GET /api/v1/public/geography/{countries,states,cities,thanas}/`
+  (no token; filter by parent id: `states/?country=`, `cities/?state=`, `thanas/?city=`). The admin `/geography/` API needs an admin token.
+- The public sign-up **form** belongs to the seller-panel work (Phase 3 screens). Do not build it unless the user asks; the same guide
+  documents it.
+
 ---
 
 ## 4. Not available — do not build against these
@@ -199,4 +223,5 @@ real endpoint when the backend ships it.
 - Attributes & values screen works end to end.
 - Buyers and Admins match the Seller screens in features and polish; Admins is super-admin only.
 - Moderation (single, bulk, history, notes) complete.
+- Seller Requests screen (cursor-paged list, filters, document review, approve / reject) works.
 - Interim dashboard in place (clearly marked), auth/refresh/error handling fixed, `npm run ci` passes.
