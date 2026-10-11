@@ -61,13 +61,23 @@ class BaseActorLoginView(APIView):
                 "id": actor.id,
                 "name": actor.name,
                 "email": actor.email,
+                **self.extra_login_fields(actor),
             }
         )
+
+    def extra_login_fields(self, actor):
+        """Extra keys for the login response of one kind of actor."""
+        return {}
 
 
 class AdminLoginView(BaseActorLoginView):
     actor_model = Admin
     actor_type = ActorType.ADMIN
+
+    def extra_login_fields(self, actor):
+        # Lets the admin panel show or hide the super-admin-only Admin
+        # Management section. (The server still enforces it on every request.)
+        return {"admin_type": actor.type}
 
 
 class SellerLoginView(BaseActorLoginView):
