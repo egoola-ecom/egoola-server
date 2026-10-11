@@ -36,8 +36,11 @@ environment you're pointed at (staging/production URLs aren't decided yet).
 
 ## 2. The one rule that matters: everything needs a token, unless it's login
 
-Every endpoint requires a valid token **except** the three login endpoints
-and `POST /api/v1/auth/token/refresh/`.
+Every endpoint requires a valid token **except** the three login endpoints,
+`POST /api/v1/auth/token/refresh/`, the public seller sign-up
+`POST /api/v1/auth/seller/register/` (§8.1) and the public read-only geography
+lists `GET /api/v1/public/geography/{countries,states,cities,thanas}/` (they
+need no token; see `seller-onboarding-guide.md` section 2).
 There is no "public browsing" of accounts data — an Admin, Seller, or Buyer
 must be logged in for literally everything else in this guide.
 
@@ -133,7 +136,7 @@ login again.
 
 | Status | Meaning | Example |
 |---|---|---|
-| `401` | No token, an invalid/expired one, or the account was deactivated/suspended after the token was issued | `{"detail": "Authentication credentials were not provided."}` or `{"detail": "This account is not active."}` |
+| `401` | No token, an invalid/expired one, a wrong password at login, or the account is not active (deactivated, suspended, or a seller still waiting for approval) | `{"detail": "Authentication credentials were not provided."}`, `{"detail": "This account is not active."}` or, for a seller still waiting, `{"detail": "Your registration is under review. You can log in once an admin approves it."}` |
 | `403` | Valid token, but this actor isn't allowed here | `{"detail": "Only an authenticated Admin can access this endpoint."}` |
 | `400` | The request body itself is wrong | see below |
 
@@ -212,13 +215,17 @@ across a few fields) plus filters specific to that resource.
 | Resource | `search` matches | Extra filters |
 |---|---|---|
 | Admins | name, email, mobile | `?type=` (`super_admin` \| `admin`), `?status=` (`active` \| `inactive`) |
-| Sellers | name, email, phone | `?verification_status=` (`unverified` \| `pending` \| `verified` \| `rejected`), `?status=` (`active` \| `suspended`) |
+| Sellers | name, email, phone | `?verification_status=` (`unverified` \| `pending` \| `verified` \| `rejected`; or `verification_status__in=a,b`), `?status=` (`active` \| `inactive` \| `suspended`; or `status__in=a,b`), `?is_seller_request=`, `?creator_type=` (`seller` \| `admin`), `?country=` `?state=` `?city=` `?thana=`, `?email_verified=` / `?phone_verified=` / `?has_business_profile=` (`true` \| `false`), `?business_type=`, `?created_from=` / `?created_to=` (`YYYY-MM-DD`). Full list: `seller-onboarding-guide.md` |
 | Buyers | name, email, phone | `?status=` (`active` \| `suspended`), `?country=` `?state=` `?city=` `?thana=` (ids), `?email_verified=` / `?phone_verified=` (`true` \| `false`), `?created_from=` / `?created_to=` (`YYYY-MM-DD`, inclusive) |
 
 Example: `GET /api/v1/accounts/sellers/?search=arafat&verification_status=pending`
 
 Filters combine — they're AND'd together, and combine fine with
 `search`/`limit`/`offset` on the same request.
+
+**One list uses cursor pagination instead of limit/offset:** the admin's Seller
+Request queue (`GET /api/v1/accounts/sellers/requests/`, §8.2). It has `next` /
+`previous` links and no `count`. See `seller-onboarding-guide.md`.
 
 ---
 
@@ -335,9 +342,11 @@ Base path: `/api/v1/accounts/sellers/` — **Admin-only**, same as above.
   "profile_pic_url": null,
   "verification_status": "unverified",
   "status": "active",
+  "is_seller_request": false,
   "wallet_balance": "0.00",
   "bonus_balance": "0.00",
-  "last_logged_at": "2026-09-25T18:28:28.814709+06:00"
+  "last_logged_at": "2026-09-25T18:28:28.814709+06:00",
+  "created_at": "2026-09-25T17:28:52.273250+06:00"
 }
 ```
 
@@ -354,6 +363,7 @@ Base path: `/api/v1/accounts/sellers/` — **Admin-only**, same as above.
   "phone_verified_at": null,
   "verification_status": "unverified",
   "verification_note": null,
+  "is_seller_request": false,
   "skills": null,
   "education": null,
   "experience": null,
@@ -368,6 +378,7 @@ Base path: `/api/v1/accounts/sellers/` — **Admin-only**, same as above.
   "bonus_balance": "0.00",
   "status": "active",
   "last_logged_at": "2026-09-25T18:28:28.814709+06:00",
+  "created_at": "2026-09-25T17:28:52.273250+06:00",
   "media": [],
   "business_info": null,
   "verification_logs": []
@@ -429,6 +440,31 @@ note is only read when the status changes. See `docs/seller-verification-guide.m
 
 Same pattern as Admin — `PATCH` for partial edits, `PUT` for full replace,
 `DELETE` returns `204`.
+
+`is_seller_request` is read-only. `status` is `active`, `inactive` or
+`suspended`; only `active` sellers can log in.
+
+### 8.1 Seller sign-up (public) — `POST /api/v1/auth/seller/register/`
+
+A seller creates their own account. No token. `multipart/form-data`.
+Required: `name`, `email`, `phone`, `password`, `present_address`,
+`permanent_address`, `country`, `state`, `city`, and at least one `nid` file
+(`media_for` + `media_file` pairs; JPG/PNG/WEBP/PDF, 5 MB each, 10 files at most).
+Optional: `thana`, `profile_pic`, more documents, and the business profile
+(`info`, a JSON string). The account is created `unverified` + `inactive` with
+`is_seller_request: true`, and the response has no token. Full details, fields,
+errors and a code example: **`seller-onboarding-guide.md`**.
+
+### 8.2 Seller Request queue — `GET /api/v1/accounts/sellers/requests/`
+
+Admin only. Lists self-registered sellers nobody has acted on yet
+(`is_seller_request: true`), newest first, with **cursor pagination** (`next` /
+`previous`, no `count`; follow the links as given). Takes every seller filter
+plus `ordering` (`created_at`, `name`, `id`; `-` reverses) and `limit`. A seller
+leaves the queue when an admin really changes their `verification_status` or
+`status`. To approve send both `{"verification_status": "verified", "status":
+"active"}`. For a menu badge use `GET /accounts/sellers/?is_seller_request=true&limit=1`
+and read `count`. Details: **`seller-onboarding-guide.md`**.
 
 ---
 
@@ -524,13 +560,14 @@ with id `14`, all in one `PATCH` request.
 Don't build screens against these — they don't exist on the backend yet:
 
 - **Seller/Buyer self-service login screens that go anywhere past login.**
-  Seller and Buyer login work (§3) and return a valid token, but there are
+  Seller and Buyer login work (§3) and return a valid token (a seller only
+  after an admin has approved the account), but there are
   no Seller-facing or Buyer-facing endpoints yet (no "my profile", no
   product listings, no orders). Only Admin has real management screens
   right now.
-- **Signup / registration.** Every Admin/Seller/Buyer record so far is
-  created by an Admin through §7–9. There's no public "create your own
-  account" endpoint yet.
+- **Signup / registration for Buyers.** Sellers can register themselves
+  (§8.1). Admin and Buyer records are still created by an Admin through §7
+  and §9; there's no public buyer sign-up endpoint yet.
 - **OTP / email-verification / password-reset flows.** The fields exist in
   the database but nothing exposes them over the API yet — that's why
   `email_verified_at` etc. show as read-only above.
