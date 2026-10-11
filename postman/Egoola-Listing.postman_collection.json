@@ -52,7 +52,7 @@
     },
     {
       "key": "state_id",
-      "value": "12",
+      "value": "13",
       "type": "string"
     },
     {
@@ -99,6 +99,14 @@
       "key": "nodisc_listing_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "sku_id",
+      "value": ""
+    },
+    {
+      "key": "nodisc_sku_id",
+      "value": ""
     }
   ],
   "item": [
@@ -707,6 +715,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "if (pm.response.code === 201) { pm.collectionVariables.set('listing_id', pm.response.json().id); }",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('sku_id', pm.response.json().skus[0].id); }",
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
                   "const b = pm.response.json();",
                   "pm.test('approved by default', () => pm.expect(b.status).to.eql('approved'));",
@@ -1007,6 +1016,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "if (pm.response.code === 201) { pm.collectionVariables.set('nodisc_listing_id', pm.response.json().id); }",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('nodisc_sku_id', pm.response.json().skus[0].id); }",
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
                   "pm.test('discounted_price = price', () => pm.expect(pm.response.json().discounted_price).to.eql('80.00'));",
                   "pm.test('tier discounted_price = tier price', () => pm.expect(pm.response.json().price_tiers[0].discounted_price).to.eql('80.00'));"
@@ -1027,7 +1037,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"price\": \"90.00\"\n}"
+              "raw": "{\n  \"skus\": [\n    { \"id\": {{nodisc_sku_id}}, \"price\": \"90.00\" }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/catalog/listings/{{nodisc_listing_id}}/",
@@ -1043,7 +1053,7 @@
                 ""
               ]
             },
-            "description": "A listing whose discounted_price equals its price (no discount) keeps them equal when only `price` changes. A listing with a real discount keeps its discount."
+            "description": "Prices live on the SKU. An item in `skus` with an `id` updates that SKU; only the fields sent change. A SKU with no discount (discounted_price == price) follows the new price."
           },
           "event": [
             {
@@ -1052,7 +1062,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('follows price', () => pm.expect(pm.response.json().discounted_price).to.eql('90.00'));"
+                  "pm.test('SKU follows price', () => pm.expect(pm.response.json().skus[0].discounted_price).to.eql('90.00'));",
+                  "pm.test('listing from-price follows', () => pm.expect(pm.response.json().discounted_price).to.eql('90.00'));"
                 ]
               }
             }
@@ -1085,7 +1096,7 @@
                 ""
               ]
             },
-            "description": "`discounted_price` can equal `price` (no discount) but never exceed it."
+            "description": "The price shortcut creates one default SKU, so the SKU rules apply: discounted_price cannot be higher than price."
           },
           "event": [
             {
@@ -1094,7 +1105,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 400', () => pm.response.to.have.status(400));",
-                  "pm.test('discounted_price error', () => pm.expect(pm.response.json()).to.have.property('discounted_price'));"
+                  "pm.test('skus error', () => pm.expect(pm.response.json()).to.have.property('skus'));"
                 ]
               }
             }
@@ -1182,6 +1193,174 @@
           ]
         },
         {
+          "name": "Create Listing — negative price (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{category_id}},\n  \"catalog_type\": \"product\",\n  \"listing_type\": \"general\",\n  \"description\": \"x\",\n  \"title\": \"Should Fail\",\n  \"price\": \"-5.00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "description": "Prices cannot be negative (same for discounted_price, hourly_rate, stock_qty, ...)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('price error', () => pm.expect(pm.response.json()).to.have.property('price'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing — price tier max_qty below min_qty (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{category_id}},\n  \"catalog_type\": \"product\",\n  \"listing_type\": \"general\",\n  \"description\": \"x\",\n  \"title\": \"Should Fail\",\n  \"price\": \"10.00\",\n  \"price_tiers\": [\n    {\n      \"min_qty\": 10,\n      \"max_qty\": 5,\n      \"price\": \"9.00\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "description": "max_qty cannot be lower than min_qty."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('price_tiers error', () => pm.expect(pm.response.json()).to.have.property('price_tiers'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing — overlapping price tiers (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{category_id}},\n  \"catalog_type\": \"product\",\n  \"listing_type\": \"general\",\n  \"description\": \"x\",\n  \"title\": \"Should Fail\",\n  \"price\": \"10.00\",\n  \"price_tiers\": [\n    {\n      \"min_qty\": 1,\n      \"max_qty\": 10,\n      \"price\": \"9.00\"\n    },\n    {\n      \"min_qty\": 5,\n      \"max_qty\": 20,\n      \"price\": \"8.00\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "description": "Tier quantity ranges must not overlap; only the last tier may have no max_qty."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('price_tiers error', () => pm.expect(pm.response.json()).to.have.property('price_tiers'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing — service category on a product listing (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{service_category_id}},\n  \"catalog_type\": \"product\",\n  \"listing_type\": \"general\",\n  \"description\": \"x\",\n  \"title\": \"Should Fail\",\n  \"price\": \"10.00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "description": "A product listing needs a product category and a service listing a service category."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('category error', () => pm.expect(pm.response.json()).to.have.property('category'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Retrieve Listing",
           "request": {
             "method": "GET",
@@ -1226,7 +1405,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"discounted_price\": \"99.00\",\n  \"price_tiers\": [\n    {\n      \"min_qty\": 1,\n      \"max_qty\": null,\n      \"price\": \"150.00\",\n      \"discounted_price\": \"99.00\"\n    }\n  ]\n}"
+              "raw": "{\n  \"skus\": [\n    { \"id\": {{sku_id}}, \"discounted_price\": \"99.00\" }\n  ],\n  \"price_tiers\": [\n    { \"min_qty\": 1, \"max_qty\": null, \"price\": \"150.00\", \"discounted_price\": \"99.00\" }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
@@ -1242,7 +1421,7 @@
                 ""
               ]
             },
-            "description": "Partial update. `price_tiers`, when sent, **replaces** the whole tier list; omit the key to leave tiers alone. Send `\"discounted_price\": null` to remove the discount (it becomes equal to `price`). Status / note / history are untouched because `status` isn't in the payload."
+            "description": "SKU prices by id, plus a whole-list replace of the listing-wide quantity tiers."
           },
           "event": [
             {
@@ -1271,7 +1450,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"discounted_price\": \"500.00\"\n}"
+              "raw": "{\n  \"skus\": [\n    { \"id\": {{sku_id}}, \"discounted_price\": \"500.00\" }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
@@ -1595,6 +1774,49 @@
                   "const b = pm.response.json();",
                   "pm.test('note cleared', () => pm.expect(b.note).to.be.null);",
                   "pm.test('history has 4 rows, newest first', () => { pm.expect(b.status_change_logs.length).to.eql(4); pm.expect(b.status_change_logs[0].status).to.eql('approved'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Moderation — note without a status change is ignored",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"This must be ignored\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "A note belongs to a status change. Sent on its own it is ignored, so Listing.note always equals the newest status_change_logs entry."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('note still null', () => pm.expect(pm.response.json().note).to.eql(null));"
                 ]
               }
             }

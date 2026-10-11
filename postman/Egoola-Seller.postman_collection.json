@@ -50,6 +50,14 @@
       "key": "seller_login_password",
       "value": "Sell@12345",
       "type": "string"
+    },
+    {
+      "key": "info_seller_id",
+      "value": ""
+    },
+    {
+      "key": "applicant_seller_id",
+      "value": ""
     }
   ],
   "item": [
@@ -197,7 +205,19 @@
               ]
             },
             "description": "Admin-only. List rows use SellerListSerializer — no media/business_info/verification_logs, those only appear on Retrieve."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('paginated list', () => pm.expect(pm.response.json()).to.have.all.keys('count','next','previous','results'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Create Seller",
@@ -323,7 +343,21 @@
               ]
             },
             "description": "`info` is the seller's 1:1 business profile, created in the same call. It comes back read-only as `business_info` on this and every later response for this seller (Retrieve, Update). In a multipart request (e.g. alongside profile_pic or media files) send `info` as a JSON-encoded string instead of a nested object — multipart has no nested-object syntax."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('info_seller_id', pm.response.json().id); }",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('admin-created seller is verified', () => pm.expect(pm.response.json().verification_status).to.eql('verified'));",
+                  "pm.test('business_info returned', () => pm.expect(pm.response.json().business_info.business_type).to.eql('Retail'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Create Seller — explicit verification_status (Pending)",
@@ -353,7 +387,21 @@
               ]
             },
             "description": "An Admin can override the verified-by-default behavior at create time by sending verification_status explicitly — whatever you send here is honored as-is."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('applicant_seller_id', pm.response.json().id); }",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('explicit status honored', () => pm.expect(pm.response.json().verification_status).to.eql('pending'));",
+                  "pm.test('one history row on create', () => pm.expect(pm.response.json().verification_logs.length).to.eql(1));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Create Seller — rejected with no note (expect 400)",
@@ -416,7 +464,19 @@
               ]
             },
             "description": "Includes `business_info` (the validated SellerInfo row, or null), `media[]`, and `verification_logs[]` — the full verification-status change history for this seller, newest first. `verification_logs` only appears here, never on List."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('detail has history and media lists', () => { const b = pm.response.json(); pm.expect(b.verification_logs).to.be.an('array'); pm.expect(b.media).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Update Seller (partial — PATCH)",
@@ -447,7 +507,19 @@
               ]
             },
             "description": "Any subset of fields. This example only touches `name` — verification_status/verification_note/verification_logs are all left completely untouched, and no verification log entry is written, because verification_status isn't part of this request."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('name updated', () => pm.expect(pm.response.json().name).to.eql('Rafiq Traders (Updated)'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Update Seller — Change Password",
@@ -478,7 +550,19 @@
               ]
             },
             "description": "Hashed server-side before saving. The seller can log in with the new password immediately (POST /api/v1/auth/seller/login/); the old password stops working."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('password never returned', () => pm.expect(pm.response.json()).to.not.have.property('password'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Update Seller — Upload Media & Profile Picture",
@@ -671,6 +755,47 @@
           ]
         },
         {
+          "name": "Seller actor forbidden from Sellers management (expect 403)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{seller_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ]
+            },
+            "description": "Runs while the seller is still active (before the suspend step below). Needs \"Seller Login (for the permission-boundary test below)\" (earlier in this same folder) to have already populated {{seller_token}}. Every endpoint in this collection is Admin-only (IsAdminActor) — a valid Seller token still gets 403, not 401, since the token itself is valid, just for the wrong actor type."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Update Seller — unrelated field (verification untouched)",
           "request": {
             "method": "PATCH",
@@ -699,10 +824,23 @@
               ]
             },
             "description": "This request doesn't include verification_status at all, so verification_status/verification_note/verification_logs all come back exactly as they were — no new log entry is written. Confirms verification bookkeeping only reacts to an actual verification_status change, not to every update."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('seller suspended', () => pm.expect(pm.response.json().status).to.eql('suspended'));",
+                  "pm.test('verification status untouched', () => pm.expect(pm.response.json().verification_status).to.eql('verified'));"
+                ]
+              }
+            }
+          ]
         },
         {
-          "name": "Seller actor forbidden from Sellers management (expect 403)",
+          "name": "Suspended seller's earlier token is rejected (expect 401)",
           "request": {
             "method": "GET",
             "auth": {
@@ -728,7 +866,7 @@
                 ""
               ]
             },
-            "description": "Needs \"Seller Login (for the permission-boundary test below)\" (earlier in this same folder) to have already populated {{seller_token}}. Every endpoint in this collection is Admin-only (IsAdminActor) — a valid Seller token still gets 403, not 401, since the token itself is valid, just for the wrong actor type."
+            "description": "The seller was just suspended above. Their access token is still validly signed and unexpired, but the account is re-checked on every request (apps/authentication/backends.py), so it now gets 401 instead of the 403 an active seller gets."
           },
           "event": [
             {
@@ -736,7 +874,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 403', () => pm.response.to.have.status(403));"
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
                 ]
               }
             }
@@ -761,7 +899,82 @@
               ]
             },
             "description": "Cascades — deletes the seller's media, business_info, and verification_logs rows along with it."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Seller — business-info seller",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{info_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{info_seller_id}}",
+                ""
+              ]
+            },
+            "description": "Cleanup for \"Create Seller — with Business Info\", so this collection can be run again."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Seller — applicant",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{applicant_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{applicant_seller_id}}",
+                ""
+              ]
+            },
+            "description": "Cleanup for \"Create Seller — explicit verification_status (Pending)\", so this collection can be run again."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
         }
       ]
     }

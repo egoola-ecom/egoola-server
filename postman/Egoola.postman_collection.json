@@ -350,7 +350,19 @@
                   ]
                 },
                 "description": "Admin-only. Returns the list-view fields (no media, no full geography — see AdminListSerializer)."
-              }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('paginated list', () => pm.expect(pm.response.json()).to.have.all.keys('count','next','previous','results'));"
+                    ]
+                  }
+                }
+              ]
             },
             {
               "name": "Create Admin",
@@ -412,7 +424,19 @@
                   ]
                 },
                 "description": "Full detail view — includes media[] and geography fields, unlike the list view."
-              }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('has an id', () => pm.expect(pm.response.json().id).to.be.a('number'));"
+                    ]
+                  }
+                }
+              ]
             },
             {
               "name": "Update Admin (full — PUT)",
@@ -443,7 +467,18 @@
                   ]
                 },
                 "description": "PUT replaces the whole record — `password` can be left out on update (only re-hashed if you send a new one)."
-              }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
             },
             {
               "name": "Update Admin (partial — PATCH)",
@@ -474,7 +509,18 @@
                   ]
                 },
                 "description": "Preferred for small edits — only send the field(s) you're changing."
-              }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
             },
             {
               "name": "Delete Admin",
@@ -494,7 +540,18 @@
                     ""
                   ]
                 }
-              }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ]
             }
           ],
           "auth": {
@@ -546,7 +603,19 @@
                     }
                   ]
                 }
-              }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('paginated list', () => pm.expect(pm.response.json()).to.have.all.keys('count','next','previous','results'));"
+                    ]
+                  }
+                }
+              ]
             },
             {
               "name": "Create Seller",
@@ -608,7 +677,19 @@
                   ]
                 },
                 "description": "Includes `business_info` (the validated SellerInfo row) and `media[]`."
-              }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('has an id', () => pm.expect(pm.response.json().id).to.be.a('number'));"
+                    ]
+                  }
+                }
+              ]
             },
             {
               "name": "Update Seller (partial — PATCH)",
@@ -638,7 +719,18 @@
                     ""
                   ]
                 }
-              }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
             },
             {
               "name": "Delete Seller",
@@ -658,7 +750,18 @@
                     ""
                   ]
                 }
-              }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ]
             }
           ]
         },
@@ -735,7 +838,19 @@
                   ]
                 },
                 "description": "Admin-only. Light rows (no media). Filters: search, status, country, state, city, thana, email_verified, phone_verified, created_from, created_to — combine freely. Paginated with limit/offset. Full detail (media, address, skills) is on Retrieve Buyer. See docs/buyer-management-guide.md."
-              }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('paginated list', () => pm.expect(pm.response.json()).to.have.all.keys('count','next','previous','results'));"
+                    ]
+                  }
+                }
+              ]
             },
             {
               "name": "Create Buyer",
@@ -796,7 +911,19 @@
                     ""
                   ]
                 }
-              }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('has an id', () => pm.expect(pm.response.json().id).to.be.a('number'));"
+                    ]
+                  }
+                }
+              ]
             },
             {
               "name": "Update Buyer (partial — PATCH)",
@@ -826,7 +953,18 @@
                     ""
                   ]
                 }
-              }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
             },
             {
               "name": "Delete Buyer",
@@ -846,7 +984,18 @@
                     ""
                   ]
                 }
-              }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ]
             }
           ]
         }
