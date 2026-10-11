@@ -1,11 +1,15 @@
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from apps.authentication.permissions import IsAdminActor, IsSuperAdminActor
 from apps.core.mixins import AuditedViewSetMixin
+from apps.core.pagination import DefaultCursorPagination
 
-from .filters import BuyerFilter
+from .filters import BuyerFilter, SellerFilter
 from .models import Admin, Seller, User
 from .serializers import (
     AdminListSerializer,
@@ -55,21 +59,43 @@ class SellerViewSet(AuditedViewSetMixin, ModelViewSet):
     AuditedViewSetMixin is required here, not just convention: SellerSerializer
     reads creator_type/updater_type off validated_data to decide the
     default verification_status on create and to attribute each
-    SellerVerificationLog row to the actor who wrote it."""
+    SellerVerificationLog row to the actor who wrote it.
+
+    `GET /sellers/requests/` is the "Seller Request" queue: only sellers who
+    registered by themselves and have not been acted on yet
+    (is_seller_request = true), with cursor pagination. Filters: see SellerFilter."""
 
     permission_classes = [IsAdminActor]
-    filterset_fields = ["verification_status", "status"]
+    filterset_class = SellerFilter
     search_fields = ["name", "email", "phone"]
+    # Used only by the request queue's OrderingFilter (below).
+    ordering_fields = ["created_at", "name", "id"]
+    ordering = ["-created_at", "-id"]
 
     def get_serializer_class(self):
-        return SellerListSerializer if self.action == "list" else SellerSerializer
+        return SellerListSerializer if self.action in ("list", "seller_requests") else SellerSerializer
 
     def get_queryset(self):
         if self.action == "list":
             return Seller.objects.all()
+        if self.action == "seller_requests":
+            return Seller.objects.filter(is_seller_request=True)
         return Seller.objects.select_related(
             "country", "state", "city", "thana", "info"
         ).prefetch_related("media", "verification_logs")
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="requests",
+        pagination_class=DefaultCursorPagination,
+        filter_backends=[DjangoFilterBackend, SearchFilter, OrderingFilter],
+    )
+    def seller_requests(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
 
 
 class BuyerViewSet(AuditedViewSetMixin, ModelViewSet):

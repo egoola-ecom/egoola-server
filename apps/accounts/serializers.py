@@ -1,3 +1,5 @@
+import os
+
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password as run_password_validators
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -248,7 +250,8 @@ class SellerListSerializer(serializers.ModelSerializer):
         model = Seller
         fields = [
             "id", "name", "email", "phone", "profile_pic_url",
-            "verification_status", "status", "wallet_balance", "bonus_balance", "last_logged_at",
+            "verification_status", "status", "is_seller_request",
+            "wallet_balance", "bonus_balance", "last_logged_at", "created_at",
         ]
 
 
@@ -290,20 +293,22 @@ class SellerSerializer(
             "id", "name", "email", "phone", "password",
             "profile_pic", "profile_pic_path", "profile_pic_url",
             "email_verified_at", "phone_verified_at",
-            "verification_status", "verification_note",
+            "verification_status", "verification_note", "is_seller_request",
             "skills", "education", "experience", "interest",
             "present_address", "permanent_address",
             "country", "state", "city", "thana",
-            "wallet_balance", "bonus_balance", "status", "last_logged_at",
+            "wallet_balance", "bonus_balance", "status", "last_logged_at", "created_at",
             "media", "media_for", "media_file", "media_delete_ids", "info", "business_info",
             "verification_logs",
         ]
         extra_kwargs = {
             "email_verified_at": {"read_only": True},
             "phone_verified_at": {"read_only": True},
+            "is_seller_request": {"read_only": True},
             "wallet_balance": {"read_only": True},
             "bonus_balance": {"read_only": True},
             "last_logged_at": {"read_only": True},
+            "created_at": {"read_only": True},
             "profile_pic_path": {"read_only": True},
             "profile_pic_url": {"read_only": True},
         }
@@ -369,6 +374,11 @@ class SellerSerializer(
             "verification_status" in validated_data
             and validated_data["verification_status"] != instance.verification_status
         )
+        account_status_changing = "status" in validated_data and validated_data["status"] != instance.status
+        if instance.is_seller_request and (status_changing or account_status_changing):
+            # The admin has acted on the registration — it leaves the
+            # "Seller Request" queue. Editing anything else keeps it there.
+            validated_data["is_seller_request"] = False
         if status_changing:
             # The seller row always holds the note for its *current*
             # status only — never a leftover from a previous status
@@ -393,6 +403,129 @@ class SellerSerializer(
                 creator_name=validated_data.get("updater_name"),
             )
         return instance
+
+
+# Identity documents sent at self-registration: pictures or PDFs only, a size
+# cap per file, and a cap on how many (storage is shared and the endpoint is
+# public).
+KYC_ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".pdf"}
+KYC_ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
+KYC_MAX_FILE_BYTES = 5 * 1024 * 1024
+KYC_MAX_FILES = 10
+KYC_MEDIA_FOR = [
+    SellerMedia.MediaFor.NID,
+    SellerMedia.MediaFor.BIRTH_CERTIFICATE,
+    SellerMedia.MediaFor.CERTIFICATE,
+    SellerMedia.MediaFor.OTHER,
+]
+
+
+class SellerRegistrationSerializer(
+    LocationConsistencyMixin, MediaSyncMixin, ProfilePicUploadMixin, PasswordWriteMixin, serializers.ModelSerializer
+):
+    """A seller signing up by themselves (public endpoint, no login).
+
+    Deliberately a separate serializer from SellerSerializer: that one lets an
+    admin set verification_status, status, wallet and so on. Here none of those
+    can be sent — the account is always created unverified and inactive, flagged
+    as a seller request, and attributed to the seller themselves.
+
+    Required: name, email, phone, password, both addresses, country/state/city
+    and at least one NID file. Optional: thana, profile_pic, other documents,
+    and the business profile (`info`)."""
+
+    password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"})
+    profile_pic = serializers.ImageField(write_only=True, required=False)
+    media_for = serializers.ListField(
+        child=serializers.ChoiceField(choices=[(item.value, item.label) for item in KYC_MEDIA_FOR]),
+        write_only=True, required=True,
+    )
+    media_file = serializers.ListField(child=serializers.FileField(), write_only=True, required=True)
+    info = serializers.JSONField(write_only=True, required=False)
+
+    media_model = SellerMedia
+    media_fk_name = "seller"
+
+    class Meta:
+        model = Seller
+        fields = [
+            "id", "name", "email", "phone", "password", "profile_pic",
+            "present_address", "permanent_address", "country", "state", "city", "thana",
+            "media_for", "media_file", "info",
+            "verification_status", "status", "is_seller_request",
+        ]
+        read_only_fields = ["verification_status", "status", "is_seller_request"]
+        extra_kwargs = {
+            "present_address": {"required": True, "allow_null": False, "allow_blank": False},
+            "permanent_address": {"required": True, "allow_null": False, "allow_blank": False},
+            "country": {"required": True, "allow_null": False},
+            "state": {"required": True, "allow_null": False},
+            "city": {"required": True, "allow_null": False},
+        }
+
+    def validate_email(self, value):
+        # The model's own unique check is case-sensitive, but login matches
+        # emails case-insensitively — so two spellings must not both register.
+        if Seller.objects.filter(email__iexact=value).exists():
+            # Same wording as the model's own unique check, so the form shows one message.
+            raise serializers.ValidationError("seller with this email already exists.")
+        return value
+
+    def validate_media_file(self, files):
+        if len(files) > KYC_MAX_FILES:
+            raise serializers.ValidationError(f"Upload at most {KYC_MAX_FILES} documents.")
+        for uploaded in files:
+            extension = os.path.splitext(uploaded.name)[1].lower()
+            content_type = (uploaded.content_type or "").lower()
+            if extension not in KYC_ALLOWED_EXTENSIONS or content_type not in KYC_ALLOWED_CONTENT_TYPES:
+                raise serializers.ValidationError(
+                    f"{uploaded.name}: only JPG, PNG, WEBP or PDF files are accepted."
+                )
+            if uploaded.size > KYC_MAX_FILE_BYTES:
+                raise serializers.ValidationError(
+                    f"{uploaded.name}: each file must be {KYC_MAX_FILE_BYTES // (1024 * 1024)} MB or smaller."
+                )
+        return files
+
+    def validate_info(self, value):
+        # Optional business profile: when sent it must be complete. Validated
+        # here, before anything is saved, so a bad profile never leaves a
+        # half-registered seller (or uploaded files) behind.
+        info_serializer = SellerInfoSerializer(data=value)
+        info_serializer.is_valid(raise_exception=True)
+        return info_serializer.validated_data
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if SellerMedia.MediaFor.NID not in attrs["media_for"]:
+            raise serializers.ValidationError(
+                {"media_for": "At least one NID document is required (media_for = nid)."}
+            )
+        return attrs
+
+    def create(self, validated_data):
+        info_data = validated_data.pop("info", None)
+        validated_data.update(
+            verification_status=Seller.VerificationStatus.UNVERIFIED,
+            status=Seller.Status.INACTIVE,
+            is_seller_request=True,
+            creator_type=ActorType.SELLER,
+            creator_name=validated_data["name"],
+        )
+        seller = super().create(validated_data)
+        # The seller is their own creator — their id only exists after the save.
+        seller.created_by = seller.pk
+        seller.save(update_fields=["created_by"])
+        if info_data:
+            SellerInfo.objects.update_or_create(seller=seller, defaults=info_data)
+        SellerVerificationLog.objects.create(
+            seller=seller,
+            verification_status=seller.verification_status,
+            created_by=seller.pk,
+            creator_type=ActorType.SELLER,
+            creator_name=seller.name,
+        )
+        return seller
 
 
 class BuyerMediaSerializer(serializers.ModelSerializer):
