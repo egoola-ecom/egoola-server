@@ -1,6 +1,18 @@
 from django.contrib import admin
 
-from .models import Brand, Category, Listing, ListingMedia, ListingPriceTier, ListingStatusChangeLog, Measurement
+from .models import (
+    Attribute,
+    AttributeValue,
+    Brand,
+    Category,
+    Listing,
+    ListingMedia,
+    ListingPriceTier,
+    ListingSku,
+    ListingSkuVariant,
+    ListingStatusChangeLog,
+    Measurement,
+)
 
 
 @admin.register(Category)
@@ -17,6 +29,26 @@ class BrandAdmin(admin.ModelAdmin):
     search_fields = ("name", "slug")
 
 
+class AttributeValueInline(admin.TabularInline):
+    model = AttributeValue
+    extra = 0
+
+
+@admin.register(Attribute)
+class AttributeAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "name_bn", "is_active", "creator_name")
+    list_filter = ("is_active",)
+    search_fields = ("name", "name_bn")
+    inlines = [AttributeValueInline]
+
+
+@admin.register(AttributeValue)
+class AttributeValueAdmin(admin.ModelAdmin):
+    list_display = ("id", "attribute", "name", "name_bn", "is_active")
+    list_filter = ("is_active", "attribute")
+    search_fields = ("name", "name_bn")
+
+
 @admin.register(Measurement)
 class MeasurementAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "slug", "symbol")
@@ -28,6 +60,25 @@ class ListingPriceTierInline(admin.TabularInline):
     extra = 0
 
 
+class ListingSkuInline(admin.TabularInline):
+    model = ListingSku
+    extra = 0
+    show_change_link = True
+
+
+class ListingSkuVariantInline(admin.TabularInline):
+    model = ListingSkuVariant
+    extra = 0
+
+
+@admin.register(ListingSku)
+class ListingSkuAdmin(admin.ModelAdmin):
+    list_display = ("id", "listing", "sku", "price", "discounted_price", "stock_qty", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("sku", "listing__title")
+    inlines = [ListingSkuVariantInline]
+
+
 class ListingMediaInline(admin.TabularInline):
     model = ListingMedia
     extra = 0
@@ -35,10 +86,10 @@ class ListingMediaInline(admin.TabularInline):
 
 @admin.register(Listing)
 class ListingAdmin(admin.ModelAdmin):
-    list_display = ("id", "title", "catalog_type", "listing_type", "seller", "buyer", "price", "status")
+    list_display = ("id", "title", "catalog_type", "listing_type", "seller", "buyer", "status")
     list_filter = ("catalog_type", "listing_type", "status")
     search_fields = ("title", "slug", "description")
-    inlines = [ListingPriceTierInline, ListingMediaInline]
+    inlines = [ListingSkuInline, ListingPriceTierInline, ListingMediaInline]
 
 
 @admin.register(ListingStatusChangeLog)
