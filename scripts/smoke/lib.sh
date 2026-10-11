@@ -38,6 +38,7 @@ from django.db.models import Q
 from apps.accounts.models import Admin, Seller, User
 from apps.catalog.models import Attribute, Brand, Category, Listing, Measurement
 from apps.cms.models import Banner, EmailTemplate, Setting
+from apps.geography.models import Thana
 
 def starts(field, *prefixes):
     q = Q()
@@ -57,6 +58,19 @@ if listing_media.is_dir():
     for folder in listing_media.iterdir():
         if folder.is_dir() and folder.name not in existing:
             shutil.rmtree(folder, ignore_errors=True)
+# Same for seller documents and profile pictures: once the Smoke*/e2e.* seller
+# rows are gone (below), any file no Seller/SellerMedia row points at is an orphan.
+Seller.objects.filter(starts('email', 'smoke.', 'e2e.', 'listing.smoke.')).delete()
+from apps.accounts.models import SellerMedia
+media_root = Path(settings.MEDIA_ROOT)
+for folder, used in (
+    ('seller', set(SellerMedia.objects.values_list('media_path', flat=True))),
+    ('profile-pics/seller', set(Seller.objects.exclude(profile_pic_path=None).values_list('profile_pic_path', flat=True))),
+):
+    if (media_root / folder).is_dir():
+        for path in (media_root / folder).rglob('*'):
+            if path.is_file() and path.relative_to(media_root).as_posix() not in used:
+                path.unlink()
 Brand.objects.filter(starts('name', 'Smoke')).delete()
 Attribute.objects.filter(starts('name', 'Smoke')).delete()
 Seller.objects.filter(starts('email', 'smoke.', 'e2e.', 'listing.smoke.')).delete()
@@ -64,6 +78,7 @@ User.objects.filter(starts('email', 'smoke.', 'e2e.', 'listing.smoke.')).delete(
 Admin.objects.filter(starts('email', 'smoke.', 'e2e.')).delete()
 Category.objects.filter(starts('name', 'Smoke')).delete()
 Measurement.objects.filter(starts('name', 'Smoke')).delete()
+Thana.objects.filter(starts('name', 'Smoke')).delete()
 Banner.objects.filter(starts('heading', 'Smoke', 'E2E')).delete()
 EmailTemplate.objects.filter(starts('key', 'smoke', 'e2e')).delete()
 Setting.objects.filter(starts('key', 'smoke', 'e2e')).delete()

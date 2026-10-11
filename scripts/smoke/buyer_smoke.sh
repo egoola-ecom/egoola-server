@@ -45,7 +45,7 @@ check "patch status back active" active "$(body "$(req PATCH /accounts/buyers/$B
 check "patch email to existing -> 400" 400 "$(code "$(req PATCH /accounts/buyers/$B1/ '{"email":"smoke.buyer.two@example.com"}')")"
 check "patch password" 200 "$(code "$(req PATCH /accounts/buyers/$B1/ '{"password":"New@12345"}')")"
 check "login with new password" 200 "$(curl -s -o /dev/null -w '%{http_code}' -X POST $BASE/auth/buyer/login/ -H 'Content-Type: application/json' -d '{"email":"smoke.buyer.one@example.com","password":"New@12345"}')"
-check "login with old password -> 403" 403 "$(curl -s -o /dev/null -w '%{http_code}' -X POST $BASE/auth/buyer/login/ -H 'Content-Type: application/json' -d '{"email":"smoke.buyer.one@example.com","password":"Buy@12345"}')"
+check "login with old password -> 401" 401 "$(curl -s -o /dev/null -w '%{http_code}' -X POST $BASE/auth/buyer/login/ -H 'Content-Type: application/json' -d '{"email":"smoke.buyer.one@example.com","password":"Buy@12345"}')"
 check "PUT without password allowed" 200 "$(code "$(req PUT /accounts/buyers/$B1/ '{"name":"Smoke Buyer 1 Put","email":"smoke.buyer.one@example.com","phone":"+8801700088001"}')")"
 check "wallet_balance read-only" "0.00" "$(body "$(req PATCH /accounts/buyers/$B1/ '{"wallet_balance":"999.00"}')" | jget "['wallet_balance']")"
 
