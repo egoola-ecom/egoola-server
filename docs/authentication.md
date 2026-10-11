@@ -92,7 +92,9 @@ just trust the payload. On every request, it:
    for example.
 4. Checks the row is still **active**. A deactivated Admin, or a
    suspended Seller or Buyer, is refused with
-   `401 {"detail": "This account is not active."}`.
+   `401 {"detail": "This account is not active."}`. (At login, a seller who
+   registered by themselves and is still waiting for approval gets a clearer
+   `401`: "Your registration is under review...".)
 
 Steps 3 and 4 matter. Say an Admin gets deactivated right now, mid-day
 — their token is still validly signed and not expired, but the very
@@ -220,7 +222,9 @@ that Seller" is the same one-line pattern:
 Project-wide, every endpoint requires a valid, real token unless it says
 otherwise (`DEFAULT_PERMISSION_CLASSES` in
 [`config/settings.py`](../config/settings.py)). The public routes today are
-the three login views, `/auth/token/refresh/`, and the API docs at
+the three login views, the seller sign-up `/auth/seller/register/`,
+the public geography lists `/public/geography/...` (read-only),
+`/auth/token/refresh/`, and the API docs at
 `/api/docs/` and `/api/schema/`. A "public" route is one
 that explicitly opts back out of that default — it's an exception you
 have to ask for, not something that happens by accident.
