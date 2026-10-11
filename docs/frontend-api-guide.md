@@ -9,10 +9,11 @@ Also in this repo:
   **[Egoola-Local.postman_environment.json](../postman/Egoola-Local.postman_environment.json)**
   — import both into Postman and you can call every endpoint below without
   typing anything by hand. Logging in auto-saves the token for you.
-- **[openapi.json](../postman/openapi.json)** — the exact, always-up-to-date machine
-  schema (field names, types, required/optional). If this guide and that
-  file ever disagree, trust `openapi.json` — it's generated straight from
-  the code, this file is hand-written and can go stale.
+- **[openapi.json](../postman/openapi.json)** — an **old** machine-schema snapshot that
+  only covers accounts, auth and geography (18 paths). It does not include
+  the catalog, listing, brand or CMS endpoints, so do not rely on it. Use the
+  per-module guides and Postman collections listed in this repo instead
+  (index: `docs/README.md`).
 - **[authentication.md](authentication.md)** — a deeper explanation of *how*
   the login/token/permission system works internally, if you're curious.
   This guide only covers *how to call it*.
@@ -69,9 +70,13 @@ work the same way and return the same shape.
   "actor_type": "admin",
   "id": 10,
   "name": "Test Admin",
-  "email": "test.admin@egoola.com"
+  "email": "test.admin@egoola.com",
+  "admin_type": "admin"
 }
 ```
+`admin_type` (`"super_admin"` or `"admin"`) is only in the **admin** login response. Use it to show or hide
+the super-admin-only **Admin Management** section; the server still checks it on every request (a plain
+`admin` gets `403` there). Seller and buyer logins do not have this key.
 
 **Wrong email/password — `401`:**
 ```json
@@ -136,6 +141,10 @@ login again.
 **`403` means:** they're logged in fine, but as the wrong role for this
 screen — this is a real bug in the frontend (calling an Admin-only endpoint
 as a Seller, say), not something to prompt the user about.
+
+**Two `400` rules worth building into the forms:**
+- **Passwords** (Admin, Seller, Buyer) must be at least 8 characters, not a very common password and not all digits. The error is `{"password": ["This password is too short. It must contain at least 8 characters.", ...]}`.
+- **Location** (`country`, `state`, `city`, `thana` on Admin, Seller business info, Buyer and Listing) must be one branch of the geography tree: the state belongs to the country, the city to the state, the thana to the city. A mismatch gives e.g. `{"city": ["This city does not belong to the selected state."]}`. Load each dropdown from the level above (e.g. cities of the chosen state). Any level can be left out.
 
 **`400` validation errors** are a JSON object keyed by field name, each
 value a list of messages for that field. Real example — `POST` to create
