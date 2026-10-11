@@ -95,6 +95,9 @@ class Seller(AuditedModel):
 
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
+        # A seller who registered by themselves starts here and cannot log
+        # in until an admin activates the account.
+        INACTIVE = "inactive", "Inactive"
         SUSPENDED = "suspended", "Suspended"
 
     name = models.CharField(max_length=255)
@@ -120,6 +123,11 @@ class Seller(AuditedModel):
         default=VerificationStatus.UNVERIFIED,
     )
     verification_note = models.TextField(db_column="verificationNote", null=True, blank=True)
+    # True while a self-registered seller is waiting in the admin's "Seller
+    # Request" queue. Set by the registration endpoint; cleared by the first
+    # admin action on the seller's verification_status or status. Never
+    # writable by a client.
+    is_seller_request = models.BooleanField(db_column="isSellerRequest", default=False)
 
     skills = models.JSONField(null=True, blank=True)
     education = models.JSONField(null=True, blank=True)
@@ -149,6 +157,10 @@ class Seller(AuditedModel):
     class Meta:
         db_table = "sellers"
         ordering = ["name"]
+        indexes = [
+            # The Seller Request queue: filter on the flag, page by newest.
+            models.Index(fields=["is_seller_request", "-created_at"], name="sellers_request_queue_idx"),
+        ]
 
     def __str__(self):
         return self.name
