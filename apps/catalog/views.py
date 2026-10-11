@@ -11,8 +11,10 @@ from apps.authentication.permissions import IsAdminActor
 from apps.core.models import ActorType
 from apps.core.mixins import AuditedViewSetMixin
 
-from .models import Brand, Category, Listing, ListingStatusChangeLog, Measurement
+from .models import Attribute, AttributeValue, Brand, Category, Listing, ListingStatusChangeLog, Measurement
 from .serializers import (
+    AttributeSerializer,
+    AttributeValueSerializer,
     BrandSerializer,
     CategoryBriefSerializer,
     CategorySerializer,
@@ -22,7 +24,21 @@ from .serializers import (
 )
 
 
+class _InUseDeleteMixin:
+    """409 instead of a crash when the row is still referenced by something
+    protected (a listing, a listing SKU, ...) — deactivate it instead."""
+
+    in_use_message = "This is still in use. Deactivate it instead of deleting."
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response({"detail": self.in_use_message}, status=status.HTTP_409_CONFLICT)
+
+
 class CategoryViewSet(
+    _InUseDeleteMixin,
     AuditedViewSetMixin,
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
@@ -39,6 +55,10 @@ class CategoryViewSet(
     serializer_class = CategorySerializer
     filterset_fields = ["type", "status"]
     search_fields = ["name"]
+    in_use_message = (
+        "This category, or one of its sub-categories, is used by one or more listings. "
+        "Deactivate it instead of deleting."
+    )
 
     @action(detail=False, methods=["get"], url_path="parent-chain")
     def parent_chain(self, request):
@@ -202,6 +222,64 @@ class BrandViewSet(
             )
 
 
+class AttributeViewSet(
+    _InUseDeleteMixin,
+    AuditedViewSetMixin,
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.ListModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Product options such as Size or Colour — Create, Retrieve, Update, List
+    (filter by name via `?name=` substring, or `?search=` which also matches
+    the Bangla name; also `?is_active=`), Delete. Each attribute shows its
+    values. One still used by a listing SKU can't be deleted — deactivate it."""
+
+    permission_classes = [IsAdminActor]
+    serializer_class = AttributeSerializer
+    filterset_fields = ["is_active"]
+    search_fields = ["name", "name_bn"]
+    in_use_message = "This attribute is used by one or more listing SKUs. Deactivate it instead of deleting."
+
+    def get_queryset(self):
+        queryset = Attribute.objects.prefetch_related("values")
+        name = self.request.query_params.get("name")
+        if name:
+            queryset = queryset.filter(name__icontains=name)
+        return queryset
+
+
+class AttributeValueViewSet(
+    _InUseDeleteMixin,
+    AuditedViewSetMixin,
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.ListModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Values of an attribute (Size -> S, M, L, XL) — Create, Retrieve, Update,
+    List (filter by `?attribute=` id, `?name=`, `?is_active=`; `?search=` also
+    matches the Bangla name), Delete. One still used by a listing SKU can't be
+    deleted — deactivate it."""
+
+    permission_classes = [IsAdminActor]
+    serializer_class = AttributeValueSerializer
+    filterset_fields = ["attribute", "is_active"]
+    search_fields = ["name", "name_bn"]
+    in_use_message = "This value is used by one or more listing SKUs. Deactivate it instead of deleting."
+
+    def get_queryset(self):
+        queryset = AttributeValue.objects.select_related("attribute")
+        name = self.request.query_params.get("name")
+        if name:
+            queryset = queryset.filter(name__icontains=name)
+        return queryset
+
+
 class ListingViewSet(AuditedViewSetMixin, viewsets.ModelViewSet):
     """Admin Listing Management & Moderation. Price tiers, media, and
     status-change history are handled through this same API (see
@@ -217,17 +295,19 @@ class ListingViewSet(AuditedViewSetMixin, viewsets.ModelViewSet):
 
     permission_classes = [IsAdminActor]
     filterset_fields = ["status", "catalog_type", "listing_type", "category", "brand", "seller", "buyer"]
-    search_fields = ["title", "brand__name", "model"]
+    search_fields = ["title", "brand__name", "model", "skus__sku"]
 
     def get_serializer_class(self):
         return ListingListSerializer if self.action == "list" else ListingSerializer
 
     def get_queryset(self):
         if self.action == "list":
-            return Listing.objects.select_related("category", "brand", "seller", "buyer")
+            return Listing.objects.select_related("category", "brand", "seller", "buyer").prefetch_related("skus")
         return Listing.objects.select_related(
             "category", "brand", "seller", "buyer", "measurement", "country", "state", "city", "thana"
-        ).prefetch_related("price_tiers", "media", "status_change_logs")
+        ).prefetch_related(
+            "price_tiers", "media", "status_change_logs", "skus__variants__attribute", "skus__variants__attribute_value"
+        )
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
