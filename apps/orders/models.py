@@ -37,6 +37,10 @@ class CartItem(AuditedModel):
     listing = models.ForeignKey(
         "catalog.Listing", on_delete=models.CASCADE, related_name="cart_items", db_column="listingId"
     )
+    listing_sku = models.ForeignKey(
+        "catalog.ListingSku", on_delete=models.CASCADE, null=True, blank=True, related_name="cart_items",
+        db_column="listingSkuId",
+    )
     qty = models.IntegerField()
     color = models.CharField(max_length=100, null=True, blank=True)
     size = models.CharField(max_length=100, null=True, blank=True)
@@ -139,6 +143,11 @@ class OrderItem(AuditedModel):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items", db_column="orderId")
     listing = models.ForeignKey(
         "catalog.Listing", on_delete=models.PROTECT, related_name="order_items", db_column="listingId"
+    )
+    # The exact SKU bought (the colour/size text below stays as a snapshot).
+    listing_sku = models.ForeignKey(
+        "catalog.ListingSku", on_delete=models.PROTECT, null=True, blank=True, related_name="order_items",
+        db_column="listingSkuId",
     )
     title_snapshot = models.CharField(db_column="titleSnapshot", max_length=255)
     price_snapshot = models.DecimalField(db_column="priceSnapshot", max_digits=12, decimal_places=2)

@@ -144,17 +144,11 @@ class Listing(AuditedModel):
         Brand, on_delete=models.PROTECT, null=True, blank=True, related_name="listings", db_column="brandId"
     )
     model = models.CharField(max_length=255, null=True, blank=True)
-    color = models.CharField(max_length=100, null=True, blank=True)
     origin = models.CharField(max_length=255, null=True, blank=True)
     warranty = models.CharField(max_length=255, null=True, blank=True)
 
-    # `price` is always the original/actual price; `discounted_price` is the
-    # price actually charged (price=150, discounted=120). When no discount is
-    # given it equals `price` — save() fills it in, so it is never null.
-    price = models.DecimalField(max_digits=12, decimal_places=2)
-    discounted_price = models.DecimalField(
-        db_column="discountedPrice", max_digits=12, decimal_places=2, blank=True
-    )
+    # Prices, discounts and stock live on ListingSku (one SKU per size/colour/...
+    # combination; a simple listing has exactly one SKU with no variants).
     currency = models.CharField(max_length=8, default="BDT")
 
     # Service side
@@ -172,13 +166,9 @@ class Listing(AuditedModel):
 
     # Product side
     min_order_qty = models.IntegerField(db_column="minOrderQty", null=True, blank=True)
-    stock_qty = models.BigIntegerField(db_column="stockQty", null=True, blank=True)
     measurement = models.ForeignKey(
         Measurement, on_delete=models.SET_NULL, null=True, blank=True, db_column="measurementId"
     )
-    colors = models.JSONField(null=True, blank=True)
-    sizes = models.JSONField(null=True, blank=True)
-    reserved_qty = models.IntegerField(db_column="reservedQty", null=True, blank=True)
     condition_note = models.TextField(db_column="conditionNote", null=True, blank=True)
     attributes = models.JSONField(null=True, blank=True)
 
@@ -214,23 +204,131 @@ class Listing(AuditedModel):
         db_table = "listings"
         ordering = ["-created_at"]
         indexes = [
-            GinIndex(fields=["colors"], name="listings_colors_gin"),
-            GinIndex(fields=["sizes"], name="listings_sizes_gin"),
             GinIndex(fields=["attributes"], name="listings_attributes_gin"),
         ]
+
+    def __str__(self):
+        return self.title
+
+
+class Attribute(AuditedModel):
+    """A product option such as Size or Colour. Its allowed values live in
+    AttributeValue (Size -> S, M, L, XL). Bangla name/description optional."""
+
+    name = models.CharField(max_length=255, unique=True)
+    name_bn = models.CharField(db_column="nameBn", max_length=255, null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+    description_bn = models.TextField(db_column="descriptionBn", null=True, blank=True)
+    is_active = models.BooleanField(db_column="isActive", default=True)
+
+    class Meta:
+        db_table = "attributes"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class AttributeValue(AuditedModel):
+    attribute = models.ForeignKey(
+        Attribute, on_delete=models.CASCADE, related_name="values", db_column="attributeId"
+    )
+    name = models.CharField(max_length=255)
+    name_bn = models.CharField(db_column="nameBn", max_length=255, null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+    description_bn = models.TextField(db_column="descriptionBn", null=True, blank=True)
+    is_active = models.BooleanField(db_column="isActive", default=True)
+
+    class Meta:
+        db_table = "attributeValues"
+        ordering = ["attribute", "name"]
+        constraints = [
+            models.UniqueConstraint(fields=["attribute", "name"], name="unique_attribute_value_name")
+        ]
+
+    def __str__(self):
+        return f"{self.attribute.name}: {self.name}"
+
+
+class ListingSku(AuditedModel):
+    """One sellable combination of a listing (e.g. Size M + Colour Red). Price,
+    discount and stock are per SKU. A listing with no options has exactly one
+    SKU and no variant rows. SKUs are never deleted — they are deactivated
+    (`is_active`) so carts and orders that point at them stay valid."""
+
+    listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name="skus", db_column="listingId")
+    sku = models.CharField(max_length=100, null=True, blank=True, unique=True)
+    # `price` is the original price; `discounted_price` is the price charged
+    # while the discount runs (price=150, discounted=120). No discount ->
+    # discounted_price equals price (save() fills it in, so it is never null).
+    price = models.DecimalField(max_digits=12, decimal_places=2)
+    discounted_price = models.DecimalField(
+        db_column="discountedPrice", max_digits=12, decimal_places=2, blank=True
+    )
+    discount_start_date = models.DateTimeField(db_column="discountStartDate", null=True, blank=True)
+    discount_end_date = models.DateTimeField(db_column="discountEndDate", null=True, blank=True)
+    stock_qty = models.BigIntegerField(db_column="stockQty", null=True, blank=True)
+    reserved_qty = models.IntegerField(db_column="reservedQty", default=0)
+    is_active = models.BooleanField(db_column="isActive", default=True)
+
+    class Meta:
+        db_table = "listingSkus"
+        ordering = ["id"]
 
     def save(self, *args, **kwargs):
         if self.discounted_price is None:
             self.discounted_price = self.price
         super().save(*args, **kwargs)
 
+    def effective_price(self, now=None):
+        """The price a buyer pays right now: the discounted price while the
+        discount window is open (an empty start/end means no limit on that
+        side), otherwise the normal price."""
+        from django.utils import timezone
+
+        now = now or timezone.now()
+        if self.discounted_price < self.price:
+            if (self.discount_start_date is None or self.discount_start_date <= now) and (
+                self.discount_end_date is None or now <= self.discount_end_date
+            ):
+                return self.discounted_price
+        return self.price
+
     def __str__(self):
-        return self.title
+        return self.sku or f"SKU #{self.pk}"
+
+
+class ListingSkuVariant(AuditedModel):
+    """One option of a SKU: Size -> M, Colour -> Red. A SKU has one row per
+    attribute (at most one value for each attribute)."""
+
+    listing_sku = models.ForeignKey(
+        ListingSku, on_delete=models.CASCADE, related_name="variants", db_column="listingSkuId"
+    )
+    attribute = models.ForeignKey(
+        Attribute, on_delete=models.PROTECT, related_name="sku_variants", db_column="attributeId"
+    )
+    attribute_value = models.ForeignKey(
+        AttributeValue, on_delete=models.PROTECT, related_name="sku_variants", db_column="attributeValueId"
+    )
+
+    class Meta:
+        db_table = "listingSkuVariants"
+        ordering = ["attribute_id"]
+        constraints = [
+            models.UniqueConstraint(fields=["listing_sku", "attribute"], name="unique_attribute_per_sku")
+        ]
 
 
 class ListingPriceTier(AuditedModel):
     listing = models.ForeignKey(
         Listing, on_delete=models.CASCADE, related_name="price_tiers", db_column="listingId"
+    )
+    # Tiers apply to the whole listing for now; this is kept nullable so a
+    # tier can later be tied to one SKU.
+    listing_sku = models.ForeignKey(
+        ListingSku, on_delete=models.CASCADE, null=True, blank=True, related_name="price_tiers",
+        db_column="listingSkuId",
     )
     min_qty = models.IntegerField(db_column="minQty")
     max_qty = models.IntegerField(db_column="maxQty", null=True, blank=True)
