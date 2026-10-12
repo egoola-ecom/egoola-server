@@ -1,8 +1,9 @@
 """
 Login — one endpoint per actor table (Admin/Seller/Buyer). All three share
 the same flow (BaseActorLoginView below); a subclass only says which model
-to check the email/password against and which `actor_type` claim to stamp
-on the token it issues.
+to check the credentials against, which field identifies the person (Admin and
+Buyer log in with email + password, a Seller with phone + password) and which
+`actor_type` claim to stamp on the token it issues.
 """
 
 from django.contrib.auth.hashers import check_password
@@ -26,26 +27,33 @@ class LoginInputSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, style={"input_type": "password"})
 
 
+class SellerLoginInputSerializer(serializers.Serializer):
+    phone = serializers.CharField()
+    password = serializers.CharField(write_only=True, style={"input_type": "password"})
+
+
 class BaseActorLoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []  # logging in is how you get a token, so it never requires one
     actor_model = None
     actor_type = None
+    login_field = "email"  # which column identifies the person: "email", or "phone" for a Seller
+    input_serializer = LoginInputSerializer
 
     def post(self, request):
-        serializer = LoginInputSerializer(data=request.data)
+        serializer = self.input_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data["email"]
+        identifier = serializer.validated_data[self.login_field]
         password = serializer.validated_data["password"]
 
-        actor = self.actor_model.objects.filter(email__iexact=email).first()
+        actor = self.actor_model.objects.filter(**{f"{self.login_field}__iexact": identifier}).first()
         if actor is None or not check_password(password, actor.password):
-            # Same error either way — confirming "no such email" to a
-            # client would let anyone probe which emails are registered.
-            raise AuthenticationFailed("Invalid email or password.")
+            # Same error either way — confirming "no such email/phone" to a
+            # client would let anyone probe which accounts are registered.
+            raise AuthenticationFailed(self.invalid_message)
 
-        if actor.status != actor.Status.ACTIVE:
-            raise AuthenticationFailed(self.inactive_message(actor), code="user_inactive")
+        if actor.status not in actor.LOGIN_STATUSES:
+            raise AuthenticationFailed("This account is not active.", code="user_inactive")
 
         # Admin and Seller track last_logged_at; Buyer (`User`) doesn't
         # have that column at all — this stays generic across all three
@@ -67,6 +75,8 @@ class BaseActorLoginView(APIView):
             }
         )
 
+    invalid_message = "Invalid email or password."
+
     def get_authenticate_header(self, request):
         # Login has no authenticator, and DRF turns a 401 into a 403 when
         # there is no authenticator to name in the WWW-Authenticate header.
@@ -76,10 +86,6 @@ class BaseActorLoginView(APIView):
     def extra_login_fields(self, actor):
         """Extra keys for the login response of one kind of actor."""
         return {}
-
-    def inactive_message(self, actor):
-        """The error shown when the password is right but the account is not active."""
-        return "This account is not active."
 
 
 class AdminLoginView(BaseActorLoginView):
@@ -93,15 +99,24 @@ class AdminLoginView(BaseActorLoginView):
 
 
 class SellerLoginView(BaseActorLoginView):
+    """A seller logs in with phone number + password (not email)."""
+
     actor_model = Seller
     actor_type = ActorType.SELLER
+    login_field = "phone"
+    input_serializer = SellerLoginInputSerializer
+    invalid_message = "Invalid phone number or password."
 
-    def inactive_message(self, actor):
-        # A self-registered seller still waiting for an admin sees why they
-        # cannot get in, instead of a generic "not active".
-        if actor.is_seller_request:
-            return "Your registration is under review. You can log in once an admin approves it."
-        return super().inactive_message(actor)
+    def extra_login_fields(self, actor):
+        # A seller who cannot operate yet (pending, rejected, or approved but
+        # paused) can log in but only edit their profile; these tell the app
+        # which screens to show.
+        return {
+            "phone": actor.phone,
+            "verification_status": actor.verification_status,
+            "status": actor.status,
+            "can_operate": actor.can_operate,
+        }
 
 
 class SellerRegisterView(APIView):
@@ -123,8 +138,8 @@ class SellerRegisterView(APIView):
         return Response(
             {
                 **serializer.data,
-                "message": "Registration received. An admin will review your documents; "
-                "you can log in once your account is approved.",
+                "message": "Registration received. An admin will review your documents. "
+                "You can log in now to complete your profile; you can start selling once your account is approved and active.",
             },
             status=status.HTTP_201_CREATED,
         )
