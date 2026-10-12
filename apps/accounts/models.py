@@ -60,6 +60,9 @@ class Admin(AuditedModel):
 
     last_logged_at = models.DateTimeField(db_column="lastLoggedAt", null=True, blank=True)
 
+    # Statuses that may log in (checked at login and on every request).
+    LOGIN_STATUSES = (Status.ACTIVE,)
+
     class Meta:
         db_table = "admins"
         ordering = ["name"]
@@ -128,6 +131,10 @@ class Seller(AuditedModel):
     # admin action on the seller's verification_status or status. Never
     # writable by a client.
     is_seller_request = models.BooleanField(db_column="isSellerRequest", default=False)
+    # When the seller joined the request queue: set at sign-up and again each
+    # time a rejected seller resubmits. The queue sorts on this, so a
+    # resubmission shows up as new instead of sitting at its old sign-up date.
+    requested_at = models.DateTimeField(db_column="requestedAt", null=True, blank=True)
 
     skills = models.JSONField(null=True, blank=True)
     education = models.JSONField(null=True, blank=True)
@@ -154,16 +161,33 @@ class Seller(AuditedModel):
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
     last_logged_at = models.DateTimeField(db_column="lastLoggedAt", null=True, blank=True)
 
+    # Two separate switches. `verification_status` is the KYC decision ("approved"
+    # = verified). `status` is the account switch: an inactive seller (a new
+    # sign-up, or an approved seller an admin paused) may log in but only manage
+    # their own profile until an admin makes them active. A suspended seller may
+    # not log in at all.
+    LOGIN_STATUSES = (Status.ACTIVE, Status.INACTIVE)
+
     class Meta:
         db_table = "sellers"
         ordering = ["name"]
         indexes = [
-            # The Seller Request queue: filter on the flag, page by newest.
-            models.Index(fields=["is_seller_request", "-created_at"], name="sellers_request_queue_idx"),
+            # The Seller Request queue: filter on the flag, page by newest request.
+            models.Index(fields=["is_seller_request", "-requested_at"], name="sellers_request_queue_idx"),
         ]
 
     def __str__(self):
         return self.name
+
+    @property
+    def can_operate(self):
+        """Allowed to use the full seller features (listings, orders, wallet):
+        verified (approved) AND active. Every other seller — still pending or
+        rejected, or approved but inactive — may only edit their own profile."""
+        return (
+            self.verification_status == self.VerificationStatus.VERIFIED
+            and self.status == self.Status.ACTIVE
+        )
 
 
 class SellerMedia(AuditedModel):
@@ -215,6 +239,36 @@ class SellerVerificationLog(models.Model):
 
     def __str__(self):
         return f"Seller #{self.seller_id} -> {self.verification_status}"
+
+
+class SellerProfileChangeLog(models.Model):
+    """One row for every save that actually changed a seller's profile — by the
+    seller themselves or by an admin. `previous_data` and `new_data` hold the
+    same keys: only the fields that changed, as they were before and as they
+    are now. Never updated or deleted afterwards (so not an AuditedModel).
+    Status and verification changes are not here — see SellerVerificationLog."""
+
+    seller = models.ForeignKey(
+        Seller, on_delete=models.CASCADE, related_name="profile_change_logs", db_column="sellerId"
+    )
+    changed_fields = models.JSONField(db_column="changedFields")
+    previous_data = models.JSONField(db_column="previousData")
+    new_data = models.JSONField(db_column="newData")
+
+    created_by = models.BigIntegerField(db_column="createdBy", null=True, blank=True)
+    creator_type = models.CharField(
+        db_column="creatorType", max_length=10, choices=ActorType.choices, default=ActorType.SYSTEM
+    )
+    creator_name = models.CharField(db_column="creatorName", max_length=255, null=True, blank=True)
+    created_at = models.DateTimeField(db_column="createdAt", auto_now_add=True)
+
+    class Meta:
+        db_table = "sellerProfileChangeLogs"
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["seller", "-created_at"], name="seller_change_log_idx")]
+
+    def __str__(self):
+        return f"Seller #{self.seller_id}: {', '.join(self.changed_fields)}"
 
 
 class SellerInfo(AuditedModel):
@@ -308,6 +362,8 @@ class User(AuditedModel):
 
     wallet_balance = models.DecimalField(db_column="walletBalance", max_digits=12, decimal_places=2, default=0)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
+
+    LOGIN_STATUSES = (Status.ACTIVE,)
 
     class Meta:
         db_table = "users"
