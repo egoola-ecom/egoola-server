@@ -13,6 +13,8 @@ accounts in [`docs/test-accounts.md`](../../docs/test-accounts.md). The guides i
 | `brand_smoke.sh` | Brands and the listing/brand/discount rules | 55 |
 | `sku_smoke.py` | Attributes, attribute values and listing SKUs (every SKU rule, update by id, discount windows, category delete protection) | 143 |
 | `cms_smoke.sh` | Banners, email templates, settings, site logo | 97 |
+| `seller_onboarding_smoke.sh` | Seller self-registration with KYC documents (validation, files, duplicates, location), pending-seller login, the Seller Request queue (cursor paging, ordering, every filter, permissions) and how admin actions clear the request flag | 161 |
+| `public_geography_smoke.sh` | The public (no login) country / state / city / thana lists: shape, parent filters, search, read-only, no audit data, admin API still locked | 45 |
 
 ```bash
 uv run manage.py runserver 8000        # in one terminal

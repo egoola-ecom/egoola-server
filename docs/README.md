@@ -24,6 +24,7 @@ roles and the `401` / `403` split work).
 |---|---|---|
 | Login, tokens, errors, pagination | `frontend-api-guide.md`, `authentication.md` | `Egoola.postman_collection.json` → **Auth** |
 | Seller management + **seller verification** (approve / reject) | `seller-verification-guide.md`, `frontend-api-guide.md` §8 | `Egoola-Seller.postman_collection.json` |
+| **Seller sign-up with KYC documents** (public) + the admin **Seller Request** queue (cursor pagination, filters, approve / reject) | `seller-onboarding-guide.md` | `Egoola-SellerOnboarding.postman_collection.json` |
 | Buyer management | `buyer-management-guide.md` | `Egoola.postman_collection.json` → **Accounts → Buyers** |
 | Admin management (super-admin only) | `admin-management-guide.md` | `Egoola.postman_collection.json` → **Auth → Super-Admin Login**, then **Accounts → Admins** |
 | **Listings — start here**: how a listing relates to categories, brands, attributes, SKUs, owners and locations; how to create every kind of listing; moderation | `listing-complete-guide.md` | `Egoola-Listing.postman_collection.json`, `Egoola-Attribute.postman_collection.json` |
@@ -32,7 +33,8 @@ roles and the `401` / `403` split work).
 | CMS: banners, email templates, site settings, site logo | `cms-api-guide.md` | `Egoola-CMS.postman_collection.json` |
 | Categories (tree) | `category-tree-api-guide.md` | `Egoola-Category.postman_collection.json` |
 | Measurements (unit list: create, update, list, delete — no separate guide; same list/paginate rules as the others) | the Postman collection is the reference; how listings use it: `listing-module-guide.md` | `Egoola-Measurement.postman_collection.json` |
-| Geography (country / state / city / thana) | `geography-api-guide.md` | `Egoola-Geography.postman_collection.json` |
+| Geography (country / state / city / thana) — admin management | `geography-api-guide.md` | `Egoola-Geography.postman_collection.json` |
+| **Public geography lists** (no login; dropdowns for the seller sign-up form) | `seller-onboarding-guide.md` section 2 | `Egoola-SellerOnboarding.postman_collection.json` → **Public lookups** |
 
 Notes for the Postman collections:
 - The Listing and Attribute collections leave a few demo rows behind after a run (soft-deleted listings keep their SKUs, so their attributes can only be deactivated). Run **CMS → Site Logo** requests only if you can afford to lose the logo: its delete step removes it.
@@ -53,11 +55,12 @@ Both are open in the Phase Tracker.
 ## Rules every form needs to respect
 
 - Passwords: at least 8 characters, not a very common password, not all digits.
+- Seller `status` is `active`, `inactive` or `suspended`. Only `active` sellers can log in. Failed logins are `401`.
 - Location: state must belong to the country, city to the state, thana to the
   city (any level may be left out).
 - A rejection or change request on a seller or listing needs a note.
 - Prices, discounts and stock are on **SKUs**, not on the listing. Every listing has at least one SKU; hide a SKU with `is_active: false` (SKUs are never deleted).
-- Lists are paginated with `?limit=` / `?offset=` (default 20, max 100).
+- Lists are paginated with `?limit=` / `?offset=` (default 20, max 100). The exception is the Seller Request queue, which uses **cursor** pagination (follow `next` / `previous`, no `count`).
 
 ## Checking the backend yourself
 
