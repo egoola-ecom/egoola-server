@@ -69,8 +69,8 @@ class SellerViewSet(AuditedViewSetMixin, ModelViewSet):
     filterset_class = SellerFilter
     search_fields = ["name", "email", "phone"]
     # Used only by the request queue's OrderingFilter (below).
-    ordering_fields = ["created_at", "name", "id"]
-    ordering = ["-created_at", "-id"]
+    ordering_fields = ["requested_at", "created_at", "name", "id"]
+    ordering = ["-requested_at", "-id"]
 
     def get_serializer_class(self):
         return SellerListSerializer if self.action in ("list", "seller_requests") else SellerSerializer
@@ -82,7 +82,7 @@ class SellerViewSet(AuditedViewSetMixin, ModelViewSet):
             return Seller.objects.filter(is_seller_request=True)
         return Seller.objects.select_related(
             "country", "state", "city", "thana", "info"
-        ).prefetch_related("media", "verification_logs")
+        ).prefetch_related("media", "verification_logs", "profile_change_logs")
 
     @action(
         detail=False,

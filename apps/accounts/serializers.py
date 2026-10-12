@@ -1,15 +1,28 @@
 import os
 
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password as run_password_validators
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.core.location import LocationConsistencyMixin
 from apps.core.models import ActorType
-from config.storage import infer_media_type, save_upload
+from config.storage import delete_upload, infer_media_type, save_upload
 
-from .models import Admin, AdminMedia, BuyerMedia, Seller, SellerInfo, SellerMedia, SellerVerificationLog, User
+from .models import (
+    Admin,
+    AdminMedia,
+    BuyerMedia,
+    Seller,
+    SellerInfo,
+    SellerMedia,
+    SellerProfileChangeLog,
+    SellerVerificationLog,
+    User,
+)
+from .profile_log import record_profile_changes, snapshot
 
 
 class PasswordWriteMixin:
@@ -64,9 +77,13 @@ class ProfilePicUploadMixin:
         # so profile pics and media land under the same folder name,
         # rather than Django's internal model name ("user" for Buyer).
         path, url = save_upload(profile_pic, "profile-pics", getattr(self, "media_fk_name", self.Meta.model._meta.model_name))
+        old_path = instance.profile_pic_path
         instance.profile_pic_path = path
         instance.profile_pic_url = url
         instance.save(update_fields=["profile_pic_path", "profile_pic_url"])
+        if old_path and old_path != path:
+            # The replaced picture's file is no longer needed.
+            transaction.on_commit(lambda: delete_upload(old_path))
 
     def create(self, validated_data):
         profile_pic = validated_data.pop("profile_pic", None)
@@ -232,6 +249,18 @@ class SellerVerificationLogSerializer(serializers.ModelSerializer):
         ]
 
 
+class SellerProfileChangeLogSerializer(serializers.ModelSerializer):
+    """Read-only — shown on a Seller's detail page for admins. `previous_data`
+    and `new_data` have the same keys: only the fields that changed."""
+
+    class Meta:
+        model = SellerProfileChangeLog
+        fields = [
+            "id", "changed_fields", "previous_data", "new_data",
+            "created_by", "creator_type", "creator_name", "created_at",
+        ]
+
+
 class SellerInfoSerializer(LocationConsistencyMixin, serializers.ModelSerializer):
     class Meta:
         model = SellerInfo
@@ -251,7 +280,7 @@ class SellerListSerializer(serializers.ModelSerializer):
         fields = [
             "id", "name", "email", "phone", "profile_pic_url",
             "verification_status", "status", "is_seller_request",
-            "wallet_balance", "bonus_balance", "last_logged_at", "created_at",
+            "wallet_balance", "bonus_balance", "last_logged_at", "created_at", "requested_at",
         ]
 
 
@@ -283,6 +312,7 @@ class SellerSerializer(
     info = serializers.JSONField(write_only=True, required=False)
     business_info = SellerInfoSerializer(source="info", read_only=True)
     verification_logs = SellerVerificationLogSerializer(many=True, read_only=True)
+    profile_change_logs = SellerProfileChangeLogSerializer(many=True, read_only=True)
 
     media_model = SellerMedia
     media_fk_name = "seller"
@@ -297,9 +327,9 @@ class SellerSerializer(
             "skills", "education", "experience", "interest",
             "present_address", "permanent_address",
             "country", "state", "city", "thana",
-            "wallet_balance", "bonus_balance", "status", "last_logged_at", "created_at",
+            "wallet_balance", "bonus_balance", "status", "last_logged_at", "created_at", "requested_at",
             "media", "media_for", "media_file", "media_delete_ids", "info", "business_info",
-            "verification_logs",
+            "verification_logs", "profile_change_logs",
         ]
         extra_kwargs = {
             "email_verified_at": {"read_only": True},
@@ -309,6 +339,7 @@ class SellerSerializer(
             "bonus_balance": {"read_only": True},
             "last_logged_at": {"read_only": True},
             "created_at": {"read_only": True},
+            "requested_at": {"read_only": True},
             "profile_pic_path": {"read_only": True},
             "profile_pic_url": {"read_only": True},
         }
@@ -370,6 +401,7 @@ class SellerSerializer(
 
     def update(self, instance, validated_data):
         info_data = validated_data.pop("info", None)
+        before = snapshot(instance)
         status_changing = (
             "verification_status" in validated_data
             and validated_data["verification_status"] != instance.verification_status
@@ -393,6 +425,11 @@ class SellerSerializer(
         instance = super().update(instance, validated_data)
         if info_data:
             self._save_info(instance, info_data)
+        record_profile_changes(
+            instance, before,
+            validated_data.get("updated_by"), validated_data.get("updater_type", ActorType.SYSTEM),
+            validated_data.get("updater_name"),
+        )
         if status_changing:
             SellerVerificationLog.objects.create(
                 seller=instance,
@@ -418,6 +455,22 @@ KYC_MEDIA_FOR = [
     SellerMedia.MediaFor.CERTIFICATE,
     SellerMedia.MediaFor.OTHER,
 ]
+
+
+def validate_kyc_files(files):
+    """Type, size and count rules for identity documents (sign-up and `/seller/me/`)."""
+    if len(files) > KYC_MAX_FILES:
+        raise serializers.ValidationError(f"Upload at most {KYC_MAX_FILES} documents.")
+    for uploaded in files:
+        extension = os.path.splitext(uploaded.name)[1].lower()
+        content_type = (uploaded.content_type or "").lower()
+        if extension not in KYC_ALLOWED_EXTENSIONS or content_type not in KYC_ALLOWED_CONTENT_TYPES:
+            raise serializers.ValidationError(f"{uploaded.name}: only JPG, PNG, WEBP or PDF files are accepted.")
+        if uploaded.size > KYC_MAX_FILE_BYTES:
+            raise serializers.ValidationError(
+                f"{uploaded.name}: each file must be {KYC_MAX_FILE_BYTES // (1024 * 1024)} MB or smaller."
+            )
+    return files
 
 
 class SellerRegistrationSerializer(
@@ -472,20 +525,7 @@ class SellerRegistrationSerializer(
         return value
 
     def validate_media_file(self, files):
-        if len(files) > KYC_MAX_FILES:
-            raise serializers.ValidationError(f"Upload at most {KYC_MAX_FILES} documents.")
-        for uploaded in files:
-            extension = os.path.splitext(uploaded.name)[1].lower()
-            content_type = (uploaded.content_type or "").lower()
-            if extension not in KYC_ALLOWED_EXTENSIONS or content_type not in KYC_ALLOWED_CONTENT_TYPES:
-                raise serializers.ValidationError(
-                    f"{uploaded.name}: only JPG, PNG, WEBP or PDF files are accepted."
-                )
-            if uploaded.size > KYC_MAX_FILE_BYTES:
-                raise serializers.ValidationError(
-                    f"{uploaded.name}: each file must be {KYC_MAX_FILE_BYTES // (1024 * 1024)} MB or smaller."
-                )
-        return files
+        return validate_kyc_files(files)
 
     def validate_info(self, value):
         # Optional business profile: when sent it must be complete. Validated
@@ -509,6 +549,7 @@ class SellerRegistrationSerializer(
             verification_status=Seller.VerificationStatus.UNVERIFIED,
             status=Seller.Status.INACTIVE,
             is_seller_request=True,
+            requested_at=timezone.now(),
             creator_type=ActorType.SELLER,
             creator_name=validated_data["name"],
         )
@@ -526,6 +567,143 @@ class SellerRegistrationSerializer(
             creator_name=seller.name,
         )
         return seller
+
+
+# Documents that prove identity: a seller cannot change these once verified.
+KYC_LOCKED_MEDIA_FOR = (SellerMedia.MediaFor.NID, SellerMedia.MediaFor.BIRTH_CERTIFICATE)
+
+
+class SellerSelfSerializer(
+    LocationConsistencyMixin, MediaSyncMixin, ProfilePicUploadMixin, serializers.ModelSerializer
+):
+    """A seller's own profile (`/seller/me/`) — what they may read and edit.
+
+    Editable: name, photo, both addresses, location, skills/education/experience/
+    interest, the business profile (`info`) and documents. Not editable: email and
+    phone (sending a different value is a 400), status, verification, the request
+    flag. Once verified, NID and birth-certificate documents are locked. Every real
+    change is written to the profile change log."""
+
+    profile_pic = serializers.ImageField(write_only=True, required=False)
+    media = SellerMediaSerializer(many=True, read_only=True)
+    media_for = serializers.ListField(
+        child=serializers.ChoiceField(choices=[(item.value, item.label) for item in KYC_MEDIA_FOR]),
+        write_only=True, required=False, default=list,
+    )
+    media_file = serializers.ListField(child=serializers.FileField(), write_only=True, required=False, default=list)
+    media_delete_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True, required=False, default=list)
+    info = serializers.JSONField(write_only=True, required=False)
+    business_info = SellerInfoSerializer(source="info", read_only=True)
+    can_operate = serializers.BooleanField(read_only=True)
+
+    media_model = SellerMedia
+    media_fk_name = "seller"
+
+    class Meta:
+        model = Seller
+        fields = [
+            "id", "name", "email", "phone",
+            "profile_pic", "profile_pic_url",
+            "present_address", "permanent_address", "country", "state", "city", "thana",
+            "skills", "education", "experience", "interest",
+            "media", "media_for", "media_file", "media_delete_ids", "info", "business_info",
+            "verification_status", "verification_note", "status", "is_seller_request", "can_operate",
+            "created_at", "requested_at",
+        ]
+        read_only_fields = [
+            "profile_pic_url", "verification_status", "verification_note", "status",
+            "is_seller_request", "created_at", "requested_at",
+        ]
+        extra_kwargs = {
+            "present_address": {"allow_null": False, "allow_blank": False},
+            "permanent_address": {"allow_null": False, "allow_blank": False},
+            "country": {"allow_null": False},
+            "state": {"allow_null": False},
+            "city": {"allow_null": False},
+        }
+
+    def validate_email(self, value):
+        if value != self.instance.email:
+            raise serializers.ValidationError("Email cannot be changed.")
+        return value
+
+    def validate_phone(self, value):
+        if value != self.instance.phone:
+            raise serializers.ValidationError("Phone cannot be changed.")
+        return value
+
+    def validate_media_file(self, files):
+        return validate_kyc_files(files)
+
+    def validate_info(self, value):
+        info_serializer = SellerInfoSerializer(data=value)
+        info_serializer.is_valid(raise_exception=True)
+        return info_serializer.validated_data
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        seller = self.instance
+        adding = attrs.get("media_for", [])
+        deleting = list(SellerMedia.objects.filter(seller=seller, id__in=attrs.get("media_delete_ids", [])))
+        if seller.verification_status == Seller.VerificationStatus.VERIFIED:
+            touches_identity = any(kind in KYC_LOCKED_MEDIA_FOR for kind in adding) or any(
+                doc.media_for in KYC_LOCKED_MEDIA_FOR for doc in deleting
+            )
+            if touches_identity:
+                raise serializers.ValidationError(
+                    {"media_for": "Your identity documents (NID, birth certificate) are locked after verification. "
+                                  "Ask an admin to change them."}
+                )
+        if any(doc.media_for == SellerMedia.MediaFor.NID for doc in deleting):
+            kept = SellerMedia.objects.filter(seller=seller, media_for=SellerMedia.MediaFor.NID).exclude(
+                id__in=[doc.id for doc in deleting]
+            ).count()
+            if kept + adding.count(SellerMedia.MediaFor.NID) < 1:
+                raise serializers.ValidationError(
+                    {"media_for": "At least one NID document is required. Upload the new NID in the same request."}
+                )
+        return attrs
+
+    def update(self, instance, validated_data):
+        info_data = validated_data.pop("info", None)
+        before = snapshot(instance)
+        instance = super().update(instance, validated_data)
+        if info_data:
+            SellerInfo.objects.update_or_create(seller=instance, defaults=info_data)
+        record_profile_changes(
+            instance, before,
+            validated_data.get("updated_by"), validated_data.get("updater_type", ActorType.SELLER),
+            validated_data.get("updater_name"),
+        )
+        return instance
+
+
+class SellerResubmitSerializer(serializers.Serializer):
+    """Body of `POST /seller/me/resubmit/` — an optional message for the reviewer."""
+
+    note = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+
+
+class SellerChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True, style={"input_type": "password"})
+    new_password = serializers.CharField(write_only=True, style={"input_type": "password"})
+
+    def validate_current_password(self, value):
+        if not check_password(value, self.context["seller"].password):
+            raise serializers.ValidationError("Incorrect password.")
+        return value
+
+    def validate_new_password(self, value):
+        try:
+            run_password_validators(value, self.context["seller"])
+        except DjangoValidationError as error:
+            raise serializers.ValidationError(list(error.messages))
+        return value
+
+    def validate(self, attrs):
+        if attrs["new_password"] == attrs["current_password"]:
+            raise serializers.ValidationError({"new_password": "The new password must be different from the current one."})
+        return attrs
 
 
 class BuyerMediaSerializer(serializers.ModelSerializer):

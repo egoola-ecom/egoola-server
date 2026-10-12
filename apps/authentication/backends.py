@@ -32,12 +32,14 @@ class ActorJWTAuthentication(JWTAuthentication):
         except model.DoesNotExist:
             raise InvalidToken("No such actor for this token.")
 
-        # Login already refuses a non-active account (see views.py), but an
-        # access token issued earlier stays valid until it expires. Checking
-        # the freshly loaded row here makes a deactivated admin or a
-        # suspended seller/buyer lose access on their next request instead
-        # of up to an hour later.
-        if actor.status != model.Status.ACTIVE:
+        # Login already refuses an account whose status may not log in (see
+        # views.py; `LOGIN_STATUSES` on each model — a seller who is not
+        # approved yet is allowed in, a suspended one is not), but an access
+        # token issued earlier stays valid until it expires. Checking the
+        # freshly loaded row here makes a deactivated admin or a suspended
+        # seller/buyer lose access on their next request instead of up to an
+        # hour later.
+        if actor.status not in model.LOGIN_STATUSES:
             raise AuthenticationFailed("This account is not active.", code="user_inactive")
 
         # DRF's IsAuthenticated (and everything downstream) only ever checks

@@ -18,6 +18,8 @@ class SellerFilter(django_filters.FilterSet):
     - `business_type`: text search inside the business profile's type.
     - `country` / `state` / `city` / `thana`: geography ids.
     - `created_from` / `created_to`: inclusive dates (YYYY-MM-DD) on signup date.
+    - `requested_from` / `requested_to`: the same on the date the seller joined the request
+      queue (sign-up, or the latest resubmit).
     """
 
     is_seller_request = django_filters.BooleanFilter()
@@ -28,6 +30,8 @@ class SellerFilter(django_filters.FilterSet):
     business_type = django_filters.CharFilter(field_name="info__business_type", lookup_expr="icontains")
     created_from = django_filters.DateFilter(field_name="created_at", lookup_expr="date__gte")
     created_to = django_filters.DateFilter(field_name="created_at", lookup_expr="date__lte")
+    requested_from = django_filters.DateFilter(field_name="requested_at", lookup_expr="date__gte")
+    requested_to = django_filters.DateFilter(field_name="requested_at", lookup_expr="date__lte")
 
     class Meta:
         model = Seller

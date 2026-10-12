@@ -19,6 +19,8 @@ API_V1 = [
     # apps/geography/public_views.py.
     path("public/geography/", include("apps.geography.public_urls")),
     path("accounts/", include("apps.accounts.urls")),
+    # The logged-in seller's own endpoints (profile, resubmit, password).
+    path("seller/", include("apps.accounts.seller_urls")),
     # Login (one endpoint per actor table) + token refresh — see
     # apps.authentication. Kept as its own app/urls.py rather than
     # apps.accounts, since "prove who you are" and "manage Admin/Seller/
