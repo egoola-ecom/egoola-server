@@ -1,6 +1,16 @@
 from django.contrib import admin
 
-from .models import Admin, AdminMedia, BuyerMedia, Seller, SellerInfo, SellerMedia, SellerVerificationLog, User
+from .models import (
+    Admin,
+    AdminMedia,
+    BuyerMedia,
+    Seller,
+    SellerInfo,
+    SellerMedia,
+    SellerProfileChangeLog,
+    SellerVerificationLog,
+    User,
+)
 
 
 @admin.register(Admin)
@@ -33,6 +43,13 @@ class SellerMediaAdmin(admin.ModelAdmin):
 class SellerVerificationLogAdmin(admin.ModelAdmin):
     list_display = ("id", "seller", "verification_status", "creator_type", "creator_name", "created_at")
     list_filter = ("verification_status", "creator_type")
+    search_fields = ("seller__name", "creator_name")
+
+
+@admin.register(SellerProfileChangeLog)
+class SellerProfileChangeLogAdmin(admin.ModelAdmin):
+    list_display = ("id", "seller", "changed_fields", "creator_type", "creator_name", "created_at")
+    list_filter = ("creator_type",)
     search_fields = ("seller__name", "creator_name")
 
 
