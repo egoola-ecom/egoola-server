@@ -44,13 +44,34 @@ class IsSuperAdminActor(_IsActor):
 
 
 class IsSellerActor(_IsActor):
-    """Passes only for a request authenticated as a Seller — not yet
-    attached to any endpoint (no Seller-facing views exist yet), but ready
-    for when catalog/bidding/orders add a Seller's own self-service
-    routes."""
+    """Passes for any logged-in Seller (active or inactive, approved or not) — used for the
+    seller's own profile (`/seller/me/`). Features that need an approved
+    seller use IsActiveVerifiedSellerActor instead."""
 
     actor_type = ActorType.SELLER
     message = "Only an authenticated Seller can access this endpoint."
+
+
+class IsActiveVerifiedSellerActor(IsSellerActor):
+    """A Seller who is verified (approved) AND active. Every seller feature
+    except editing one's own profile (listings, orders, wallet, withdrawals ...)
+    must use this, not IsSellerActor. The row is loaded fresh on every request,
+    so an approval, a pause (inactive) or a suspension takes effect at once."""
+
+    message = "Your seller account cannot do this yet."
+
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        seller = request.user
+        if seller.can_operate:
+            return True
+        # Say which of the two switches is holding the seller back.
+        if seller.verification_status != seller.VerificationStatus.VERIFIED:
+            self.message = "Your seller application is not approved yet. You can only edit your profile until an admin approves it."
+        else:
+            self.message = "Your seller account is inactive. You can only edit your profile until an admin makes it active."
+        return False
 
 
 class IsBuyerActor(_IsActor):
