@@ -3,7 +3,7 @@
 Django + DRF backend for the Egoola marketplace rebuild. Serves egoola-web,
 egoola-app, and egoola-seller from one shared, versioned API — see
 `Egoola Rebuild Guideline.docx` (Section 4) in `egoola-document` for the
-full architecture, and `Egoola Rebuild Phase Tracker.docx` for the task
+full architecture, and `Egoola_Phase_Tracker.md` in `egoola-document` for the task
 list this is being built against.
 
 ## Local setup
