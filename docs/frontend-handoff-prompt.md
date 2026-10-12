@@ -41,8 +41,8 @@ all data comes from `egoola-server` over REST only. Follow the patterns already 
 | Login, tokens, errors, pagination, filters | `frontend-api-guide.md`, `authentication.md` | `Egoola.postman_collection.json` → Auth |
 | **Listings (start here)** | **`listing-complete-guide.md`** (relations, how to create every kind of listing, moderation) and `listing-module-guide.md` (endpoint reference) | `Egoola-Listing.postman_collection.json` |
 | **Attributes, values, SKUs** | **`attribute-sku-guide.md`** | **`Egoola-Attribute.postman_collection.json`** |
-| Sellers + verification | `seller-verification-guide.md`, `frontend-api-guide.md` §8 | `Egoola-Seller.postman_collection.json` |
-| **Seller Requests (new sign-ups to review)** | **`seller-onboarding-guide.md`** | **`Egoola-SellerOnboarding.postman_collection.json`** |
+| Sellers (admin side) + Seller Requests | `seller-verification-guide.md`, `frontend-api-guide.md` §8 | `Egoola-Seller.postman_collection.json` |
+| **Seller-facing APIs** (sign-up, seller login, own profile) | **`seller-api-guide.md`** | **`Egoola-SellerApp.postman_collection.json`** |
 | Buyers | `buyer-management-guide.md` | `Egoola.postman_collection.json` → Accounts → Buyers |
 | Admins (super-admin only) | `admin-management-guide.md` | `Egoola.postman_collection.json` → Auth → Super-Admin Login, then Accounts → Admins |
 | CMS (banners, email templates, settings, logo) | `cms-api-guide.md` | `Egoola-CMS.postman_collection.json` |
@@ -173,28 +173,34 @@ real endpoint when the backend ships it.
 6. File uploads (banner image, site logo, listing media, profile pictures, documents) are multipart; never set `Content-Type` yourself for them
    (`authFetch` already handles `FormData`).
 
-### Task G — Seller Requests screen (admin)
+### Task G — Seller Requests and seller review (admin)
 
-New backend feature: sellers can sign up by themselves with KYC documents (`POST /auth/seller/register/`, public). Admin needs a
-**Seller Requests** list under Sellers. Read **`seller-onboarding-guide.md`** first.
+The admin side of sellers is in **`seller-verification-guide.md`** (+ `frontend-api-guide.md` §8) with the collection
+**`Egoola-Seller.postman_collection.json`**. Read the guide first.
 
-- List: `GET /accounts/sellers/requests/` — **cursor pagination** (follow `next` / `previous` exactly as given; there is **no `count`** and no
-  page numbers). Build it as "Load more" / infinite scroll, not numbered pages. Newest first; `ordering=created_at` for oldest first.
-- Filters to offer: search, `verification_status`, `status`, `country`/`state`/`city`/`thana` (use `geography-fields`), `has_business_profile`,
-  `business_type`, `created_from`/`created_to`. Reset the cursor whenever a filter or the sort changes.
-- Menu badge "Seller Request (n)": `GET /accounts/sellers/?is_seller_request=true&limit=1` and read `count` (the queue itself has none).
-- Review view: the seller detail (`GET /accounts/sellers/{id}/`) — show the documents from `media` (`media_for`, `media_type`, open `media_url`;
-  on a local server it is a path, put the API host in front), the business profile, both addresses, and the history.
-- **Approve** = one `PATCH` with **both** `{"verification_status": "verified", "status": "active"}`. **Reject** = `{"verification_status": "rejected",
-  "verification_note": "..."}` (note required). After either, the row leaves the queue; refresh the list and the badge.
-- The seller `status` now has three values: `active`, `inactive`, `suspended`. Update the Seller list/form filters and badges. Add the
-  `is_seller_request` flag (read-only) where useful.
-- Failed logins are now `401` (they were `403`), and a seller still waiting gets
-  "Your registration is under review. You can log in once an admin approves it." — show the message on the seller login page.
-- The sign-up form's country / state / city / thana dropdowns must use the **public** lists `GET /api/v1/public/geography/{countries,states,cities,thanas}/`
-  (no token; filter by parent id: `states/?country=`, `cities/?state=`, `thanas/?city=`). The admin `/geography/` API needs an admin token.
-- The public sign-up **form** belongs to the seller-panel work (Phase 3 screens). Do not build it unless the user asks; the same guide
-  documents it.
+- **Seller Requests list:** `GET /accounts/sellers/requests/` — **cursor pagination** (follow `next` / `previous` exactly as given; there is **no `count`**
+  and no page numbers). Build "Load more" / infinite scroll. Default order is newest request first (`requested_at`; a resubmission counts as new);
+  `ordering=requested_at` for oldest first. Filters: search, `verification_status`, `status`, geography (`geography-fields`), `has_business_profile`,
+  `business_type`, `created_from`/`created_to`, `requested_from`/`requested_to`. Reset the cursor when a filter or sort changes.
+- **Menu badge** "Seller Request (n)": `GET /accounts/sellers/?is_seller_request=true&limit=1` and read `count`. Refresh it after every approve/reject.
+- **Review view** (`GET /accounts/sellers/{id}/`): documents from `media` (show images inline, open PDFs in a new tab; on a local server `media_url` is a
+  path, put the API host in front), business profile, both addresses, **`verification_logs`** (review history) and **`profile_change_logs`** (see below).
+- **Approve** = ONE `PATCH` with BOTH `{"verification_status": "verified", "status": "active"}`. **Reject** = `{"verification_status": "rejected",
+  "verification_note": "..."}` (note required). Also "Mark pending" and suspend. After any of these the seller leaves the queue.
+- **Profile change history** on the seller detail: show `profile_change_logs` as a timeline (newest first). Each row: who (`creator_type` seller/admin,
+  `creator_name`), when (`created_at`), and a before → after line for each key in `changed_fields` (`previous_data[key]` → `new_data[key]`). Special keys:
+  `country/state/city/thana` are `{id, name}`; `business_info` shows only the changed sub-fields (or the whole object when first added); `documents` is the
+  full list before/after; `password` is always `"[hidden]"`. There is no separate endpoint and no pagination for it.
+- Seller `status` now has THREE values: `active`, `inactive`, `suspended` (update filters, badges, edit form). `is_seller_request`, `requested_at`,
+  `created_at` are read-only fields to show where useful. The normal seller list takes the same new filters (`creator_type`, `status__in`,
+  `verification_status__in`, `has_business_profile`, `business_type`, ...).
+- `inactive` is the account switch: the seller can log in but only edit their profile until an admin sets `active` (a new sign-up, or an approved
+  seller an admin paused). It is NOT the same as "not approved" (that is `verification_status`). Only `suspended` sellers cannot log in. Failed logins are `401`. **Sellers now log in with PHONE + password (not email)**: see `seller-api-guide.md` §4.
+
+**Seller-side screens** (seller panel / Flutter app; do them only when the user asks): public sign-up form (dropdowns from the PUBLIC lists
+`/public/geography/{countries,states,cities,thanas}/`, no token), login (`can_operate`, `verification_status`), own profile `/seller/me/`
+(edit, documents, change password), rejected seller: read `verification_note`, fix, `POST /seller/me/resubmit/`. All documented in **`seller-api-guide.md`**
+(sections 2–6) with the collection `Egoola-SellerApp.postman_collection.json`.
 
 ---
 
