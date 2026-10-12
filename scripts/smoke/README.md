@@ -13,7 +13,8 @@ accounts in [`docs/test-accounts.md`](../../docs/test-accounts.md). The guides i
 | `brand_smoke.sh` | Brands and the listing/brand/discount rules | 55 |
 | `sku_smoke.py` | Attributes, attribute values and listing SKUs (every SKU rule, update by id, discount windows, category delete protection) | 143 |
 | `cms_smoke.sh` | Banners, email templates, settings, site logo | 97 |
-| `seller_onboarding_smoke.sh` | Seller self-registration with KYC documents (validation, files, duplicates, location), pending-seller login, the Seller Request queue (cursor paging, ordering, every filter, permissions) and how admin actions clear the request flag | 161 |
+| `seller_onboarding_smoke.sh` | Seller self-registration with KYC documents (validation, files, duplicates, location), pending-seller login, the Seller Request queue (cursor paging, ordering, every filter, permissions) and how admin actions clear the request flag | 162 |
+| `seller_self_smoke.sh` | The seller's own API (`/seller/me/`): sellers who cannot operate (pending, rejected, or approved but paused) can log in and edit only their profile, email/phone locked, documents (add, delete, replace, NID rules, locked after verification), password change, resubmit after a rejection, the profile change log (seller and admin edits, before/after, no password hash), suspended sellers, `IsActiveVerifiedSellerActor`, files removed from storage when media, a photo or an account is deleted, and the phone + password seller login | 156 |
 | `public_geography_smoke.sh` | The public (no login) country / state / city / thana lists: shape, parent filters, search, read-only, no audit data, admin API still locked | 45 |
 
 ```bash

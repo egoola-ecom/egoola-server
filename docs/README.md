@@ -14,6 +14,9 @@ guide (what to send, what comes back, every error) and one Postman collection
 4. Logins to use: [`test-accounts.md`](test-accounts.md) (password `Test@12345`).
    Use the **super-admin** for Admin Management, a plain admin for the rest.
 
+**Not technical? Start with [`Egoola_Seller_Guide.md`](Egoola_Seller_Guide.md):** the whole seller process in plain words
+(joining, verification, login, what sellers and admins can do), for every team including operations.
+
 Read first: [`frontend-api-guide.md`](frontend-api-guide.md) (login, tokens,
 errors, pagination, filters) and [`authentication.md`](authentication.md) (how
 roles and the `401` / `403` split work).
@@ -23,8 +26,8 @@ roles and the `401` / `403` split work).
 | Admin screen | Guide (`docs/`) | Postman collection (`postman/`) |
 |---|---|---|
 | Login, tokens, errors, pagination | `frontend-api-guide.md`, `authentication.md` | `Egoola.postman_collection.json` → **Auth** |
-| Seller management + **seller verification** (approve / reject) | `seller-verification-guide.md`, `frontend-api-guide.md` §8 | `Egoola-Seller.postman_collection.json` |
-| **Seller sign-up with KYC documents** (public) + the admin **Seller Request** queue (cursor pagination, filters, approve / reject) | `seller-onboarding-guide.md` | `Egoola-SellerOnboarding.postman_collection.json` |
+| Seller management (admin): list + filters, **Seller Request queue** (cursor pagination), review, approve / reject, profile change history | `seller-verification-guide.md`, `frontend-api-guide.md` §8 | `Egoola-Seller.postman_collection.json` |
+| **Seller-facing APIs** (for the seller sign-up form, seller panel and seller app): public location lookups, sign-up with KYC documents, seller login, own profile (`/seller/me`), resubmit, change password | `seller-api-guide.md` (the only seller-facing guide) | `Egoola-SellerApp.postman_collection.json` (the only seller-facing collection) |
 | Buyer management | `buyer-management-guide.md` | `Egoola.postman_collection.json` → **Accounts → Buyers** |
 | Admin management (super-admin only) | `admin-management-guide.md` | `Egoola.postman_collection.json` → **Auth → Super-Admin Login**, then **Accounts → Admins** |
 | **Listings — start here**: how a listing relates to categories, brands, attributes, SKUs, owners and locations; how to create every kind of listing; moderation | `listing-complete-guide.md` | `Egoola-Listing.postman_collection.json`, `Egoola-Attribute.postman_collection.json` |
@@ -34,7 +37,7 @@ roles and the `401` / `403` split work).
 | Categories (tree) | `category-tree-api-guide.md` | `Egoola-Category.postman_collection.json` |
 | Measurements (unit list: create, update, list, delete — no separate guide; same list/paginate rules as the others) | the Postman collection is the reference; how listings use it: `listing-module-guide.md` | `Egoola-Measurement.postman_collection.json` |
 | Geography (country / state / city / thana) — admin management | `geography-api-guide.md` | `Egoola-Geography.postman_collection.json` |
-| **Public geography lists** (no login; dropdowns for the seller sign-up form) | `seller-onboarding-guide.md` section 2 | `Egoola-SellerOnboarding.postman_collection.json` → **Public lookups** |
+| **Public geography lists** (no login; dropdowns for the seller sign-up form) | `seller-api-guide.md` section 2 | `Egoola-SellerApp.postman_collection.json` → **Public lookups** |
 
 Notes for the Postman collections:
 - The Listing and Attribute collections leave a few demo rows behind after a run (soft-deleted listings keep their SKUs, so their attributes can only be deactivated). Run **CMS → Site Logo** requests only if you can afford to lose the logo: its delete step removes it.
@@ -50,7 +53,7 @@ Notes for the Postman collections:
 - **Admin dashboard data** (counts, charts, recent activity).
 - **Financial oversight**: withdrawal requests, refunds, commission settings.
 
-Both are open in the Phase Tracker.
+Both are open in the Phase Tracker (`egoola-document/Egoola_Phase_Tracker.md`).
 
 ## Rules every form needs to respect
 

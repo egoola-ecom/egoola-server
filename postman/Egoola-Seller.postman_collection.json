@@ -1,8 +1,8 @@
 {
   "info": {
-    "name": "Egoola API — Seller",
+    "name": "Egoola API — Seller (admin)",
     "_postman_id": "9d3e7c1a-5f42-4b8e-9a6d-egoola-seller",
-    "description": "Full Seller Management (Admin-only) — CRUD, business profile, media/identity documents, and the Seller Verification workflow (verify/reject with a mandatory rejection note, and the append-only verification_logs history). Lives at `/api/v1/accounts/sellers/` — full CRUD including Retrieve (unlike Category/Measurement, which don't expose a detail-GET).\n\nVerification rules to know before you run these:\n1. An Admin-created seller defaults to verification_status=\"verified\"; you can still override it explicitly at create time.\n2. Rejecting (verification_status=\"rejected\") always requires verification_note in that same request — on create and on update alike.\n3. verification_note is never inherited from a previous change — every request that changes verification_status stores exactly the note you send this time, or null if you don't send one, even if a note already existed.\n4. verification_logs (Retrieve only) is the full, append-only history behind the current verification_status/verification_note — one entry written on create, and one more each time an update actually changes verification_status.\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run **Auth > Admin Login** first — its \"Tests\" script saves the access/refresh tokens into collection variables automatically.\n3. Run the whole **Sellers** folder top to bottom with Postman's \"Run collection\" (or click through it in order) — it's written to work as one continuous sequence: **Create Seller** saves `seller_id`, **Seller Login** right after it saves `seller_token` using those same just-created credentials (run it before the later password-change request, or it'll fail), and the verification requests near the end run through reject-without-a-note (400) → reject-with-a-note (200) → re-verify-without-a-note (note clears to null) against that same seller.\n4. \"Update Seller — Upload Media & Profile Picture\" needs real files selected by hand in Postman first (see its own description) — skip it in an automated/Newman run.\n5. When a 401 says the token expired, run **Auth > Refresh Token**.\n\nFor Admin/Buyer management and login, see the Egoola API — Accounts & Auth collection. For Category, see Egoola API — Category. For Measurement, see Egoola API — Measurement.",
+    "description": "The admin side of sellers: seller management (create, edit, documents, delete), the Seller Request queue (cursor pagination, filters, ordering), review, approve / reject, and the profile change history. Read docs/seller-verification-guide.md alongside it. The seller-facing APIs (sign-up, seller login, own profile, resubmit) are in Egoola-SellerApp.postman_collection.json.\n\nRun top to bottom. The [Setup] requests (a seller signs up) need a real JPG / PNG / WEBP / PDF chosen in the Postman app.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -42,8 +42,8 @@
       "type": "string"
     },
     {
-      "key": "seller_login_email",
-      "value": "rafiq.traders@example.com",
+      "key": "seller_login_phone",
+      "value": "+8801711000111",
       "type": "string"
     },
     {
@@ -58,6 +58,46 @@
     {
       "key": "applicant_seller_id",
       "value": ""
+    },
+    {
+      "key": "request_seller_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "request_seller_email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "request_seller_phone",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "full_seller_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "full_seller_email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "full_seller_phone",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "page1_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "request_next",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -168,7 +208,1270 @@
       ]
     },
     {
-      "name": "Sellers",
+      "name": "Setup — two sellers sign up",
+      "item": [
+        {
+          "name": "[Setup] Seller signs up — minimal (public)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "register",
+                ""
+              ]
+            },
+            "description": "Public — no token. Multipart form. The seller is created unverified and inactive and joins the admin's Seller Request queue. **Pick a JPG, PNG, WEBP or PDF file for each `media_file` row in the Postman app** — a shared collection can't carry file paths, so under Newman these file rows are empty and the request fails with 400.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Postman Applicant {{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "postman.applicant.{{uniq}}@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+880{{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "Sell@12345",
+                  "type": "text"
+                },
+                {
+                  "key": "present_address",
+                  "value": "House 12, Road 5, Feni Sadar",
+                  "type": "text"
+                },
+                {
+                  "key": "permanent_address",
+                  "value": "Village Pashchim Para, Feni",
+                  "type": "text"
+                },
+                {
+                  "key": "country",
+                  "value": "126",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "13",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "8",
+                  "type": "text"
+                },
+                {
+                  "key": "media_for",
+                  "value": "nid",
+                  "type": "text"
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"unverified\", () => { pm.expect(pm.response.json().verification_status).to.eql('unverified'); });",
+                  "pm.test(\"inactive\", () => { pm.expect(pm.response.json().status).to.eql('inactive'); });",
+                  "pm.test(\"is_seller_request true\", () => { pm.expect(pm.response.json().is_seller_request).to.eql(true); });",
+                  "pm.test(\"password and tokens are not returned\", () => { const b = pm.response.json(); pm.expect(b).to.not.have.property('password'); pm.expect(b).to.not.have.property('access'); });",
+                  "pm.test(\"has a message\", () => { pm.expect(pm.response.json().message).to.be.a('string').and.not.empty; });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('request_seller_id', String(pm.response.json().id)); }",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('request_seller_email', String(pm.response.json().email)); }",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('request_seller_phone', String(pm.response.json().phone)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Setup] Seller signs up — with business profile (public)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "register",
+                ""
+              ]
+            },
+            "description": "Same endpoint with the optional parts: more documents (`media_for` + `media_file` pairs, same order), a profile photo, and the business profile as a JSON string in `info` (every business field is required when `info` is sent). **Pick a JPG, PNG, WEBP or PDF file for each `media_file` row in the Postman app** — a shared collection can't carry file paths, so under Newman these file rows are empty and the request fails with 400.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Postman Applicant {{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "postman.applicant.{{uniq}}@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+880{{uniq}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "Sell@12345",
+                  "type": "text"
+                },
+                {
+                  "key": "present_address",
+                  "value": "House 12, Road 5, Feni Sadar",
+                  "type": "text"
+                },
+                {
+                  "key": "permanent_address",
+                  "value": "Village Pashchim Para, Feni",
+                  "type": "text"
+                },
+                {
+                  "key": "country",
+                  "value": "126",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "13",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "8",
+                  "type": "text"
+                },
+                {
+                  "key": "media_for",
+                  "value": "nid",
+                  "type": "text"
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "media_for",
+                  "value": "certificate",
+                  "type": "text"
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "profile_pic",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "info",
+                  "value": "{\"business_type\": \"Retail\", \"main_product\": \"Shoes\", \"owner_name\": \"Postman Owner\", \"employees_range\": \"1-10\", \"annual_revenue\": \"< $50,000\", \"established_year\": \"2020\", \"country\": 126, \"state\": 13, \"city\": 8}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"still unverified and inactive\", () => { const b = pm.response.json(); pm.expect(b.verification_status).to.eql('unverified'); pm.expect(b.status).to.eql('inactive'); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('full_seller_id', String(pm.response.json().id)); }",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('full_seller_email', String(pm.response.json().email)); }",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('full_seller_phone', String(pm.response.json().phone)); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Seller Request queue",
+      "item": [
+        {
+          "name": "List requests (newest first)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/?search=Postman%20Applicant",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman%20Applicant"
+                }
+              ]
+            },
+            "description": "The admin's Seller Request queue: only self-registered sellers nobody has acted on yet. **Cursor pagination** — the response has `next` / `previous` links and no `count`. Newest first by default."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"cursor response shape\", () => { const b = pm.response.json(); pm.expect(b).to.have.property('next'); pm.expect(b).to.have.property('previous'); pm.expect(b.results).to.be.an('array'); pm.expect(b).to.not.have.property('count'); });",
+                  "pm.test(\"both registrations are in the queue\", () => { const ids = pm.response.json().results.map(r => String(r.id)); pm.expect(ids).to.include(pm.collectionVariables.get('request_seller_id')); pm.expect(ids).to.include(pm.collectionVariables.get('full_seller_id')); });",
+                  "pm.test(\"every row is a request\", () => { pm.response.json().results.forEach(r => pm.expect(r.is_seller_request).to.eql(true)); });",
+                  "pm.test(\"newest first\", () => { const r = pm.response.json().results; for (let i = 1; i < r.length; i++) pm.expect(new Date(r[i-1].created_at) >= new Date(r[i].created_at)).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List requests — oldest first",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/?search=Postman%20Applicant&ordering=created_at",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman%20Applicant"
+                },
+                {
+                  "key": "ordering",
+                  "value": "created_at"
+                }
+              ]
+            },
+            "description": "`ordering` takes `created_at`, `name` or `id`, with a leading `-` to reverse."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"oldest first\", () => { const r = pm.response.json().results; for (let i = 1; i < r.length; i++) pm.expect(new Date(r[i-1].created_at) <= new Date(r[i].created_at)).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List requests — page 1 (limit=1)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/?search=Postman%20Applicant&limit=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman%20Applicant"
+                },
+                {
+                  "key": "limit",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "`limit` sets the page size (default 20, max 100). The `next` link carries an opaque `cursor`; the next request below follows it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"one row and a next link\", () => { const b = pm.response.json(); pm.expect(b.results.length).to.eql(1); pm.expect(b.next).to.be.a('string'); });",
+                  "pm.test(\"no previous link on the first page\", () => { pm.expect(pm.response.json().previous).to.eql(null); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('page1_id', String(pm.response.json().results[0].id)); }",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('request_next', String(pm.response.json().next)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List requests — follow the next link",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{request_next}}",
+            "description": "Paste nothing — the previous request saved the full `next` URL in `request_next`. Use the URL exactly as given."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"a different row\", () => { const b = pm.response.json(); pm.expect(b.results.length).to.eql(1); pm.expect(String(b.results[0].id)).to.not.eql(pm.collectionVariables.get('page1_id')); });",
+                  "pm.test(\"has a previous link\", () => { pm.expect(pm.response.json().previous).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List requests — filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/?search=Postman%20Applicant&status=inactive&verification_status=unverified&creator_type=seller&country=126&state=13&city=8&email_verified=false&phone_verified=false",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman%20Applicant"
+                },
+                {
+                  "key": "status",
+                  "value": "inactive"
+                },
+                {
+                  "key": "verification_status",
+                  "value": "unverified"
+                },
+                {
+                  "key": "creator_type",
+                  "value": "seller"
+                },
+                {
+                  "key": "country",
+                  "value": "126"
+                },
+                {
+                  "key": "state",
+                  "value": "13"
+                },
+                {
+                  "key": "city",
+                  "value": "8"
+                },
+                {
+                  "key": "email_verified",
+                  "value": "false"
+                },
+                {
+                  "key": "phone_verified",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Filters: `status`, `verification_status` (also `__in=a,b`), `creator_type`, `country`, `state`, `city`, `thana`, `email_verified`, `phone_verified`, `has_business_profile`, `business_type`, `created_from`, `created_to`, `search` (name, email, phone), `ordering`, `limit`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"both registrations match\", () => { const ids = pm.response.json().results.map(r => String(r.id)); pm.expect(ids).to.include(pm.collectionVariables.get('request_seller_id')); pm.expect(ids).to.include(pm.collectionVariables.get('full_seller_id')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List requests — only those with a business profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/?search=Postman%20Applicant&has_business_profile=true&business_type=retail",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman%20Applicant"
+                },
+                {
+                  "key": "has_business_profile",
+                  "value": "true"
+                },
+                {
+                  "key": "business_type",
+                  "value": "retail"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"only the full registration\", () => { const ids = pm.response.json().results.map(r => String(r.id)); pm.expect(ids).to.include(pm.collectionVariables.get('full_seller_id')); pm.expect(ids).to.not.include(pm.collectionVariables.get('request_seller_id')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List requests — status=active is empty",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/?search=Postman%20Applicant&status=active",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman%20Applicant"
+                },
+                {
+                  "key": "status",
+                  "value": "active"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"empty\", () => { pm.expect(pm.response.json().results.length).to.eql(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Waiting requests — count for a menu badge",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/?is_seller_request=true&limit=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "is_seller_request",
+                  "value": "true"
+                },
+                {
+                  "key": "limit",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "The queue has no `count` (cursor pagination). The normal Seller list does, and accepts `is_seller_request=true`, so use it for a \"Seller Request (n)\" badge."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"count is a number\", () => { pm.expect(pm.response.json().count).to.be.a('number').and.at.least(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve a request — documents and history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{request_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{request_seller_id}}",
+                ""
+              ]
+            },
+            "description": "The detail page the reviewer works from: `media` holds the uploaded documents (`media_for`, `media_url`), `business_info`, addresses, and `verification_logs` (the first entry is the registration itself)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"is a request\", () => { pm.expect(pm.response.json().is_seller_request).to.eql(true); });",
+                  "pm.test(\"NID uploaded\", () => { const m = pm.response.json().media; pm.expect(m.length).to.be.at.least(1); pm.expect(m.map(x => x.media_for)).to.include('nid'); m.forEach(x => pm.expect(x.media_url).to.be.a('string').and.not.empty); });",
+                  "pm.test(\"registration is in the history\", () => { const l = pm.response.json().verification_logs; pm.expect(l[l.length - 1].creator_type).to.eql('seller'); pm.expect(l[l.length - 1].verification_status).to.eql('unverified'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Queue without a token (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List requests — by the date they joined the queue",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/?search=Postman%20Applicant&requested_from=2000-01-01&requested_to=2999-12-31&ordering=-requested_at",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman%20Applicant"
+                },
+                {
+                  "key": "requested_from",
+                  "value": "2000-01-01"
+                },
+                {
+                  "key": "requested_to",
+                  "value": "2999-12-31"
+                },
+                {
+                  "key": "ordering",
+                  "value": "-requested_at"
+                }
+              ]
+            },
+            "description": "`requested_at` is the sign-up time, and is set again every time a rejected seller resubmits. The queue's default order is `-requested_at` (newest request first). Also `requested_from` / `requested_to` (YYYY-MM-DD)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"rows carry requested_at\", () => { pm.response.json().results.forEach(r => pm.expect(r.requested_at).to.be.a('string')); });",
+                  "pm.test(\"newest request first\", () => { const r = pm.response.json().results; for (let i = 1; i < r.length; i++) pm.expect(new Date(r[i-1].requested_at) >= new Date(r[i].requested_at)).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Review — approve, reject, change history",
+      "item": [
+        {
+          "name": "Edit an address — stays in the queue",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{request_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{request_seller_id}}",
+                ""
+              ]
+            },
+            "description": "Only an action on `verification_status` or `status` takes a seller out of the queue. Other edits leave it there.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"present_address\": \"New address, Feni\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"still a request\", () => { pm.expect(pm.response.json().is_seller_request).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin edits the seller — logged with the admin's name",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{request_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{request_seller_id}}",
+                ""
+              ]
+            },
+            "description": "Admin edits go to the same log. Status and verification changes do not (they are in `verification_logs`).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"present_address\": \"Admin corrected address\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"newest log row is by the admin\", () => { const l = pm.response.json().profile_change_logs[0]; pm.expect(l.creator_type).to.eql('admin'); pm.expect(l.changed_fields).to.eql(['present_address']); pm.expect(l.new_data.present_address).to.eql('Admin corrected address'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin reads the seller — profile change log",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{request_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{request_seller_id}}",
+                ""
+              ]
+            },
+            "description": "`profile_change_logs` (newest first) is on the seller **detail** only. One row per save that changed something, by the seller or by an admin. `changed_fields` names the keys; `previous_data` and `new_data` have the same keys with the value before and after. Documents appear as a `documents` list, the business profile as `business_info` (only the changed parts), a password change as `\"[hidden]\"`. `creator_type` says who made the change: `seller` or `admin`. Status and verification changes are in `verification_logs`, not here."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"two admin edits are logged\", () => { pm.expect(pm.response.json().profile_change_logs.length).to.be.at.least(2); });",
+                  "pm.test(\"same keys before and after\", () => { pm.response.json().profile_change_logs.forEach(l => pm.expect(Object.keys(l.previous_data).sort()).to.eql(Object.keys(l.new_data).sort())); });",
+                  "pm.test(\"newest row: address change by the admin\", () => { const l = pm.response.json().profile_change_logs[0]; pm.expect(l.creator_type).to.eql('admin'); pm.expect(l.changed_fields).to.eql(['present_address']); pm.expect(l.previous_data.present_address).to.eql('New address, Feni'); pm.expect(l.new_data.present_address).to.eql('Admin corrected address'); });",
+                  "pm.test(\"also has the review history\", () => { pm.expect(pm.response.json().verification_logs.length).to.be.at.least(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve — verified + active",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{request_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{request_seller_id}}",
+                ""
+              ]
+            },
+            "description": "Approving takes two fields: `verification_status` (the KYC decision) and `status` (lets the seller log in). Send both in one request. Either one leaving its old value clears `is_seller_request`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_status\": \"verified\",\n  \"status\": \"active\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"approved\", () => { const b = pm.response.json(); pm.expect(b.verification_status).to.eql('verified'); pm.expect(b.status).to.eql('active'); });",
+                  "pm.test(\"left the queue\", () => { pm.expect(pm.response.json().is_seller_request).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approved seller is out of the queue",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/requests/?search=Postman%20Applicant&limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman%20Applicant"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"approved one is gone, the other waits\", () => { const ids = pm.response.json().results.map(r => String(r.id)); pm.expect(ids).to.not.include(pm.collectionVariables.get('request_seller_id')); pm.expect(ids).to.include(pm.collectionVariables.get('full_seller_id')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pause an approved seller (status inactive)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{request_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{request_seller_id}}",
+                ""
+              ]
+            },
+            "description": "`inactive` pauses a seller: they can still log in and edit their profile, but nothing else, until an admin sets `active` again. This is separate from `verification_status` (an approved seller stays verified).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"inactive\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"inactive, still verified\", () => { const b = pm.response.json(); pm.expect(b.status).to.eql('inactive'); pm.expect(b.verification_status).to.eql('verified'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Make the seller active again",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{request_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{request_seller_id}}",
+                ""
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"active\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"active again\", () => { pm.expect(pm.response.json().status).to.eql('active'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject without a note (expect 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{full_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{full_seller_id}}",
+                ""
+              ]
+            },
+            "description": "A rejection always needs a note. The failed request changes nothing — the seller stays in the queue.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_status\": \"rejected\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test(\"note error\", () => { pm.expect(pm.response.json()).to.have.property('verification_note'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject with a note",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{full_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{full_seller_id}}",
+                ""
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_status\": \"rejected\",\n  \"verification_note\": \"NID photo is unreadable. Please apply again.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"rejected and out of the queue\", () => { const b = pm.response.json(); pm.expect(b.verification_status).to.eql('rejected'); pm.expect(b.is_seller_request).to.eql(false); });",
+                  "pm.test(\"history has the registration and the rejection\", () => { pm.expect(pm.response.json().verification_logs.length).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "The flag cannot be set by a client",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{request_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{request_seller_id}}",
+                ""
+              ]
+            },
+            "description": "`is_seller_request` is read-only: only registration sets it and only an admin action on the status clears it.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_seller_request\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"still false\", () => { pm.expect(pm.response.json().is_seller_request).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suspend a seller",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{full_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{full_seller_id}}",
+                ""
+              ]
+            },
+            "description": "A suspended seller cannot log in and their token stops working at once.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"suspended\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"suspended\", () => { pm.expect(pm.response.json().status).to.eql('suspended'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the approved seller",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{request_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{request_seller_id}}",
+                ""
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the rejected seller",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{full_seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{full_seller_id}}",
+                ""
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Seller management (create, edit, documents, verification, delete)",
       "item": [
         {
           "name": "List Sellers",
@@ -281,7 +1584,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{seller_login_email}}\",\n  \"password\": \"{{seller_login_password}}\"\n}"
+              "raw": "{\n  \"phone\": \"{{seller_login_phone}}\",\n  \"password\": \"{{seller_login_password}}\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/auth/seller/login/",
@@ -297,7 +1600,7 @@
                 ""
               ]
             },
-            "description": "A Seller's own login — returns a token with actor_type=seller. Must run right here, straight after \"Create Seller\" and before \"Update Seller — Change Password\" further down — seller_login_email/seller_login_password default to the exact credentials \"Create Seller\" just registered, and they go stale the moment the password-change request runs. Its only purpose is populating {{seller_token}} for \"Seller actor forbidden from Sellers management\" near the end of this folder."
+            "description": "A Seller's own login — returns a token with actor_type=seller. Must run right here, straight after \"Create Seller\" and before \"Update Seller — Change Password\" further down — seller_login_email/seller_login_password default to the exact credentials \"Create Seller\" just registered, and they go stale the moment the password-change request runs. Its only purpose is populating {{seller_token}} for \"Seller actor forbidden from Sellers management\" near the end of this folder. A seller logs in with phone number + password."
           },
           "event": [
             {
@@ -977,6 +2280,18 @@
           ]
         }
       ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// A fresh value for every request, so emails and phones never repeat (the built-in {{$timestamp}} only changes once a second).",
+          "pm.variables.set('uniq', String(Date.now()) + String(Math.floor(Math.random() * 900) + 100));"
+        ]
+      }
     }
   ]
 }

@@ -7,11 +7,11 @@ Password for every account below: **`Test@12345`**
 
 ## Accounts
 
-| Role | Email | Type / state | Use it for |
+| Role | Login (email, or phone for a seller) | Type / state | Use it for |
 |---|---|---|---|
 | Admin | `test.admin@egoola.com` | `admin` (plain admin) | Sellers, buyers, listings, brands, categories … **not** Admin Management (gets 403) |
 | Super-admin | `test.super@egoola.com` | `super_admin` | Everything, including Admin Management |
-| Seller | `test.seller@egoola.com` | verification `unverified`, status `active` | Seller login |
+| Seller | phone **`0100000002`** (email `test.seller@egoola.com`, not used to log in) | verification `unverified`, status `active` | Seller login (**phone + password**) |
 | Buyer | `test.buyer@egoola.com` | status `active` | Buyer login |
 
 Other admin rows in the dev database (`admin@egoola.com` — super_admin,
@@ -32,6 +32,7 @@ Base URL: `http://127.0.0.1:8000`
 ```json
 { "email": "test.super@egoola.com", "password": "Test@12345" }
 ```
+A **seller** logs in with `phone` instead: `{ "phone": "0100000002", "password": "Test@12345" }`.
 The response has `access` (1 hour) and `refresh` (14 days). Send
 `Authorization: Bearer <access>`. A wrong password, a suspended buyer/seller or
 an inactive admin cannot log in (401). A token issued before an account was
@@ -70,7 +71,7 @@ Admin.objects.get_or_create(email="test.admin@egoola.com", defaults=dict(
 Admin.objects.get_or_create(email="test.super@egoola.com", defaults=dict(
     name="Test Super Admin", mobile="+8801700000010", password=pw, type="super_admin", status="active"))
 Seller.objects.get_or_create(email="test.seller@egoola.com", defaults=dict(
-    name="Test Seller", phone="+8801700000002", password=pw))
+    name="Test Seller", phone="0100000002", password=pw))
 User.objects.get_or_create(email="test.buyer@egoola.com", defaults=dict(
     name="Test Buyer", phone="+8801700000003", password=pw))
 ```

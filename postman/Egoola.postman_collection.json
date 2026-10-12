@@ -172,7 +172,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"test.seller@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+              "raw": "{\n  \"phone\": \"0100000002\",\n  \"password\": \"Test@12345\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/auth/seller/login/",
@@ -188,7 +188,7 @@
                 ""
               ]
             },
-            "description": "Public endpoint. Returns a token carrying actor_type=seller — will get 403 on every Accounts endpoint below (those are Admin-only), which is expected until Seller self-service routes exist."
+            "description": "Public endpoint. A seller logs in with **phone number + password** (admins and buyers use email). Returns a token carrying actor_type=seller — will get 403 on every Accounts endpoint below (those are Admin-only), which is expected until Seller self-service routes exist."
           },
           "event": [
             {

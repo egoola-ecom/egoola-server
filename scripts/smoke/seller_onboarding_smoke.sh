@@ -119,11 +119,12 @@ check "info that is not JSON -> 400" 400 "$(code "$(reg_with -- "${NID[@]}" --fo
 echo "=== Failed registrations leave nothing behind ==="
 check "no 'Smoke Reg Probe' seller exists" 0 "$(body "$(req GET "/accounts/sellers/?search=Smoke%20Reg%20Probe")" | cnt)"
 
-echo "=== Pending seller cannot log in ==="
-R=$(curl -s -w '\n%{http_code}' -X POST $BASE/auth/seller/login/ -H 'Content-Type: application/json' -d '{"email":"smoke.reg.one@example.com","password":"Sell@12345"}')
-check "pending seller login -> 401" 401 "$(code "$R")"
-check "message says under review" True "$(body "$R" | python -c "import sys,json;print('under review' in json.load(sys.stdin)['detail'])")"
-check "wrong password -> 401" 401 "$(curl -s -o /dev/null -w '%{http_code}' -X POST $BASE/auth/seller/login/ -H 'Content-Type: application/json' -d '{"email":"smoke.reg.one@example.com","password":"Wrong@12345"}')"
+echo "=== A seller who is not approved yet can log in (profile only) ==="
+R=$(curl -s -w '\n%{http_code}' -X POST $BASE/auth/seller/login/ -H 'Content-Type: application/json' -d '{"phone":"+8801700091001","password":"Sell@12345"}')
+check "pending seller login -> 200" 200 "$(code "$R")"
+check "login says not approved" "unverified inactive False" "$(body "$R" | python -c "import sys,json;d=json.load(sys.stdin);print(d['verification_status'],d['status'],d['can_operate'])")"
+check "login gives a token" True "$(body "$R" | python -c "import sys,json;print(bool(json.load(sys.stdin)['access']))")"
+check "wrong password -> 401" 401 "$(curl -s -o /dev/null -w '%{http_code}' -X POST $BASE/auth/seller/login/ -H 'Content-Type: application/json' -d '{"phone":"+8801700091001","password":"Wrong@12345"}')"
 
 echo "=== Seller Request queue: basics ==="
 R=$(req GET "$Q")
@@ -214,7 +215,7 @@ check "list: has_business_profile=true" 1 "$(body "$(req GET "$L&has_business_pr
 
 echo "=== Seller Request queue: permissions ==="
 check "no token -> 401" 401 "$(curl -s -o /dev/null -w '%{http_code}' $BASE/accounts/sellers/requests/)"
-ST=$(curl -s -X POST $BASE/auth/seller/login/ -H 'Content-Type: application/json' -d '{"email":"test.seller@egoola.com","password":"Test@12345"}' | python -c "import sys,json;print(json.load(sys.stdin).get('access',''))")
+ST=$(curl -s -X POST $BASE/auth/seller/login/ -H 'Content-Type: application/json' -d '{"phone":"0100000002","password":"Test@12345"}' | python -c "import sys,json;print(json.load(sys.stdin).get('access',''))")
 check "seller token -> 403" 403 "$(curl -s -o /dev/null -w '%{http_code}' $BASE/accounts/sellers/requests/ -H "Authorization: Bearer $ST")"
 BT=$(curl -s -X POST $BASE/auth/buyer/login/ -H 'Content-Type: application/json' -d '{"email":"test.buyer@egoola.com","password":"Test@12345"}' | python -c "import sys,json;print(json.load(sys.stdin).get('access',''))")
 check "buyer token -> 403" 403 "$(curl -s -o /dev/null -w '%{http_code}' $BASE/accounts/sellers/requests/ -H "Authorization: Bearer $BT")"
@@ -247,7 +248,7 @@ R=$(req PATCH /accounts/sellers/$S1/ '{"verification_status":"verified","status"
 check "approve (verified + active)" 200 "$(code "$R")"
 check "flag cleared on approve" False "$(body "$R" | jget "['is_seller_request']")"
 check "approved seller left the queue" "Eight,Six,Five,Four,Three,Two" "$(body "$(req GET "$Q")" | names)"
-check "approved seller can log in" 200 "$(curl -s -o /dev/null -w '%{http_code}' -X POST $BASE/auth/seller/login/ -H 'Content-Type: application/json' -d '{"email":"smoke.reg.one@example.com","password":"Sell@12345"}')"
+check "approved seller can log in" 200 "$(curl -s -o /dev/null -w '%{http_code}' -X POST $BASE/auth/seller/login/ -H 'Content-Type: application/json' -d '{"phone":"+8801700091001","password":"Sell@12345"}')"
 check "history now has 2 entries" 2 "$(body "$(req GET /accounts/sellers/$S1/)" | python -c "import sys,json;print(len(json.load(sys.stdin)['verification_logs']))")"
 
 check "reject without a note -> 400" 400 "$(code "$(req PATCH /accounts/sellers/$S4/ '{"verification_status":"rejected"}')")"
@@ -255,14 +256,14 @@ check "failed reject keeps it in the queue" True "$(body "$(req GET /accounts/se
 R=$(req PATCH /accounts/sellers/$S4/ '{"verification_status":"rejected","verification_note":"NID photo is unreadable"}')
 check "reject with a note" 200 "$(code "$R")"
 check "flag cleared on reject" False "$(body "$R" | jget "['is_seller_request']")"
-check "rejected seller still cannot log in" 401 "$(curl -s -o /dev/null -w '%{http_code}' -X POST $BASE/auth/seller/login/ -H 'Content-Type: application/json' -d '{"email":"smoke.reg.four@example.com","password":"Sell@12345"}')"
-RM=$(curl -s -X POST $BASE/auth/seller/login/ -H 'Content-Type: application/json' -d '{"email":"smoke.reg.four@example.com","password":"Sell@12345"}' | jget "['detail']")
-check "rejected seller sees the generic message, not 'under review'" "This account is not active." "$RM"
+R4L=$(curl -s -X POST $BASE/auth/seller/login/ -H 'Content-Type: application/json' -d '{"phone":"+8801700091004","password":"Sell@12345"}')
+check "rejected seller can still log in (to fix and resubmit)" "rejected inactive False" "$(echo "$R4L" | python -c "import sys,json;d=json.load(sys.stdin);print(d['verification_status'],d['status'],d['can_operate'])")"
 
 R=$(req PATCH /accounts/sellers/$S3/ '{"status":"suspended"}')
 check "changing only the account status" 200 "$(code "$R")"
 check "flag cleared on a status-only change" False "$(body "$R" | jget "['is_seller_request']")"
 check "status change adds no history entry" 1 "$(body "$R" | python -c "import sys,json;print(len(json.load(sys.stdin)['verification_logs']))")"
+check "a suspended seller cannot log in" 401 "$(curl -s -o /dev/null -w '%{http_code}' -X POST $BASE/auth/seller/login/ -H 'Content-Type: application/json' -d '{"phone":"+8801700091003","password":"Sell@12345"}')"
 
 R=$(req PATCH /accounts/sellers/$S5/ '{"verification_status":"pending"}')
 check "moving to pending is also an action" False "$(body "$R" | jget "['is_seller_request']")"

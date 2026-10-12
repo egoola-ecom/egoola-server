@@ -12,7 +12,7 @@ jget() { python -c "import sys,json;d=json.load(sys.stdin);print(d$1)" 2>/dev/nu
 code() { echo "$1" | tail -1; }
 body() { echo "$1" | sed '$d'; }
 req() { curl -s -w '\n%{http_code}' -X "$1" "$BASE$2" -H "$AUTH" -H "Content-Type: application/json" ${3:+-d "$3"}; }
-login() { curl -s -X POST "$BASE/auth/$1/login/" -H "Content-Type: application/json" -d "{\"email\":\"$2\",\"password\":\"$3\"}" | python -c "import sys,json;print(json.load(sys.stdin).get('access',''))"; }
+login() { local field=email; [ "$1" == seller ] && field=phone; curl -s -X POST "$BASE/auth/$1/login/" -H "Content-Type: application/json" -d "{\"$field\":\"$2\",\"password\":\"$3\"}" | python -c "import sys,json;print(json.load(sys.stdin).get('access',''))"; }
 dbq() { (cd "$SERVER" && uv run manage.py shell -c "$1" 2>&1 | tail -1); }
 
 PNG="$SCRATCH/t.png"
@@ -49,7 +49,7 @@ check "log creator name" "$(dbq "from apps.accounts.models import Admin;print(Ad
 R=$(req PATCH /accounts/sellers/$SID/ '{"name":"E2E Seller Renamed"}')
 check "non-status edit keeps log count" 3 "$(body "$(req GET /accounts/sellers/$SID/)" | jget "['verification_logs'].__len__()")"
 check "filter verified" True "$(req GET "/accounts/sellers/?verification_status=verified&search=E2E" | sed '$d' | python -c "import sys,json;d=json.load(sys.stdin);print(d['count']>=2)")"
-check "seller token on sellers -> 403" 403 "$(curl -s -o /dev/null -w '%{http_code}' $BASE/accounts/sellers/ -H "Authorization: Bearer $(login seller e2e.seller@example.com 'Sell@12345')")"
+check "seller token on sellers -> 403" 403 "$(curl -s -o /dev/null -w '%{http_code}' $BASE/accounts/sellers/ -H "Authorization: Bearer $(login seller +8801700070001 'Sell@12345')")"
 
 echo; echo "=== 2) LISTING MODERATION ==="
 mk() { req POST /catalog/listings/ "{\"seller\":$SID,\"category\":18,\"catalog_type\":\"product\",\"listing_type\":\"general\",\"posted_by_role\":\"seller_offer\",\"title\":\"$1\",\"description\":\"d\",\"price\":\"100.00\"}"; }
@@ -98,7 +98,7 @@ check "deleted is hidden (404)" 404 "$(code "$(req GET /catalog/listings/$LD/)")
 check "soft delete stamps updated_by" "$(dbq "from apps.accounts.models import Admin;print(Admin.objects.get(email='test.admin@egoola.com').id)")" "$(dbq "from apps.catalog.models import Listing;print(Listing.all_objects.get(id=$LD).updated_by)")"
 check "row still in DB with deleted_at" True "$(dbq "from apps.catalog.models import Listing;print(Listing.all_objects.get(id=$LD).deleted_at is not None)")"
 check "list filter status=rejected" True "$(req GET "/catalog/listings/?status=rejected&search=E2E" | sed '$d' | python -c "import sys,json;print(json.load(sys.stdin)['count']>=3)")"
-check "seller token on listings -> 403" 403 "$(curl -s -o /dev/null -w '%{http_code}' $BASE/catalog/listings/ -H "Authorization: Bearer $(login seller e2e.seller@example.com 'Sell@12345')")"
+check "seller token on listings -> 403" 403 "$(curl -s -o /dev/null -w '%{http_code}' $BASE/catalog/listings/ -H "Authorization: Bearer $(login seller +8801700070001 'Sell@12345')")"
 
 echo; echo "=== 3) BUYER MANAGEMENT ==="
 R=$(req POST /accounts/buyers/ '{"name":"E2E Buyer","email":"e2e.buyer@example.com","phone":"+8801700070011","password":"Buy@12345","country":126,"state":13,"city":8}')
@@ -176,7 +176,7 @@ check "new file exists" True "$([ -f "$SERVER/media/$NEWIMG" ] && echo True)"
 check "non-image upload -> 400" 400 "$(code "$(curl -s -w '\n%{http_code}' -X PATCH $BASE/cms/banners/$BNID/ -H "$AUTH" -F "image=@$SCRATCH/notimg.txt;type=text/plain")")"
 check "retrieve shows edits" "New image" "$(body "$(req GET /cms/banners/$BNID/)" | jget "['small_heading']")"
 check "updated_by stamped" admin "$(dbq "from apps.cms.models import Banner;print(Banner.objects.get(id=$BNID).updater_type)")"
-check "seller token on CMS -> 403" 403 "$(curl -s -o /dev/null -w '%{http_code}' $BASE/cms/banners/ -H "Authorization: Bearer $(login seller e2e.seller@example.com 'Sell@12345')")"
+check "seller token on CMS -> 403" 403 "$(curl -s -o /dev/null -w '%{http_code}' $BASE/cms/banners/ -H "Authorization: Bearer $(login seller +8801700070001 'Sell@12345')")"
 check "no token on CMS -> 401" 401 "$(curl -s -o /dev/null -w '%{http_code}' $BASE/cms/banners/)"
 check "delete banner" 204 "$(code "$(req DELETE /cms/banners/$BNID/)")"
 check "banner file removed" False "$([ -f "$SERVER/media/$NEWIMG" ] && echo True || echo False)"

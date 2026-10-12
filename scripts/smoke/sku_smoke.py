@@ -60,8 +60,10 @@ def cleanup():
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def login(kind, email, password):
-    status, body = call("POST", f"/auth/{kind}/login/", body={"email": email, "password": password})
+def login(kind, identifier, password):
+    # Admin and Buyer log in with email; a Seller with phone number.
+    field = "phone" if kind == "seller" else "email"
+    status, body = call("POST", f"/auth/{kind}/login/", body={field: identifier, "password": password})
     return body["access"] if status == 200 else ""
 
 
@@ -86,7 +88,7 @@ def listing_payload(title, skus=None, **extra):
 
 print("\n=== Access control ===")
 check("no token -> 401", 401, call("GET", "/catalog/attributes/")[0])
-seller_token = login("seller", "test.seller@egoola.com", "Test@12345")
+seller_token = login("seller", "0100000002", "Test@12345")
 check("seller token -> 403 (attributes)", 403, call("GET", "/catalog/attributes/", seller_token)[0])
 check("seller token -> 403 (values)", 403, call("GET", "/catalog/attribute-values/", seller_token)[0])
 
