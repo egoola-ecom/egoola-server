@@ -18,8 +18,8 @@ with no idea who's asking. JWT (JSON Web Token) is how the client proves
 
 ### Step by step
 
-**Step 1 — Login.** The client sends an email and password to one of
-three endpoints:
+**Step 1 — Login.** The client sends credentials to one of three endpoints
+(email + password for an Admin or Buyer; **phone number + password for a Seller**):
 
 - `POST /api/v1/auth/admin/login/`
 - `POST /api/v1/auth/seller/login/`
@@ -27,7 +27,7 @@ three endpoints:
 
 (code: [`apps/authentication/views.py`](../apps/authentication/views.py))
 
-The server checks the email/password against the right table (`Admin`,
+The server checks the credentials against the right table (`Admin`,
 `Seller`, or `User` — buyers are stored in a table called `User`, see
 [`apps/accounts/models.py`](../apps/accounts/models.py)). If it matches,
 the server hands back two tokens:
@@ -90,11 +90,12 @@ just trust the payload. On every request, it:
 2. Reads `actor_id` and `actor_type` from the payload.
 3. Actually looks that row up in the database — `Admin.objects.get(id=10)`,
    for example.
-4. Checks the row is still **active**. A deactivated Admin, or a
-   suspended Seller or Buyer, is refused with
-   `401 {"detail": "This account is not active."}`. (At login, a seller who
-   registered by themselves and is still waiting for approval gets a clearer
-   `401`: "Your registration is under review...".)
+4. Checks the row's status is one that may log in (`LOGIN_STATUSES` on each
+   model). A deactivated Admin, or a suspended Seller or Buyer, is refused with
+   `401 {"detail": "This account is not active."}`. A Seller with status
+   `inactive` (a new sign-up, or an approved seller an admin paused) is allowed in: they can only use their own
+   profile endpoints (`/seller/me/`); the seller features are behind
+   `IsActiveVerifiedSellerActor` (verified AND active, exposed as `can_operate`).
 
 Steps 3 and 4 matter. Say an Admin gets deactivated right now, mid-day
 — their token is still validly signed and not expired, but the very
@@ -205,9 +206,8 @@ Every admin-panel endpoint uses `IsAdminActor`: Seller and Buyer
 management ([`apps/accounts/views.py`](../apps/accounts/views.py)), the
 catalog (categories, measurements, brands, listings), geography, and the
 CMS (banners, email templates, settings, site logo). Admin Management is
-the one exception and uses `IsSuperAdminActor`. `IsSellerActor` and `IsBuyerActor` already
-exist and work exactly the same way, but nothing uses them yet, because
-Sellers and Buyers don't have any of their own routes yet (their own
+the one exception and uses `IsSuperAdminActor`. `IsSellerActor` (any seller: used by `/seller/me/`), `IsActiveVerifiedSellerActor` (verified and active: for every future seller feature) and `IsBuyerActor` work
+exactly the same way. Sellers have only their profile routes so far, and Buyers don't have any of their own routes yet (their own
 product listings, their own orders, etc. — those apps haven't been
 built). The moment one of those routes is built, locking it to "only
 that Seller" is the same one-line pattern:
