@@ -21,7 +21,7 @@ Also in this repo:
 > **Need the lists without logging in** (for example the seller sign-up form)? Everything below is
 > admin-only. Use the public, read-only lists at `/api/v1/public/geography/` instead. They return
 > only `id`, `name`, `slug` and the parent ids, with no audit data. See
-> [`seller-onboarding-guide.md`](seller-onboarding-guide.md) section 2.
+> [`seller-api-guide.md`](seller-api-guide.md) section 2.
 
 ---
 
