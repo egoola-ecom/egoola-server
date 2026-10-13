@@ -10,6 +10,7 @@ from .models import (
     ListingPriceTier,
     ListingSku,
     ListingSkuVariant,
+    ListingInfoChangeLog,
     ListingStatusChangeLog,
     Measurement,
 )
@@ -96,4 +97,11 @@ class ListingAdmin(admin.ModelAdmin):
 class ListingStatusChangeLogAdmin(admin.ModelAdmin):
     list_display = ("id", "listing", "status", "creator_type", "creator_name", "created_at")
     list_filter = ("status", "creator_type")
+    search_fields = ("listing__title", "creator_name")
+
+
+@admin.register(ListingInfoChangeLog)
+class ListingInfoChangeLogAdmin(admin.ModelAdmin):
+    list_display = ("id", "listing", "changed_fields", "creator_type", "creator_name", "created_at")
+    list_filter = ("creator_type",)
     search_fields = ("listing__title", "creator_name")
