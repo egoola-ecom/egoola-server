@@ -4,13 +4,17 @@ from django.db import transaction
 from django.db.models import ProtectedError
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.decorators import action
+from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
 
 from apps.authentication.permissions import IsAdminActor
 from apps.core.models import ActorType
 from apps.core.mixins import AuditedViewSetMixin
+from apps.core.pagination import DefaultCursorPagination
 
+from .filters import ListingFilter
 from .models import Attribute, AttributeValue, Brand, Category, Listing, ListingStatusChangeLog, Measurement
 from .serializers import (
     AttributeSerializer,
@@ -294,20 +298,51 @@ class ListingViewSet(AuditedViewSetMixin, viewsets.ModelViewSet):
     here."""
 
     permission_classes = [IsAdminActor]
-    filterset_fields = ["status", "catalog_type", "listing_type", "category", "brand", "seller", "buyer"]
-    search_fields = ["title", "brand__name", "model", "skus__sku"]
+    filterset_class = ListingFilter
+    search_fields = ["title", "title_bn", "brand__name", "model", "skus__sku"]
+    # Used only by the pending list's OrderingFilter (below).
+    ordering_fields = ["requested_at", "created_at", "title", "id"]
+    ordering = ["-requested_at", "-id"]
 
     def get_serializer_class(self):
-        return ListingListSerializer if self.action == "list" else ListingSerializer
+        return ListingListSerializer if self.action in ("list", "listing_requests") else ListingSerializer
 
     def get_queryset(self):
         if self.action == "list":
             return Listing.objects.select_related("category", "brand", "seller", "buyer").prefetch_related("skus")
+        if self.action in ("update", "partial_update"):
+            # Lock the row for the whole save (see SellerListingViewSet).
+            return Listing.objects.select_for_update(of=("self",))
+        if self.action == "listing_requests":
+            return Listing.objects.filter(status=Listing.Status.PENDING).select_related(
+                "category", "brand", "seller", "buyer"
+            ).prefetch_related("skus")
         return Listing.objects.select_related(
             "category", "brand", "seller", "buyer", "measurement", "country", "state", "city", "thana"
         ).prefetch_related(
-            "price_tiers", "media", "status_change_logs", "skus__variants__attribute", "skus__variants__attribute_value"
+            "price_tiers", "media", "status_change_logs", "info_change_logs",
+            "skus__variants__attribute", "skus__variants__attribute_value",
         )
+
+    def update(self, request, *args, **kwargs):
+        with transaction.atomic():
+            return super().update(request, *args, **kwargs)
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="requests",
+        pagination_class=DefaultCursorPagination,
+        filter_backends=[DjangoFilterBackend, SearchFilter, OrderingFilter],
+    )
+    def listing_requests(self, request):
+        """GET /listings/requests/ — the admin's pending list: listings waiting
+        for a decision (status `pending`), newest request first, cursor-paged
+        (follow `next` / `previous`; no `count`). Same filters as the list."""
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()

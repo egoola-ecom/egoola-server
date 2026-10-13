@@ -1,4 +1,7 @@
-from django.db import transaction
+import os
+
+from django.db import IntegrityError, transaction
+from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework import serializers
 
@@ -6,12 +9,14 @@ from apps.core.location import LocationConsistencyMixin
 from apps.core.models import ActorType
 from config.storage import infer_media_type, save_upload
 
+from .listing_log import record_listing_changes, snapshot
 from .models import (
     Attribute,
     AttributeValue,
     Brand,
     Category,
     Listing,
+    ListingInfoChangeLog,
     ListingMedia,
     ListingPriceTier,
     ListingSku,
@@ -261,6 +266,18 @@ class ListingStatusChangeLogSerializer(serializers.ModelSerializer):
         fields = ["id", "status", "note", "created_by", "creator_type", "creator_name", "created_at"]
 
 
+class ListingInfoChangeLogSerializer(serializers.ModelSerializer):
+    """Read-only — shown on a Listing's detail page for admins. `previous_data`
+    and `new_data` have the same keys: only what changed."""
+
+    class Meta:
+        model = ListingInfoChangeLog
+        fields = [
+            "id", "changed_fields", "previous_data", "new_data",
+            "created_by", "creator_type", "creator_name", "created_at",
+        ]
+
+
 def _check_discount(price, discounted_price):
     if price is not None and discounted_price is not None and discounted_price > price:
         raise serializers.ValidationError(
@@ -382,8 +399,9 @@ class ListingListSerializer(ListingFromPriceMixin, serializers.ModelSerializer):
     class Meta:
         model = Listing
         fields = [
-            "id", "title", "slug", "catalog_type", "listing_type",
-            "category", "brand", "seller", "buyer", "price", "discounted_price", "status", "created_at",
+            "id", "title", "title_bn", "slug", "catalog_type", "listing_type",
+            "category", "brand", "seller", "buyer", "price", "discounted_price", "status",
+            "requested_at", "created_at",
         ]
 
 
@@ -420,25 +438,31 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
         child=serializers.IntegerField(), write_only=True, required=False, default=list,
     )
     status_change_logs = ListingStatusChangeLogSerializer(many=True, read_only=True)
+    info_change_logs = ListingInfoChangeLogSerializer(many=True, read_only=True)
     brand_name = serializers.CharField(source="brand.name", read_only=True, default=None)
+
+    # What the error says when the seller already has a listing with this title.
+    duplicate_title_message = "This seller already has a listing with this title. Update that listing instead."
 
     class Meta:
         model = Listing
         fields = [
             "id", "seller", "buyer", "category", "catalog_type", "listing_type", "posted_by_role",
-            "title", "slug", "description",
-            "brand", "brand_name", "model", "origin", "warranty",
+            "title", "title_bn", "slug", "description", "description_bn",
+            "brand", "brand_name", "model", "origin", "origin_bn", "warranty", "warranty_bn",
             "price", "discounted_price", "currency", "skus",
-            "price_type", "hourly_rate", "delivery_days", "urgent", "package_includes",
+            "price_type", "hourly_rate", "delivery_days", "urgent",
+            "package_includes", "package_includes_bn",
             "available_from", "available_to",
             "min_order_qty", "measurement",
-            "condition_note", "attributes",
+            "condition_note", "condition_note_bn", "attributes",
             "country", "state", "city", "thana",
-            "status", "note",
-            "price_tiers", "media", "media_file", "media_delete_ids", "status_change_logs",
+            "status", "note", "requested_at",
+            "price_tiers", "media", "media_file", "media_delete_ids",
+            "status_change_logs", "info_change_logs",
             "created_at", "updated_at",
         ]
-        read_only_fields = ["slug", "created_at", "updated_at"]
+        read_only_fields = ["slug", "requested_at", "created_at", "updated_at"]
         extra_kwargs = {
             "hourly_rate": {"min_value": 0},
             "delivery_days": {"min_value": 0},
@@ -463,6 +487,13 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
         return validated
 
     # ---- validation -------------------------------------------------------------
+
+    def validate_title(self, value):
+        # One space between words, nothing at the ends: "Blue  Tee " and "blue tee" are the same title.
+        value = " ".join(value.split())
+        if not value:
+            raise serializers.ValidationError("This field may not be blank.")
+        return value
 
     def validate_price_tiers(self, tiers):
         # Quantity ranges must not overlap: once sorted by min_qty, each
@@ -490,6 +521,7 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
         errors = {}
         merged = []
         seen_ids = set()
+        codes_in_request = set()
 
         for index, item in enumerate(skus):
             item_errors = {}
@@ -533,6 +565,9 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
                     clash = clash.exclude(pk=current.pk)
                 if clash.exists():
                     item_errors["sku"] = "A SKU with this code already exists."
+                elif code in codes_in_request:
+                    item_errors["sku"] = "This SKU code is used twice in this request."
+                codes_in_request.add(code)
 
             if "variants" in item:
                 variants = item["variants"]
@@ -636,6 +671,20 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
         if posted_by_role == Listing.PostedByRole.BUYER_REQUEST and seller:
             raise serializers.ValidationError({"seller": "A buyer_request listing cannot have a seller."})
 
+        # A seller cannot have two live listings with the same title (ignoring
+        # case): they update the existing one instead. Checked when the title or
+        # the owner is being set.
+        title = attrs["title"] if "title" in attrs else getattr(instance, "title", None)
+        if seller is not None and title and ("title" in attrs or "seller" in attrs):
+            clash = Listing.objects.filter(seller=seller, title__iexact=title)
+            if instance is not None:
+                clash = clash.exclude(pk=instance.pk)
+            existing = clash.values_list("id", flat=True).first()
+            if existing is not None:
+                raise serializers.ValidationError(
+                    {"title": [f"{self.duplicate_title_message} (listing #{existing})"]}
+                )
+
         listing_type = attrs.get("listing_type", getattr(instance, "listing_type", None))
         brand = attrs["brand"] if "brand" in attrs else getattr(instance, "brand", None)
         if listing_type == Listing.ListingType.BRAND and brand is None:
@@ -650,13 +699,27 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
     # ---- writing ------------------------------------------------------------------
 
     def _generate_slug(self, title):
-        base = slugify(title)
+        base = slugify(title) or "listing"  # a title with no Latin letters (e.g. only Bangla) still gets a slug
         slug = base
         suffix = 1
         while Listing.all_objects.filter(slug=slug).exists():
             suffix += 1
             slug = f"{base}-{suffix}"
         return slug
+
+    def _integrity_error(self, error):
+        """A database uniqueness error as a field error the client can show
+        (None when it is not one we know, so the caller re-raises it)."""
+        constraint = getattr(getattr(getattr(error, "__cause__", None), "diag", None), "constraint_name", "") or ""
+        if constraint == "unique_listing_title_per_seller":
+            return serializers.ValidationError({"title": [self.duplicate_title_message]})
+        if "sku" in constraint.lower():
+            return serializers.ValidationError({"skus": ["A SKU code is already in use."]})
+        if "slug" in constraint.lower():
+            return serializers.ValidationError(
+                {"title": ["Another listing with a similar title was saved at the same moment. Please save again."]}
+            )
+        return None
 
     def _save_price_tiers(self, instance, tiers_data):
         instance.price_tiers.all().delete()
@@ -735,9 +798,18 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
         # provided for this event is exactly what ends up on the row.
         validated_data["note"] = validated_data.get("note") or None
         validated_data["slug"] = self._generate_slug(validated_data["title"])
+        if validated_data["status"] == Listing.Status.PENDING:
+            validated_data["requested_at"] = timezone.now()
 
-        instance = super().create(validated_data)
-        self._save_skus(instance, skus_data, stamp)
+        try:
+            instance = super().create(validated_data)
+        except IntegrityError as error:
+            # Two requests raced past the checks above; a database rule caught the second one.
+            raise self._integrity_error(error) or error
+        try:
+            self._save_skus(instance, skus_data, stamp)
+        except IntegrityError as error:
+            raise self._integrity_error(error) or error
         if tiers_data is not None:
             self._save_price_tiers(instance, tiers_data)
         self._create_media(instance, media_file_list)
@@ -771,9 +843,12 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
             },
         }
 
+        before = snapshot(instance)
         status_changing = (
             "status" in validated_data and validated_data["status"] != instance.status
         )
+        if status_changing and validated_data["status"] == Listing.Status.PENDING:
+            validated_data["requested_at"] = timezone.now()  # (re)joins the pending list
         if status_changing:
             # The listing row always holds the note for its *current*
             # status only — never a leftover from a previous status
@@ -786,18 +861,29 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
             # change there is nothing to attach it to, so it is ignored —
             # otherwise the row's note could drift from the latest log entry.
             validated_data.pop("note", None)
-        if "title" in validated_data and validated_data["title"] != instance.title:
-            validated_data["slug"] = self._generate_slug(validated_data["title"])
+        if "title" in validated_data and slugify(validated_data["title"]) != slugify(instance.title):
+            validated_data["slug"] = self._generate_slug(validated_data["title"])  # not for a case-only rename
 
-        instance = super().update(instance, validated_data)
+        try:
+            instance = super().update(instance, validated_data)
+        except IntegrityError as error:
+            raise self._integrity_error(error) or error
 
         if skus_data is not None:
-            self._save_skus(instance, skus_data, stamp)
+            try:
+                self._save_skus(instance, skus_data, stamp)
+            except IntegrityError as error:
+                raise self._integrity_error(error) or error
         if tiers_data is not None:
             self._save_price_tiers(instance, tiers_data)
         if delete_ids:
             instance.media.filter(id__in=delete_ids).delete()
         self._create_media(instance, media_file_list)
+        record_listing_changes(
+            instance, before,
+            validated_data.get("updated_by"), validated_data.get("updater_type", ActorType.SYSTEM),
+            validated_data.get("updater_name"),
+        )
 
         if status_changing:
             ListingStatusChangeLog.objects.create(
@@ -809,3 +895,106 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
                 creator_name=validated_data.get("updater_name"),
             )
         return instance
+
+
+class SellerListingListSerializer(ListingFromPriceMixin, serializers.ModelSerializer):
+    """A seller's own listing list: what they need to see at a glance."""
+
+    price = serializers.SerializerMethodField()
+    discounted_price = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Listing
+        fields = [
+            "id", "title", "title_bn", "slug", "catalog_type", "listing_type",
+            "category", "brand", "price", "discounted_price",
+            "status", "note", "requested_at", "created_at", "updated_at",
+        ]
+
+
+class SellerStatusLogSerializer(serializers.ModelSerializer):
+    """The status history as a seller sees it: what happened, why and when, and
+    whether the seller or an admin did it, but not which admin."""
+
+    class Meta:
+        model = ListingStatusChangeLog
+        fields = ["id", "status", "note", "creator_type", "created_at"]
+
+
+# Files a seller may attach to a listing: pictures, a short video or a PDF.
+LISTING_MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".pdf"}
+LISTING_MEDIA_CONTENT_TYPES = {
+    "image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "application/pdf",
+}
+LISTING_MEDIA_MAX_BYTES = 10 * 1024 * 1024
+LISTING_MEDIA_MAX_PER_REQUEST = 10
+LISTING_MEDIA_MAX_PER_LISTING = 20
+
+
+class SellerListingSerializer(ListingSerializer):
+    """A seller's own listing (`/seller/listings/`): the same fields an admin
+    uses, with the moderation parts taken away from the seller.
+
+    - The owner is always the logged-in seller and the listing is always a
+      `seller_offer`: `seller`, `buyer` and `posted_by_role` are not accepted.
+    - `status` is read-only. A new listing is always `pending`. Saving a
+      `rejected` or `changes_requested` listing sends it back to `pending`
+      (and to the admin's pending list as the newest request). Saving an
+      `approved` or `pending` listing leaves its status alone.
+    - `note` is the admin's reason when the listing was rejected. A note sent
+      while saving a rejected / changes-requested listing becomes the seller's
+      message to the reviewer; in any other state a note is ignored.
+    - The seller sees the status history but not the info change log."""
+
+    duplicate_title_message = "You already have a listing with this title. Update the existing listing instead."
+    status_change_logs = SellerStatusLogSerializer(many=True, read_only=True)
+
+    class Meta(ListingSerializer.Meta):
+        fields = [
+            name for name in ListingSerializer.Meta.fields
+            if name not in ("seller", "buyer", "posted_by_role", "info_change_logs")
+        ]
+        read_only_fields = ListingSerializer.Meta.read_only_fields + ["status"]
+
+    def validate_media_file(self, files):
+        # Sellers upload through a public-facing form, so the files are limited
+        # (an admin's uploads are not).
+        if len(files) > LISTING_MEDIA_MAX_PER_REQUEST:
+            raise serializers.ValidationError(f"Upload at most {LISTING_MEDIA_MAX_PER_REQUEST} files at a time.")
+        for uploaded in files:
+            extension = os.path.splitext(uploaded.name)[1].lower()
+            content_type = (uploaded.content_type or "").lower()
+            if extension not in LISTING_MEDIA_EXTENSIONS or content_type not in LISTING_MEDIA_CONTENT_TYPES:
+                raise serializers.ValidationError(
+                    f"{uploaded.name}: only JPG, PNG, WEBP, GIF, MP4 or PDF files are accepted."
+                )
+            if uploaded.size > LISTING_MEDIA_MAX_BYTES:
+                raise serializers.ValidationError(
+                    f"{uploaded.name}: each file must be {LISTING_MEDIA_MAX_BYTES // (1024 * 1024)} MB or smaller."
+                )
+        return files
+
+    def validate(self, attrs):
+        new_files = attrs.get("media_file") or []
+        if new_files:
+            keeping = 0
+            if self.instance is not None:
+                keeping = self.instance.media.exclude(id__in=attrs.get("media_delete_ids") or []).count()
+            if keeping + len(new_files) > LISTING_MEDIA_MAX_PER_LISTING:
+                raise serializers.ValidationError(
+                    {"media_file": f"A listing can have at most {LISTING_MEDIA_MAX_PER_LISTING} files."}
+                )
+        if self.instance is None:
+            attrs["seller"] = self.context["request"].user
+            attrs["posted_by_role"] = Listing.PostedByRole.SELLER_OFFER
+            attrs.pop("note", None)  # a new listing has no reason to explain yet
+        return super().validate(attrs)
+
+    def update(self, instance, validated_data):
+        # A listing an admin left as a draft is submitted the same way.
+        if instance.status in (Listing.Status.REJECTED, Listing.Status.CHANGES_REQUESTED, Listing.Status.DRAFT):
+            validated_data["status"] = Listing.Status.PENDING
+            validated_data["note"] = validated_data.get("note") or None
+        else:
+            validated_data.pop("note", None)
+        return super().update(instance, validated_data)

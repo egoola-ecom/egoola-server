@@ -12,6 +12,13 @@ class DefaultPagination(LimitOffsetPagination):
     max_limit = 100
 
 
+class LargeListPagination(LimitOffsetPagination):
+    """For dropdown lookups that need the whole list: default 500, max 1000."""
+
+    default_limit = 500
+    max_limit = 1000
+
+
 class DefaultCursorPagination(CursorPagination):
     """Cursor pagination for queue-style lists that grow while an admin is
     working through them (e.g. the Seller Request queue). The response has
