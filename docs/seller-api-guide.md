@@ -2,11 +2,12 @@
 
 This is the **only** guide for the APIs built **for sellers** (the seller sign-up form, the seller panel and the
 seller app). It covers: public location lookups, sign-up with KYC documents, seller login, the seller's own profile
-(`/seller/me`), resubmit after a rejection, and change password.
+(`/seller/me`), resubmit after a rejection, change password, and **the seller's listings** (section 6).
 
+- **Plain-language guides** (no API details): `Egoola_Seller_Guide.md` (the seller process) and `Egoola_Listing_Guide.md` (listings).
 - **Postman:** `postman/Egoola-SellerApp.postman_collection.json` (one collection for all of it) and
   `postman/Egoola-Local.postman_environment.json`.
-- **Smoke tests:** `scripts/smoke/seller_self_smoke.sh`, `public_geography_smoke.sh`, and the sign-up part of
+- **Smoke tests:** `scripts/smoke/seller_self_smoke.sh`, `seller_listing_smoke.sh`, `public_geography_smoke.sh`, and the sign-up part of
   `seller_onboarding_smoke.sh`.
 - **Not in this guide: the admin side** (seller list, filters, Seller Request queue, approve / reject, profile change
   history). That is in [`seller-verification-guide.md`](seller-verification-guide.md) and
@@ -70,6 +71,9 @@ check, so a seller who cannot operate gets `403` there, with a message that says
 | Seller | `GET`, `PATCH /api/v1/seller/me/` | Own profile (section 5) |
 | Seller | `POST /api/v1/seller/me/resubmit/` | Resubmit after a rejection (section 5.4) |
 | Seller | `POST /api/v1/seller/me/change-password/` | Change own password (section 5.5) |
+| Seller (can operate) | `POST`, `GET /api/v1/seller/listings/` | Create a listing, list my listings (section 6) |
+| Seller (can operate) | `GET`, `PATCH`, `PUT /api/v1/seller/listings/{id}/` | See and edit one of my listings (section 6) |
+| Seller (can operate) | `GET /api/v1/seller/lookups/{categories,brands,measurements,attributes}/` | Lists for the listing form (section 6.1) |
 
 What an admin does with these sellers (review the documents, approve, reject) is in the admin guide. Where this guide
 says "an admin approves", the admin does it with `PATCH /accounts/sellers/{id}/`
@@ -374,6 +378,16 @@ Same pairs as sign-up: `media_for` (`nid`, `birth_certificate`, `certificate`, `
 send its `id` (from `media`) in `media_delete_ids`. To replace one, delete the old one
 and upload the new one **in the same request**.
 
+**Who can change which document, and when**
+
+| Seller's verification | NID, birth certificate | Certificates and "other" documents |
+|---|---|---|
+| `unverified`, `pending` or `rejected` (not approved yet) | **Can add, delete and replace** (at least one NID must always remain) | Can add, delete and replace |
+| `verified` (approved), active **or** inactive | **Locked.** Only an admin can change them | Can add, delete and replace |
+
+The first row is on purpose: a **rejected** seller has to be able to fix a blurry or wrong NID before they resubmit. The
+second row protects the identity check that was already done. An admin is never blocked by the lock.
+
 Rules:
 
 - **At least one NID must always remain.** Deleting the only NID without uploading a new
@@ -427,11 +441,194 @@ seller who is already `pending`). The response is the same body as `GET /seller/
 
 ---
 
-## 6. What a seller who cannot operate can NOT do
+## 6. Listings: create and manage my listings
 
-Everything outside `/seller/me/...`. There are no other seller endpoints yet. When listings, orders, wallet and
-withdrawals are built for sellers they will require a seller who **can operate** (verified **and** active), and everyone
-else gets `403` with a message that says which switch is holding them back:
+One shared set of endpoints for **every kind of listing**: product or service, and the six product formats (`general`, `used`,
+`village`, `retail`, `wholesale`, `brand`). Admin-side rules, SKUs and the full field reference are in
+[`listing-complete-guide.md`](listing-complete-guide.md); the plain-language version is `Egoola_Listing_Guide.md`.
+
+**Who can use it.** Only a seller who **can operate** (verified **and** active). Everyone else gets `403` with a message that says why:
+
+- not approved yet: `{"detail": "Your seller application is not approved yet. You can only edit your profile until an admin approves it."}`
+- approved but inactive: `{"detail": "Your seller account is inactive. You can only edit your profile until an admin makes it active."}`
+
+A seller sees and changes **only their own, non-deleted listings**. Another seller's listing, an admin-owned listing and a buyer request are `404`.
+**A seller cannot delete a listing** (`DELETE` is `405`).
+
+### 6.1 Lookups for the form (read-only)
+
+All need the same seller token. They return **only active** items and are paged like the geography lists (`limit` default 500, max 1000).
+
+| Endpoint | Rows | Filters |
+|---|---|---|
+| `GET /api/v1/seller/lookups/categories/` | `id, type, parent, name, name_bn, slug, sort_order` | `type` (`product` \| `service`), `parent`, `search` |
+| `GET /api/v1/seller/lookups/brands/` | `id, name, slug` | `search` |
+| `GET /api/v1/seller/lookups/measurements/` | `id, name, slug, symbol` | `search` |
+| `GET /api/v1/seller/lookups/attributes/` | `id, name, name_bn, values[{id, name, name_bn}]` | `search` |
+
+```json
+GET /api/v1/seller/lookups/categories/?type=product&limit=2
+{ "count": 11, "next": ".../categories/?limit=2&offset=2&type=product", "previous": null,
+  "results": [ { "id": 18, "type": "product", "parent": null, "name": "Electronics", "name_bn": "", "slug": "electronics", "sort_order": 1 },
+               { "id": 25, "type": "product", "parent": 24, "name": "Furniture", "name_bn": "", "slug": "furniture", "sort_order": 1 } ] }
+
+GET /api/v1/seller/lookups/attributes/        (an attribute with its active values)
+{ "id": 22, "name": "Colour", "name_bn": "রং", "values": [ { "id": 55, "name": "Black", "name_bn": "কালো" }, { "id": 56, "name": "White", "name_bn": "সাদা" } ] }
+```
+
+Locations come from the public geography lists (section 2). A category must match the listing's `catalog_type` and be active.
+
+### 6.2 Create: `POST /api/v1/seller/listings/`
+
+JSON, or `multipart/form-data` when files are included. The new listing is **always `pending`**, owned by the logged-in seller, `posted_by_role = seller_offer`.
+**Not accepted** (ignored if sent): `seller`, `buyer`, `posted_by_role`, `status`, `requested_at`, and `note` on create.
+
+Required: `category`, `catalog_type`, `title`, `description`, and either `skus` or a `price` (a shortcut for one default SKU).
+Everything else is optional. The fields are the same as the admin's (see `listing-complete-guide.md` section 6.1):
+
+| Group | Fields |
+|---|---|
+| Basics | `category`, `catalog_type` (`product` \| `service`), `listing_type`, `title`, `description` |
+| Bangla (all optional) | `title_bn`, `description_bn`, `package_includes_bn`, `condition_note_bn`, `warranty_bn`, `origin_bn` |
+| Product | `brand` (needed for `listing_type: brand`), `model`, `origin`, `warranty`, `measurement`, `min_order_qty`, `condition_note`, `attributes` (JSON specs) |
+| Service | `price_type` (`fixed` \| `hourly`), `hourly_rate`, `delivery_days`, `urgent`, `package_includes`, `available_from`, `available_to` |
+| Place | `country`, `state`, `city`, `thana` (must match each other) |
+| Price and stock | `skus` (list: `sku`, `price`, `discounted_price`, discount dates, `stock_qty`, `is_active`, `variants`), **or** the create shortcut `price`, `discounted_price`, `discount_start_date`, `discount_end_date`, `stock_qty`, `sku` |
+| Quantity prices | `price_tiers` (list of `min_qty`, `max_qty`, `price`, `discounted_price`) |
+| Files | `media_file` (multipart, see 6.7) |
+
+```json
+POST /api/v1/seller/listings/
+{ "category": 18, "catalog_type": "product", "listing_type": "general",
+  "title": "Cotton T-Shirt", "title_bn": "সুতির টি-শার্ট",
+  "description": "Soft cotton t-shirt.", "description_bn": "নরম সুতির টি-শার্ট।",
+  "origin": "Bangladesh", "origin_bn": "বাংলাদেশ",
+  "price": "500", "discounted_price": "450", "stock_qty": 20, "sku": "TEE-CAP-001" }
+```
+
+`201`:
+
+```json
+{ "id": 681, "category": 18, "catalog_type": "product", "listing_type": "general",
+  "title": "Cotton T-Shirt", "title_bn": "সুতির টি-শার্ট", "slug": "cotton-t-shirt",
+  "description": "Soft cotton t-shirt.", "description_bn": "নরম সুতির টি-শার্ট।",
+  "origin": "Bangladesh", "origin_bn": "বাংলাদেশ", "currency": "BDT",
+  "price": "500.00", "discounted_price": "450.00",
+  "skus": [ { "id": 593, "sku": "TEE-CAP-001", "price": "500.00", "discounted_price": "450.00", "effective_price": "450.00",
+              "is_discount_active": true, "stock_qty": 20, "reserved_qty": 0, "is_active": true, "variants": [] } ],
+  "status": "pending", "note": null, "requested_at": "2026-10-12T09:41:03.595364+06:00",
+  "price_tiers": [], "media": [],
+  "status_change_logs": [ { "id": 1119, "status": "pending", "note": null, "creator_type": "seller", "created_at": "2026-10-12T09:41:03.599409+06:00" } ],
+  "created_at": "2026-10-12T09:41:03.596790+06:00", "updated_at": "2026-10-12T09:41:03.596790+06:00",
+  "...": "plus the other fields, null when empty" }
+```
+
+The seller's response has **no** `seller`, `buyer`, `posted_by_role` or `info_change_logs`. `price` / `discounted_price` are read-only: the cheapest active SKU.
+Options (sizes, colours...) are sent as `skus` with `variants` (`attribute` + `attribute_value` ids from the attributes lookup); one SKU per combination.
+
+### 6.3 Same title rule
+
+A seller **cannot have two listings with the same title** (upper / lower case and extra spaces do not matter). If they try, they must update the existing one:
+
+```json
+400 { "title": ["You already have a listing with this title. Update the existing listing instead. (listing #681)"] }
+```
+
+This is true even when the earlier listing was **rejected**: the seller updates that listing (6.5). Sellers cannot delete, so they cannot get around it.
+Another seller may use the same title. An admin deleting a listing frees its title.
+
+### 6.4 List and detail
+
+`GET /api/v1/seller/listings/`: limit / offset pagination (`count`, `next`, `previous`, `results`; default 20, max 100), newest first.
+
+| Param | Example | Meaning |
+|---|---|---|
+| `status` | `=rejected` | `pending`, `approved`, `rejected`, `changes_requested`, `draft` |
+| `catalog_type` | `=service` | product or service |
+| `listing_type` | `=used` | the six product formats |
+| `category`, `brand` | `category=18` | ids |
+| `created_from`, `created_to` | `=2026-10-01` | creation date, inclusive, `YYYY-MM-DD` |
+| `requested_from`, `requested_to` | `=2026-10-01` | the date it joined the pending list (creation, or the last time it went back to pending) |
+| `search` | `=cotton` | title, Bangla title, SKU code, brand name |
+| `ordering` | `=title` | `created_at`, `updated_at`, `requested_at`, `title`, `status`, `id`; `-` reverses |
+| `limit`, `offset` | `limit=20` | paging |
+
+```json
+{ "count": 1, "next": null, "previous": null,
+  "results": [ { "id": 681, "title": "Cotton T-Shirt", "title_bn": "সুতির টি-শার্ট", "slug": "cotton-t-shirt",
+                 "catalog_type": "product", "listing_type": "general", "category": 18, "brand": null,
+                 "price": "500.00", "discounted_price": "450.00", "status": "pending", "note": null,
+                 "requested_at": "2026-10-12T09:41:03.595364+06:00",
+                 "created_at": "2026-10-12T09:41:03.596790+06:00", "updated_at": "2026-10-12T09:41:03.596790+06:00" } ] }
+```
+
+`GET /api/v1/seller/listings/{id}/` is the full listing (same shape as the create response): SKUs with options, price tiers, media and the **status history**.
+The status history shows `status`, `note`, `creator_type` (`seller` or `admin`) and `created_at`, but **not which admin**. The seller does **not** get the info change log.
+
+### 6.5 Edit: `PATCH` or `PUT /api/v1/seller/listings/{id}/`
+
+Send only what changes (`PATCH`). The same fields as create, except the price shortcut: change prices and stock through `skus` with the SKU `id`
+(`{"skus": [{"id": 593, "price": "550", "stock_qty": 99}]}`); a SKU is hidden with `"is_active": false`, never deleted. `price_tiers`, when sent, replaces the whole list.
+
+**What the save does to the status:**
+
+| The listing is | A seller's save (even an empty `{}`) does |
+|---|---|
+| `pending` | stays `pending`; `requested_at` unchanged |
+| `approved` | stays `approved`, **whatever changes** (content, SKUs, prices, stock). The admin can see the change in the info change log |
+| `rejected`, `changes_requested` (or an admin-made `draft`) | goes back to **`pending`**, `requested_at` = now. **There is no Resubmit button: saving is resubmitting** |
+
+`status` can never be changed by a seller. For a rejected listing, `note` is the admin's reason. A `note` sent when saving a rejected / changes-requested listing becomes the
+**seller's message to the reviewer** (no note clears it); in any other state a `note` is ignored. The admin's reason is kept in `status_change_logs`.
+
+```json
+GET /api/v1/seller/listings/681/        (after an admin rejected it)
+{ "id": 681, "status": "rejected", "note": "Please add a clear photo.", "requested_at": "2026-10-12T09:41:03.595364+06:00",
+  "status_change_logs": [ { "id": 1120, "status": "rejected", "note": "Please add a clear photo.", "creator_type": "admin",  "created_at": "2026-10-12T09:41:03.925444+06:00" },
+                          { "id": 1119, "status": "pending",  "note": null,                        "creator_type": "seller", "created_at": "2026-10-12T09:41:03.599409+06:00" } ] }
+
+PATCH /api/v1/seller/listings/681/
+{ "description": "Soft cotton t-shirt, now with size chart.", "note": "Added a size chart." }
+200 { "id": 681, "status": "pending", "note": "Added a size chart.", "requested_at": "2026-10-12T09:41:04.174396+06:00",
+      "status_change_logs": [ { "id": 1121, "status": "pending", "note": "Added a size chart.", "creator_type": "seller", "created_at": "..." },
+                              { "id": 1120, "status": "rejected", "note": "Please add a clear photo.", "creator_type": "admin", "created_at": "..." },
+                              { "id": 1119, "status": "pending", "note": null, "creator_type": "seller", "created_at": "..." } ] }
+```
+
+On the admin side the resubmitted listing is back at the top of the pending list (`requested_at` = now). Every real change is written to the admin-only info change log
+(before and after; stock changes are not recorded).
+
+### 6.6 Files
+
+Send `media_file` as repeated parts in a `multipart/form-data` create or edit. Allowed: **JPG, PNG, WEBP, GIF, MP4, PDF**; **10 MB** each; at most **10 per request** and
+**20 per listing**. To remove files send `media_delete_ids` (ids from `media`); the file is deleted from storage straight away. A seller can only remove their own listing's files.
+
+### 6.7 Errors
+
+| What went wrong | Response |
+|---|---|
+| no token / admin or buyer token | `401` / `403` |
+| seller cannot operate (pending, rejected, paused) | `403` with the message in the intro of this section |
+| another seller's listing, or an admin's | `404` |
+| `DELETE` | `405` |
+| same title as one of mine | `400` `{"title": ["You already have a listing with this title. Update the existing listing instead. (listing #681)"]}` |
+| no `skus` and no `price` | `400` `{"skus": ["A listing needs at least one SKU: send `skus`, or `price` for a single default SKU."]}` |
+| `price` or `stock_qty` on an edit | `400` `{"price": "Prices and stock are changed through `skus`."}` |
+| category of the wrong type or inactive | `400` `{"category": [...]}` |
+| `listing_type: brand` without `brand`; an inactive brand | `400` `{"brand": [...]}` |
+| inactive attribute value in `variants` | `400` on `skus` |
+| negative price; discount above price | `400` on the field |
+| the same SKU code twice, or one another listing uses | `400` `{"skus": ...}` |
+| overlapping price tiers | `400` `{"price_tiers": [...]}` |
+| city not in the state | `400` `{"city": ["This city does not belong to the selected state."]}` |
+| a file of the wrong type, over 10 MB, or too many | `400` `{"media_file": [...]}` |
+
+---
+
+## 7. What a seller who cannot operate can NOT do
+
+Everything outside `/seller/me/...`. Listings (section 6) need a seller who **can operate** (verified **and** active), and so will orders, wallet and
+withdrawals when they are built. Everyone else gets `403` with a message that says which switch is holding them back:
 
 - not verified yet (unverified, pending, rejected):
   `{"detail": "Your seller application is not approved yet. You can only edit your profile until an admin approves it."}`
@@ -442,7 +639,7 @@ Admin endpoints (`/accounts/...`) are always `403` for a seller, whatever their 
 
 ---
 
-## 7. Rules in one place
+## 8. Rules in one place
 
 | Rule | |
 |---|---|
@@ -457,12 +654,13 @@ Admin endpoints (`/accounts/...`) are always `403` for a seller, whatever their 
 | A seller logs in with **phone number + password** (not email); an admin changing the phone changes the login | login |
 | Email and phone cannot be changed by the seller (for now) | `/seller/me/` |
 | Identity documents (NID, birth certificate) locked once `verified`; at least one NID always | `/seller/me/` |
+| Listings: only a seller who can operate; always my own; new = `pending`; a save on a rejected / changes-requested listing = `pending` again; an approved listing stays approved; no delete; one title per seller | `/seller/listings/` |
 | Only a `rejected` seller can resubmit; result is `pending` + back in the queue | `/seller/me/resubmit/` |
 | Every real profile change is logged (before and after) for admins | change log |
 
 ---
 
-## 8. Not built yet
+## 9. Not built yet
 
 Do not build screens against these:
 
@@ -474,16 +672,17 @@ Do not build screens against these:
 - **Per-document verification** (accept the NID, ask for a new certificate): verification is
   one decision for the whole seller.
 - **Seeing the change history as a seller:** only admins see it, on the seller detail.
-- **The seller features** (for sellers who can operate) (listings, orders, freelance, wallet, withdrawals): the
+- **Deleting or hiding a listing as a seller**, saving a seller draft, bulk upload, and any message to the seller when a listing is approved or rejected.
+- **The other seller features** (for sellers who can operate) (listings, orders, freelance, wallet, withdrawals): the
   next Phase 3 steps.
 
 ---
 
-## 9. Try it
+## 10. Try it
 
 1. Start the server: `uv run manage.py runserver 8000`.
 2. Import `postman/Egoola-SellerApp.postman_collection.json` and `postman/Egoola-Local.postman_environment.json`.
-3. Run the folders in order: Setup (admin token), Public lookups, Seller sign-up, Seller — own profile, After review.
+3. Run the folders in order: Setup (admin token), Public lookups, Seller sign-up, Seller — own profile, After approval, **Seller listings**, After review.
    Requests named **[Admin step]** are not seller APIs: they play the admin so you can see what a seller sees after an
    approval, a rejection and a suspension. In every request with a file row, choose a real JPG, PNG or PDF in Postman.
 

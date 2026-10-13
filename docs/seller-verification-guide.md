@@ -71,6 +71,14 @@ queue (`is_seller_request: true`, `requested_at` = now, so they appear as the ne
 entry made by the seller (`creator_type: "seller"`) with their optional message as the note. Your rejection reason
 stays in `verification_logs`. You review again and approve or reject as usual.
 
+While the seller is not approved (unverified, pending or rejected) they can add, delete and replace **any** of their
+documents, NID included, so they can fix what you asked for. A rejected seller keeps at least one NID at all times.
+
+**After you approve a seller, their NID and birth certificate are locked for them**: the seller can no longer add, delete or
+replace those two (certificates and "other" documents stay editable). If one must change, you change it yourself on the
+seller's page; admins are not blocked by the lock. Pausing a seller (inactive) does not unlock them: the lock follows the
+verification result, not the account switch.
+
 A rejected seller cannot sign up again with the same phone or email; they use resubmit.
 
 **A seller logs in with their phone number + password.** So if you change a seller's phone number (admins can; sellers cannot),
