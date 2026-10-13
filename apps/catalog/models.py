@@ -11,6 +11,7 @@ documents).
 
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models.functions import Lower
 
 from apps.core.models import ActorType, AuditedModel
 
@@ -137,15 +138,19 @@ class Listing(AuditedModel):
     )
 
     title = models.CharField(max_length=255)
+    title_bn = models.CharField(db_column="titleBn", max_length=255, null=True, blank=True)
     slug = models.SlugField(max_length=255, unique=True)
     description = models.TextField()
+    description_bn = models.TextField(db_column="descriptionBn", null=True, blank=True)
 
     brand = models.ForeignKey(
         Brand, on_delete=models.PROTECT, null=True, blank=True, related_name="listings", db_column="brandId"
     )
     model = models.CharField(max_length=255, null=True, blank=True)
     origin = models.CharField(max_length=255, null=True, blank=True)
+    origin_bn = models.CharField(db_column="originBn", max_length=255, null=True, blank=True)
     warranty = models.CharField(max_length=255, null=True, blank=True)
+    warranty_bn = models.CharField(db_column="warrantyBn", max_length=255, null=True, blank=True)
 
     # Prices, discounts and stock live on ListingSku (one SKU per size/colour/...
     # combination; a simple listing has exactly one SKU with no variants).
@@ -161,6 +166,7 @@ class Listing(AuditedModel):
     delivery_days = models.IntegerField(db_column="deliveryDays", null=True, blank=True)
     urgent = models.BooleanField(null=True, blank=True)
     package_includes = models.TextField(db_column="packageIncludes", null=True, blank=True)
+    package_includes_bn = models.TextField(db_column="packageIncludesBn", null=True, blank=True)
     available_from = models.DateTimeField(db_column="availableFrom", null=True, blank=True)
     available_to = models.DateTimeField(db_column="availableTo", null=True, blank=True)
 
@@ -170,6 +176,7 @@ class Listing(AuditedModel):
         Measurement, on_delete=models.SET_NULL, null=True, blank=True, db_column="measurementId"
     )
     condition_note = models.TextField(db_column="conditionNote", null=True, blank=True)
+    condition_note_bn = models.TextField(db_column="conditionNoteBn", null=True, blank=True)
     attributes = models.JSONField(null=True, blank=True)
 
     country = models.ForeignKey(
@@ -191,6 +198,10 @@ class Listing(AuditedModel):
     # Required by validate() when status is rejected/changes_requested,
     # optional otherwise; null whenever no note was given for that event.
     note = models.TextField(null=True, blank=True)
+    # When the listing joined the admin's pending queue: set when a seller
+    # creates it and again every time a rejected / changes-requested listing
+    # goes back to pending. The pending list sorts on it.
+    requested_at = models.DateTimeField(db_column="requestedAt", null=True, blank=True)
 
     deleted_at = models.DateTimeField(db_column="deletedAt", null=True, blank=True)
 
@@ -205,6 +216,23 @@ class Listing(AuditedModel):
         ordering = ["-created_at"]
         indexes = [
             GinIndex(fields=["attributes"], name="listings_attributes_gin"),
+            # The admin's pending list: filter on status, page by newest request.
+            models.Index(fields=["status", "-requested_at"], name="listings_pending_queue_idx"),
+        ]
+        constraints = [
+            # A pending listing always has a request time (the pending list pages on it).
+            models.CheckConstraint(
+                condition=~models.Q(status="pending") | models.Q(requested_at__isnull=False),
+                name="listing_pending_has_requested_at",
+            ),
+            # A seller cannot have two live listings with the same title (ignoring
+            # upper / lower case). Deleted listings and listings with no seller
+            # (admin-owned, buyer requests) are not part of the rule.
+            models.UniqueConstraint(
+                Lower("title"), "seller",
+                condition=models.Q(deleted_at__isnull=True, seller__isnull=False),
+                name="unique_listing_title_per_seller",
+            ),
         ]
 
     def __str__(self):
@@ -391,3 +419,35 @@ class ListingStatusChangeLog(models.Model):
 
     def __str__(self):
         return f"Listing #{self.listing_id} -> {self.status}"
+
+
+class ListingInfoChangeLog(models.Model):
+    """One row for every save that really changed a listing's content — by the
+    seller who owns it or by an admin. `previous_data` and `new_data` hold the
+    same keys: only what changed, as it was before and as it is now. Covers the
+    text fields (and their Bangla versions), category / brand / location, price
+    tiers, SKUs (prices, discounts, options — not stock), and media. Status
+    changes are not here (see ListingStatusChangeLog). Append-only, like
+    SellerProfileChangeLog."""
+
+    listing = models.ForeignKey(
+        Listing, on_delete=models.CASCADE, related_name="info_change_logs", db_column="listingId"
+    )
+    changed_fields = models.JSONField(db_column="changedFields")
+    previous_data = models.JSONField(db_column="previousData")
+    new_data = models.JSONField(db_column="newData")
+
+    created_by = models.BigIntegerField(db_column="createdBy", null=True, blank=True)
+    creator_type = models.CharField(
+        db_column="creatorType", max_length=10, choices=ActorType.choices, default=ActorType.SYSTEM
+    )
+    creator_name = models.CharField(db_column="creatorName", max_length=255, null=True, blank=True)
+    created_at = models.DateTimeField(db_column="createdAt", auto_now_add=True)
+
+    class Meta:
+        db_table = "listingInfoChangeLogs"
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["listing", "-created_at"], name="listing_info_log_idx")]
+
+    def __str__(self):
+        return f"Listing #{self.listing_id}: {', '.join(self.changed_fields)}"
