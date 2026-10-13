@@ -104,10 +104,6 @@ class Listing(AuditedModel):
         SELLER_OFFER = "seller_offer", "Seller Offer"
         BUYER_REQUEST = "buyer_request", "Buyer Request"
 
-    class PriceType(models.TextChoices):
-        FIXED = "fixed", "Fixed"
-        HOURLY = "hourly", "Hourly"
-
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         PENDING = "pending", "Pending"
@@ -156,13 +152,12 @@ class Listing(AuditedModel):
     # combination; a simple listing has exactly one SKU with no variants).
     currency = models.CharField(max_length=8, default="BDT")
 
-    # Service side
-    price_type = models.CharField(
-        db_column="priceType", max_length=10, choices=PriceType.choices, null=True, blank=True
-    )
-    hourly_rate = models.DecimalField(
-        db_column="hourlyRate", max_digits=12, decimal_places=2, null=True, blank=True
-    )
+    # Thumbnail (one cover picture, set through its own endpoint). The gallery
+    # lives in ListingMedia.
+    image_path = models.CharField(db_column="imagePath", max_length=255, null=True, blank=True)
+    image_url = models.URLField(db_column="imageUrl", max_length=500, null=True, blank=True)
+
+    # Service (gig) side. The price type and description of a gig live on its SKUs.
     delivery_days = models.IntegerField(db_column="deliveryDays", null=True, blank=True)
     urgent = models.BooleanField(null=True, blank=True)
     package_includes = models.TextField(db_column="packageIncludes", null=True, blank=True)
@@ -225,11 +220,12 @@ class Listing(AuditedModel):
                 condition=~models.Q(status="pending") | models.Q(requested_at__isnull=False),
                 name="listing_pending_has_requested_at",
             ),
-            # A seller cannot have two live listings with the same title (ignoring
-            # upper / lower case). Deleted listings and listings with no seller
-            # (admin-owned, buyer requests) are not part of the rule.
+            # A seller cannot have two live listings of the same type (product or
+            # service) with the same title (ignoring upper / lower case). Deleted
+            # listings and listings with no seller (admin-owned, buyer requests)
+            # are not part of the rule.
             models.UniqueConstraint(
-                Lower("title"), "seller",
+                Lower("title"), "seller", "catalog_type",
                 condition=models.Q(deleted_at__isnull=True, seller__isnull=False),
                 name="unique_listing_title_per_seller",
             ),
@@ -282,7 +278,20 @@ class ListingSku(AuditedModel):
     """One sellable combination of a listing (e.g. Size M + Colour Red). Price,
     discount and stock are per SKU. A listing with no options has exactly one
     SKU and no variant rows. SKUs are never deleted — they are deactivated
-    (`is_active`) so carts and orders that point at them stay valid."""
+    (`is_active`) so carts and orders that point at them stay valid.
+
+    A gig has one SKU per pricing strategy instead: `price_type` says what
+    `price` is a rate for (hourly, daily, weekly, monthly, or `fixed` for a
+    one-off price). The buyer chooses how many of those units to buy when ordering
+    (`OrderItem.duration`). Gig SKUs have no options and no stock. Product SKUs
+    leave `price_type` and the descriptions empty."""
+
+    class PriceType(models.TextChoices):
+        FIXED = "fixed", "Fixed"
+        HOURLY = "hourly", "Hourly"
+        DAILY = "daily", "Daily"
+        WEEKLY = "weekly", "Weekly"
+        MONTHLY = "monthly", "Monthly"
 
     listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name="skus", db_column="listingId")
     sku = models.CharField(max_length=100, null=True, blank=True, unique=True)
@@ -298,10 +307,24 @@ class ListingSku(AuditedModel):
     stock_qty = models.BigIntegerField(db_column="stockQty", null=True, blank=True)
     reserved_qty = models.IntegerField(db_column="reservedQty", default=0)
     is_active = models.BooleanField(db_column="isActive", default=True)
+    # Gig only (null on a product SKU).
+    price_type = models.CharField(
+        db_column="priceType", max_length=10, choices=PriceType.choices, null=True, blank=True
+    )
+    description = models.TextField(null=True, blank=True)
+    description_bn = models.TextField(db_column="descriptionBn", null=True, blank=True)
 
     class Meta:
         db_table = "listingSkus"
         ordering = ["id"]
+        constraints = [
+            # A gig has at most one SKU per price type (hourly, daily, ...).
+            models.UniqueConstraint(
+                fields=["listing", "price_type"],
+                condition=models.Q(price_type__isnull=False),
+                name="unique_sku_price_type_per_listing",
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         if self.discounted_price is None:
