@@ -9,6 +9,10 @@ All endpoints live under `/api/v1/catalog/` and are **Admin-only**
 (`Authorization: Bearer <admin access token>`). Another actor's token gets
 `403`; no token gets `401`.
 
+> **Products, gigs and jobs.** `/catalog/listings/` manages **products** and (until the Job step) buyer **job requests**. A seller's service offer
+> is a **gig** and has its own endpoints, `/catalog/gigs/`: see [`listing-complete-guide.md`](listing-complete-guide.md) section 14. A gig id on `/catalog/listings/` is `404`,
+> and a service offer posted there is `400`. The listing **thumbnail** has its own endpoint too (section 9.5).
+
 Overview of the whole listing area (relations, creation walkthrough): [listing-complete-guide.md](listing-complete-guide.md).
 
 Related files: `apps/catalog/models.py`, `serializers.py`, `views.py`,
@@ -22,7 +26,8 @@ Related files: `apps/catalog/models.py`, `serializers.py`, `views.py`,
 | Resource | Endpoints | Notes |
 |---|---|---|
 | Brand | create, update, list, delete | New table `brands` |
-| Listing | create, retrieve, update, list, delete (soft) | One table `listings` for every format |
+| Listing | create, retrieve, update, list, delete (soft) | One table `listings` for every product format (and job requests). Gigs: `/catalog/gigs/` |
+| Thumbnail | `PUT` / `DELETE /listings/{id}/thumbnail/` | Columns `imagePath`, `imageUrl` on `listings` |
 | Listing moderation | status change through PATCH, `bulk-moderate` | Full history in `status_change_logs` |
 | Attribute, Attribute value | create, retrieve, update, list, delete | Tables `attributes`, `attributeValues` — see [attribute-sku-guide.md](attribute-sku-guide.md) |
 | Listing SKUs (price, discount, stock per option combination) | nested inside Listing (`skus`) | Tables `listingSkus`, `listingSkuVariants` — see [attribute-sku-guide.md](attribute-sku-guide.md) |
@@ -58,6 +63,8 @@ Attributes, and each combination is a SKU.
 | `oldPrice` → `discountedPrice` | `price` is always the original price. `discountedPrice` is the price charged: never null, never higher than `price`. When no discount is given it equals `price`. **These now live on `listingSkus`, not on `listings`.** |
 | `price`, `discountedPrice`, `stockQty`, `reservedQty` | **Moved to `listingSkus`** (one row per option combination). Every listing has at least one SKU. |
 | `color`, `colors`, `sizes` | **Removed.** Replaced by Attributes + SKU variants (see the attribute guide). The GIN indexes on `colors` and `sizes` are gone too. |
+| `imagePath`, `imageUrl` | **New.** The thumbnail (section 9.5). `null` until one is uploaded |
+| `priceType`, `hourlyRate` | **Removed.** A service's price type now lives on its SKUs (`listingSkus.priceType`, see [`listing-complete-guide.md`](listing-complete-guide.md) section 14.3) |
 | `sellerId`, `buyerId` | Both optional. Admin-created listings can have neither. Never both. |
 | `status` | `draft`, `pending`, `approved`, `rejected`, `changes_requested` |
 | `note` | Note of the **latest** status change only (null if that change had no note) |
@@ -74,13 +81,18 @@ One row for every status change (including the creation of the listing):
 `listingId`, `status`, `note`, `createdBy`, `creatorType`, `creatorName`,
 `createdAt`. Rows are never edited or removed.
 
+`listingSkus` also gained `priceType`, `description`, `descriptionBn` (gig packages) and the constraint
+`unique_sku_price_type_per_listing`; see [`listing-complete-guide.md`](listing-complete-guide.md) section 14.8.
+
 Migrations: `0004` (moderation fields, soft delete), `0005` (rename to
 `note` / `ListingStatusChangeLog`), `0006` (brands, `brandId`,
 `discountedPrice`), `0007` (`discountedPrice` never null: existing rows backfilled with `price`),
 `0008` (attributes, attribute values, SKUs and SKU variants; each existing listing gets one
 default SKU from its old price, discount and stock; then `color`, `colors`, `sizes`, `price`,
 `discountedPrice`, `stockQty`, `reservedQty` are dropped from `listings`). `orders 0002` adds a
-nullable `listingSkuId` to `cartItems` and `orderItems`.
+nullable `listingSkuId` to `cartItems` and `orderItems`. `0011`–`0013` (gigs and the thumbnail): `imagePath` / `imageUrl`, the gig SKU
+columns, then the data move (`priceType` / `hourlyRate` of services into their SKUs), then the constraints and dropping `priceType` / `hourlyRate`
+from `listings`; `orders 0003` makes `qty` optional on cart and order items, adds `duration` to both, adds `orderItems.priceTypeSnapshot` and `total`, removes `orderItems.color`, `size` and `status`, and adds `orders.payable`.
 
 ---
 
@@ -135,7 +147,7 @@ nullable `listingSkuId` to `cartItems` and `orderItems`.
      (otherwise `400` on `category`).
    - A listing can only be put into an **active** category. A category that is
      deactivated *after* the listing was attached does not block later edits.
-8. **Numbers.** `hourly_rate` and `delivery_days` cannot be negative; `min_order_qty` must be at
+8. **Numbers.** `delivery_days` cannot be negative; `min_order_qty` must be at
    least 1. On a SKU, `price`, `discounted_price` and `stock_qty` cannot be negative (otherwise `400`).
 9. **Location.** `country`, `state`, `city` and `thana` must be on one branch of the geography tree: the state belongs to the country, the city to the state, the thana to the city (otherwise `400` on the lower level, e.g. `{"city": ["This city does not belong to the selected state."]}`). Any level can be left out. The check only runs when a request sends one of the four fields.
 10. **Slugs** are generated by the server (`title` for listings, `name` for
@@ -236,9 +248,9 @@ Base path: `/api/v1/catalog/listings/`
 | seller | id, optional | seller owner |
 | buyer | id, optional | buyer owner (job requests) |
 | category | id, **required** | must exist |
-| catalog_type | `product` \| `service`, **required** | |
+| catalog_type | `product` \| `service`, **required** | `service` only with `posted_by_role = buyer_request` (a job). A seller's service offer is a gig. Cannot change later |
 | listing_type | `general` `used` `village` `retail` `wholesale` `brand`, optional | `brand` makes `brand` mandatory |
-| posted_by_role | `seller_offer` \| `buyer_request`, optional | |
+| posted_by_role | `seller_offer` \| `buyer_request`, optional | a service must be `buyer_request` here; a product cannot be `buyer_request`; cannot change later |
 | title | string, **required** | slug generated from it |
 | description | text, **required** | |
 | brand | brand id, optional | read back with `brand_name` |
@@ -246,7 +258,7 @@ Base path: `/api/v1/catalog/listings/`
 | skus | list, **required on create** (or send `price`) | the sellable combinations — see 5.2 and the [attribute guide](attribute-sku-guide.md) |
 | price, discounted_price, discount_start_date, discount_end_date, stock_qty, sku | create only | shortcut for **one default SKU** when there are no options. Do not send together with `skus` |
 | currency | string, default `BDT` | |
-| price_type, hourly_rate, delivery_days, urgent, package_includes, available_from, available_to | optional | service side |
+| delivery_days, urgent, package_includes, available_from, available_to | optional | job requests only (`400` on a product) |
 | min_order_qty, measurement, condition_note, attributes | optional | product side (`attributes` = free-form specs such as RAM) |
 | country, state, city, thana | ids, optional | must be on one branch of the geography tree (state in country, city in state, thana in city) |
 | status | see rule 2 | |
@@ -364,12 +376,12 @@ same shape: `skus` holds that one SKU, and `price` / `discounted_price` repeat i
 ```
 `201`, `brand: null`, `seller: null`, `buyer: null`, `status: "approved"`.
 
-**C. Service offer (Admin-owned)**
+**C. Service offer (Admin-owned) — this is a gig now**
+
+A service offer is created on `POST /catalog/gigs/`, with packages that have a `price_type` (the buyer chooses the duration when ordering):
 ```json
 {
   "category": 29,
-  "catalog_type": "service",
-  "posted_by_role": "seller_offer",
   "title": "Home Cleaning",
   "description": "Deep cleaning, 2 days.",
   "price": "4000.00",
@@ -378,6 +390,7 @@ same shape: `skus` holds that one SKU, and `price` / `discounted_price` repeat i
   "delivery_days": 2
 }
 ```
+On `/catalog/listings/` the same body (with `catalog_type: "service"`, `posted_by_role: "seller_offer"`) is `400`. See [`listing-complete-guide.md`](listing-complete-guide.md) section 14.
 
 **D. Seller-owned product**
 ```json
@@ -433,11 +446,13 @@ Soft-deleted or unknown id → `404`.
 | `status` | `draft`, `pending`, `approved`, `rejected`, `changes_requested` |
 | `catalog_type`, `listing_type` | |
 | `category`, `brand`, `seller`, `buyer` | ids |
-| `search` | title, brand name, model, SKU code |
+| `created_from`, `created_to`, `requested_from`, `requested_to` | dates, `YYYY-MM-DD`, inclusive |
+| `search` | title, Bangla title, brand name, model, SKU code |
 | `limit`, `offset` | Pagination (default limit 20) |
 
-Rows are light: `id, title, slug, catalog_type, listing_type, category, brand,
-seller, buyer, price, discounted_price, status, created_at` (`price` / `discounted_price` = cheapest active SKU).
+Rows are light: `id, title, title_bn, slug, catalog_type, listing_type, posted_by_role, category, brand,
+seller, buyer, price, discounted_price, image_url, status, requested_at, created_at` (`price` / `discounted_price` = cheapest active SKU).
+Gigs are not in this list (they are on `/catalog/gigs/`).
 
 ### 5.6 Update — `PATCH /listings/{id}/`
 
@@ -526,9 +541,12 @@ The Admin token stamps `created_by`, `creator_type` (`admin`) and
 |---|---|
 | Listing smoke (CRUD, moderation, tiers, media, soft delete, bulk, owner rules) | 54 / 54 |
 | Review smoke (price / tier / category validation, note rules, bulk order) | 19 / 19 |
-| Attribute / SKU smoke (`scripts/smoke/sku_smoke.py`) | 143 / 143 |
+| Attribute / SKU smoke (`scripts/smoke/sku_smoke.py`) | 144 / 144 |
 | Brand + listing changes smoke (brand CRUD, brand rules, discount rules incl. default to price) | 55 / 55 |
-| Postman collection run with Newman | 93 assertions, 0 failed (the media-upload request needs real files, so it is skipped headless) |
+| Gig smoke (`scripts/smoke/gig_smoke.py`: admin gig API, thumbnails, product / gig / job separation) | 157 / 157 |
+| Seller gig smoke (`scripts/smoke/seller_gig_smoke.py`) | 99 / 99 |
+| Seller listing smoke (`seller_listing_smoke.sh`, products only) | 221 / 221 |
+| Postman collections | the earlier Newman run (93 assertions) predates the gig change; re-run the collections before relying on them |
 
 The smoke suites are the curl-based scripts in `scripts/smoke/` (see its README), run against the dev server.
 All test data was removed afterwards.
@@ -593,3 +611,17 @@ plus `ordering` (`requested_at`, `created_at`, `title`, `id`). Row shape = the l
 | `DELETE` | not allowed |
 
 All need a verified and active seller. Details and examples: [seller-api-guide.md](seller-api-guide.md) section 6.
+
+### 9.5 Thumbnail and gigs (reference)
+
+- **Thumbnail:** `PUT /listings/{id}/thumbnail/` (multipart, field `image`; JPG, PNG or WEBP; 10 MB) uploads or replaces it and returns
+  `{image_path, image_url, status}`; `DELETE` removes it (`204`). Both delete the old file from storage. It is not part of create or `PATCH`
+  (`image_path` / `image_url` are read only). It is an edit: written in the info change log as `thumbnail`; a seller's change on a `rejected` /
+  `changes_requested` listing sends it back to `pending`; an admin's change never changes the status. Deleting the listing removes the thumbnail
+  file. Full rules: [`listing-complete-guide.md`](listing-complete-guide.md) section 15.
+- **Gigs** (`/catalog/gigs/`, `/seller/gigs/`): a separate API for a seller's service offer, priced by packages (one SKU per `price_type`; the buyer
+  chooses the duration when ordering). Same moderation, pending list (`/catalog/gigs/requests/`), bulk moderation and change logs. See [`listing-complete-guide.md`](listing-complete-guide.md) section 14.
+- **Kind guards:** `catalog_type` and `posted_by_role` cannot change after creation; `/catalog/listings/` refuses a gig (`400`) and returns `404` for a gig
+  id; fields of another kind are `400` (product-only fields on a job, service-only fields and gig SKU fields on a product).
+- **Same-title rule** (`unique_listing_title_per_seller`) is now per `catalogType`: a seller may have a product and a gig with the same title.
+- **Smoke:** `scripts/smoke/gig_smoke.py` and `scripts/smoke/seller_gig_smoke.py`.
