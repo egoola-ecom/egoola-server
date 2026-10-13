@@ -3,21 +3,25 @@
 Everything about listings in one place: what a listing is, what it is connected to
 (categories, brands, attributes, SKUs, geography, owners), what you must create first,
 how to create every kind of listing, and what happens to it afterwards (media, moderation, edits, delete).
+It covers **both sides**: the admin (sections 1-12) and the **seller** who creates and manages their own listings (section 13).
+A plain-language version for everyone, with no API details, is [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md).
 
 This guide explains the whole picture. For the exact request and response of one
 topic, the other guides go deeper:
 
 | Topic | Deeper guide |
 |---|---|
-| Listing endpoints, moderation tables, brand CRUD | [listing-module-guide.md](listing-module-guide.md) |
+| Listing endpoints, moderation tables, brand CRUD, the pending list | [listing-module-guide.md](listing-module-guide.md) |
+| The seller's listing endpoints and lookups (request / response) | [seller-api-guide.md](seller-api-guide.md) section 6 |
 | Attributes, attribute values, SKU rules | [attribute-sku-guide.md](attribute-sku-guide.md) |
 | Category tree and parent chain | [category-tree-api-guide.md](category-tree-api-guide.md) |
 | Country / state / city / thana | [geography-api-guide.md](geography-api-guide.md) |
 | Login, tokens, errors, pagination | [frontend-api-guide.md](frontend-api-guide.md) |
-| Postman | `postman/Egoola-Listing.postman_collection.json`, `postman/Egoola-Attribute.postman_collection.json` |
+| Postman | `postman/Egoola-Listing.postman_collection.json`, `postman/Egoola-Attribute.postman_collection.json` (admin); `postman/Egoola-SellerApp.postman_collection.json` → **Seller listings** (seller) |
 
-Base URL: `http://127.0.0.1:8000/api/v1`. Every call needs `Authorization: Bearer <admin access token>`.
-Seller and buyer tokens get `403`; no token gets `401`. The ids in the examples come from the demo
+Base URL: `http://127.0.0.1:8000/api/v1`. Sections 1-12 are the **admin** endpoints (`/catalog/...`): every call needs
+`Authorization: Bearer <admin access token>`; seller and buyer tokens get `403`; no token gets `401`. The **seller** endpoints
+(`/seller/listings/...`, section 13) need a seller token instead. The ids in the examples come from the demo
 database, yours will differ — always load ids from the list APIs.
 
 ---
@@ -384,26 +388,31 @@ adds a SKU; SKUs you leave out are untouched. To retire a SKU send `{"id": 41, "
 |---|---|---|---|
 | `category` | id | **yes** | active, same type as `catalog_type` |
 | `catalog_type` | `product` \| `service` | **yes** | |
-| `title` | text | **yes** | the slug is made from it |
+| `title` | text | **yes** | the slug is made from it. Extra spaces are tidied. **Unique per seller** (see section 9) |
+| `title_bn` | text | no | Bangla title |
 | `description` | text | **yes** | |
+| `description_bn` | text | no | Bangla description |
 | `listing_type` | `general` `used` `village` `retail` `wholesale` `brand` | no | products; `brand` needs `brand` |
 | `posted_by_role` | `seller_offer` \| `buyer_request` | no | must match the owner |
 | `seller` / `buyer` | id | no | never both |
 | `brand` | id | only for `brand` listings | active when newly chosen |
 | `model`, `origin`, `warranty` | text | no | |
+| `origin_bn`, `warranty_bn` | text | no | Bangla versions |
 | `currency` | text | no | default `BDT` |
 | `measurement` | id | no | |
 | `min_order_qty` | integer ≥ 1 | no | |
 | `condition_note` | text | no | for used products |
+| `condition_note_bn` | text | no | Bangla version |
 | `attributes` | JSON object | no | free-form specs, not options |
 | `price_type` | `fixed` \| `hourly` | no | services |
 | `hourly_rate` | decimal ≥ 0 | no | services |
 | `delivery_days` | integer ≥ 0 | no | |
 | `urgent` | true / false | no | |
 | `package_includes` | text | no | services |
+| `package_includes_bn` | text | no | Bangla version |
 | `available_from`, `available_to` | date-time | no | services |
 | `country`, `state`, `city`, `thana` | ids | no | one branch of the tree |
-| `status` | see section 8 | no | default `approved` (admin) |
+| `status` | see section 8 | no | default `approved` (admin). A listing a **seller** creates is always `pending` |
 | `note` | text | when rejecting / asking changes | only read with a status change |
 | `skus` | list | **yes on create** (or `price`) | section 5 |
 | `price`, `discounted_price`, `discount_start_date`, `discount_end_date`, `stock_qty`, `sku` | — | create only | shortcut for one default SKU |
@@ -413,10 +422,11 @@ adds a SKU; SKUs you leave out are untouched. To retire a SKU send `{"id": 41, "
 
 ### 6.2 What comes back
 
-`id`, `seller`, `buyer`, `category`, `catalog_type`, `listing_type`, `posted_by_role`, `title`, `slug`, `description`, `brand`, `brand_name`,
-`model`, `origin`, `warranty`, `price`, `discounted_price` (read only, cheapest active SKU), `currency`, `skus`, `price_type`, `hourly_rate`,
-`delivery_days`, `urgent`, `package_includes`, `available_from`, `available_to`, `min_order_qty`, `measurement`, `condition_note`, `attributes`,
-`country`, `state`, `city`, `thana`, `status`, `note`, `price_tiers`, `media`, `status_change_logs`, `created_at`, `updated_at`.
+`id`, `seller`, `buyer`, `category`, `catalog_type`, `listing_type`, `posted_by_role`, `title`, `title_bn`, `slug`, `description`, `description_bn`, `brand`, `brand_name`,
+`model`, `origin`, `origin_bn`, `warranty`, `warranty_bn`, `price`, `discounted_price` (read only, cheapest active SKU), `currency`, `skus`, `price_type`, `hourly_rate`,
+`delivery_days`, `urgent`, `package_includes`, `package_includes_bn`, `available_from`, `available_to`, `min_order_qty`, `measurement`, `condition_note`, `condition_note_bn`, `attributes`,
+`country`, `state`, `city`, `thana`, `status`, `note`, `requested_at`, `price_tiers`, `media`, `status_change_logs`, `info_change_logs`, `created_at`, `updated_at`.
+`requested_at` is read only: when the listing joined the pending list (section 8). `info_change_logs` is the content change history (section 9).
 
 One SKU in the response:
 ```json
@@ -439,11 +449,13 @@ One SKU in the response:
 
 | Call | Notes |
 |---|---|
-| `GET /catalog/listings/` | light rows: `id, title, slug, catalog_type, listing_type, category, brand, seller, buyer, price, discounted_price, status, created_at` |
-| `GET /catalog/listings/{id}/` | full detail with SKUs, variants, tiers, media, history |
+| `GET /catalog/listings/` | light rows: `id, title, title_bn, slug, catalog_type, listing_type, category, brand, seller, buyer, price, discounted_price, status, requested_at, created_at` |
+| `GET /catalog/listings/{id}/` | full detail with SKUs, variants, tiers, media, **status history** and **info change history** |
+| `GET /catalog/listings/requests/` | the **pending list**: listings waiting for a decision (section 8) |
 
 List filters: `?status=`, `?catalog_type=`, `?listing_type=`, `?category=`, `?brand=`, `?seller=`, `?buyer=`,
-`?search=` (title, brand name, model, SKU code), `?limit=`, `?offset=` (default 20, max 100).
+`?created_from=` / `?created_to=` and `?requested_from=` / `?requested_to=` (dates, `YYYY-MM-DD`, inclusive),
+`?search=` (title, Bangla title, brand name, model, SKU code), `?limit=`, `?offset=` (default 20, max 100).
 A soft-deleted or unknown listing is `404`.
 
 For a breadcrumb on the detail page, call `GET /catalog/categories/parent-chain/?categoryIds=<category id>`.
@@ -457,15 +469,17 @@ Every listing has a **status**:
 ```mermaid
 stateDiagram-v2
     [*] --> approved : created by an admin
-    [*] --> pending : created by a seller / buyer (later), or status sent
-    pending --> approved
-    pending --> rejected : note required
-    pending --> changes_requested : note required
-    changes_requested --> pending : owner fixes it (later)
-    approved --> rejected : note required
-    rejected --> approved
+    [*] --> pending : created by a seller (or a status sent)
+    pending --> approved : admin
+    pending --> rejected : admin, note required
+    pending --> changes_requested : admin, note required
+    rejected --> pending : the seller saves it (fix)
+    changes_requested --> pending : the seller saves it (fix)
+    approved --> rejected : admin, note required
+    rejected --> approved : admin
 ```
-(An admin can move a listing between any statuses with a `PATCH`; the arrows show the normal flow.)
+(An admin can move a listing between any statuses with a `PATCH`; the arrows show the normal flow. An **approved** listing a seller edits
+**stays approved**: sellers never send an approved listing back to review.)
 
 | Status | Meaning |
 |---|---|
@@ -481,6 +495,16 @@ Rules (the same as for seller verification):
   `note` on the listing always equals the note of the **latest** change, and is cleared (`null`) when you change status without one.
 - Every status change adds a row to `status_change_logs` (newest first): the status, the note, who did it (`created_by`, `creator_type`, `creator_name`) and when. Creating a listing writes the first row.
 - Re-sending the status the listing already has is not a change: no history row, no note needed.
+- **`requested_at`** is when the listing joined the pending list. It is set when a seller creates a listing, and again every time a
+  `rejected` or `changes_requested` listing goes back to `pending` (the seller saving it, or an admin setting `pending`). Admin-created
+  approved listings have `requested_at: null`.
+
+### The pending list (admin)
+
+`GET /catalog/listings/requests/` lists only `status = pending`, **newest request first**, with **cursor pagination** (follow `next` /
+`previous` exactly as given; there is no `count`). It takes the list filters (`seller`, `catalog_type`, `listing_type`, `category`, `brand`,
+`created_*`, `requested_*`, `search`) and `ordering` (`requested_at`, `created_at`, `title`, `id`; `-` reverses). A resubmitted listing shows
+up at the top again. For a menu badge use `GET /catalog/listings/?status=pending&limit=1` and read `count`.
 
 Moderate one: `PATCH /catalog/listings/{id}/` with `{"status": "rejected", "note": "Photos are low quality"}`.
 
@@ -507,8 +531,20 @@ Only `approved`, `rejected`, `changes_requested` are allowed here. The answer li
 | Remove photos | `media_delete_ids` |
 | Change status | `status` (+ `note`) |
 
-If you change `title`, the `slug` is regenerated. Changing `catalog_type` or `category` is checked against each other again (type match, active category).
+If you change `title`, the `slug` is regenerated. **A seller cannot have two live listings with the same title** (upper / lower case and extra
+spaces do not matter): the API answers `400` `{"title": ["This seller already has a listing with this title. Update that listing instead. (listing #123)"]}`
+(for a seller using their own endpoint the message starts with "You already have a listing..."). It applies to admin-created listings that name a
+seller too, and when an admin moves a listing to a seller who already has that title. Listings with no seller and buyer requests are not affected,
+and a **deleted** listing frees its title.
+ Changing `catalog_type` or `category` is checked against each other again (type match, active category).
 Every update stamps `updated_by` / `updated_at`.
+
+**Info change log.** Every save that really changes a listing's content adds one row to `info_change_logs` (newest first), by the seller or by an
+admin: `changed_fields`, `previous_data` and `new_data` (same keys, only what changed), and who / when (`created_by`, `creator_type`, `creator_name`,
+`created_at`). Tracked: all text and Bangla fields, category, brand, measurement, owner, location, service details, `attributes`, and three groups
+shown as whole lists before and after: `price_tiers`, `skus` (price, discount, discount dates, `is_active`, options; **not** stock) and `media`.
+Places and brand show as `{"id": .., "name": ..}`. Status changes are not here (see `status_change_logs`). Saving the same values writes nothing.
+
 
 **Delete** (`DELETE /catalog/listings/{id}/`) is a **soft delete**: `204`, and the listing disappears from every list and detail call, but the row, its SKUs and its history stay. Its slug and SKU codes stay reserved.
 There is no restore endpoint yet.
@@ -534,6 +570,7 @@ There is no restore endpoint yet.
 | SKUs using different attributes | `400` `{"skus": ["All SKUs of a listing must use the same attributes (e.g. all Size + Colour)."]}` |
 | SKU code already used | `400` `{"skus": {"0": {"sku": "A SKU with this code already exists."}}}` |
 | overlapping price tiers | `400` `{"price_tiers": ["Price tier quantity ranges must not overlap, and only the last tier can have no max_qty."]}` |
+| the seller already has a listing with that title | `400` `{"title": ["This seller already has a listing with this title. Update that listing instead. (listing #123)"]}` |
 | reject without a note | `400` `{"note": ["A note is required when rejecting a listing or requesting changes."]}` |
 | delete a used category / brand / attribute / value | `409` with a message to deactivate it instead |
 | seller or buyer token | `403` · no token `401` |
@@ -569,7 +606,60 @@ There is no restore endpoint yet.
 
 ---
 
-## 13. Tests
+## 13. Sellers: creating and managing their own listings
+
+A seller who is **verified and active** manages their own listings through one shared set of endpoints, for every kind of listing
+(`general`, `used`, `village`, `retail`, `wholesale`, `brand`, and services). Full request and response examples are in
+[seller-api-guide.md](seller-api-guide.md) section 6; the rules are:
+
+| Call | What it does |
+|---|---|
+| `POST /seller/listings/` | create a listing. It is **always `pending`**, owned by the seller, `posted_by_role = seller_offer` |
+| `GET /seller/listings/` | my listings, with filters (below) |
+| `GET /seller/listings/{id}/` | one of my listings: full detail, SKUs, tiers, media, **status history** (not the info change log) |
+| `PATCH` / `PUT /seller/listings/{id}/` | edit it |
+| `GET /seller/lookups/categories/`, `/brands/`, `/measurements/`, `/attributes/` | read-only lists to fill the form (only active ones) |
+| `DELETE` | **not allowed** (`405`). Only an admin can delete a listing |
+
+Use a seller token. A seller who is still waiting for approval, was rejected, or is paused gets `403` with a message that says which.
+A seller never sees another seller's listing (`404`), an admin-owned listing, or a buyer request.
+
+**What a seller can send.** The same fields as the admin (section 6.1) except `seller`, `buyer`, `posted_by_role`, `status` and `requested_at`:
+they are not accepted (sending them changes nothing). The seller can attach media, price tiers and SKUs exactly like an admin.
+
+**What happens when a seller edits:**
+
+| Listing is | A seller's save (PATCH or PUT, even an empty one) does |
+|---|---|
+| `pending` | stays `pending`; `requested_at` unchanged |
+| `approved` | stays `approved`, **whatever changes** (content, SKUs, prices, stock). The edit is written to the info change log for the admin |
+| `rejected` or `changes_requested` | goes back to **`pending`**, `requested_at` = now (top of the admin's pending list). There is no separate Resubmit button: saving is resubmitting |
+
+For a rejected listing the seller reads the admin's reason in `note`. A `note` sent when saving a rejected / changes-requested listing becomes the
+seller's message to the reviewer (an empty or missing note clears it); in any other state a `note` is ignored. The admin's reason is kept in
+`status_change_logs`, which the seller can read.
+
+**Same title.** A seller cannot create a second listing with a title they already have. If an earlier listing with that title was **rejected**,
+the seller must update that listing instead (the error names it: "listing #123"). Nobody can create a duplicate by deleting, because sellers
+cannot delete.
+
+**My list filters:** `?status=`, `?catalog_type=`, `?listing_type=`, `?category=`, `?brand=`, `?created_from=` / `?created_to=`,
+`?requested_from=` / `?requested_to=`, `?search=` (title, Bangla title, SKU code, brand name), `?ordering=` (`created_at`, `updated_at`, `requested_at`,
+`title`, `status`, `id`; `-` reverses; default newest first), `?limit=` / `?offset=`. Rows: `id, title, title_bn, slug, catalog_type, listing_type,
+category, brand, price, discounted_price, status, note, requested_at, created_at, updated_at`.
+
+**Checklist for the seller "Create listing" screen:** same as section 11, except: no owner and no status choice (it is always mine and pending); fill the
+dropdowns from `/seller/lookups/...` (categories filtered by `type`, brands, measurements, attributes with their values) and the public geography lists;
+show the Bangla fields next to the English ones; after saving, show the status ("Waiting for review"); on a rejected listing show the reason and let the seller
+edit and save.
+
+**Admin's view of seller listings.** Nothing new to call: a seller's listing is an ordinary listing with `seller` set and `posted_by_role = seller_offer`.
+New ones arrive in the pending list; approve or reject with `PATCH` or `bulk-moderate`; read the seller's changes in `info_change_logs`.
+
+---
+
+## 14. Tests
 
 - `scripts/smoke/sku_smoke.py` (attributes, SKUs, category protection), `listing_smoke.sh`, `brand_smoke.sh`, `e2e_smoke.sh`: all pass. Run everything with `scripts/smoke/run_all.sh`.
-- Postman: `Egoola-Listing` and `Egoola-Attribute` collections pass in Newman.
+- `seller_listing_smoke.sh`: the seller listing API, lookups, unique title, the pending list, approve / reject / fix, the info change log, Bangla fields and files removed from storage.
+- Postman: `Egoola-Listing` and `Egoola-Attribute` (admin) and `Egoola-SellerApp` → **Seller listings** (seller) collections pass in Newman.
