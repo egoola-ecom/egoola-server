@@ -90,6 +90,51 @@
       "key": "own_cert_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "lk_category_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lk_service_category_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "listing_title",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "service_title",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "listing_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "listing_sku_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "service_listing_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "listing_media_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "requested_before",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {
@@ -2253,11 +2298,54 @@
               }
             }
           ]
+        },
+        {
+          "name": "Cannot operate yet: listings are closed (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                ""
+              ]
+            },
+            "description": "Listings need a seller who is verified **and** active. A seller who is still waiting, was rejected, or is paused only has the profile.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test(\"says why\", () => { pm.expect(pm.response.json().detail).to.include('not approved yet'); });"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "After review — approve, reject, resubmit, suspend",
+      "name": "After approval — pause and activate",
       "item": [
         {
           "name": "[Admin step] Approve — verified + active",
@@ -2655,6 +2743,49 @@
           ]
         },
         {
+          "name": "Paused seller cannot use listings (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                ""
+              ]
+            },
+            "description": "Approved but `inactive`: the seller can still log in and edit the profile, but listings are closed until an admin makes them active.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test(\"says inactive\", () => { pm.expect(pm.response.json().detail).to.include('inactive'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "[Admin step] Make the seller active again",
           "request": {
             "method": "PATCH",
@@ -2743,7 +2874,1434 @@
               }
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "Seller listings (needs an approved, active seller)",
+      "item": [
+        {
+          "name": "Lookup — product categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/lookups/categories/?type=product&limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "lookups",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "product"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "Read-only lists for the listing form. Only **active** items are returned. `type` is `product` or `service`; `parent` filters a level of the tree; `search` matches the name.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"only active product categories\", () => { const r = pm.response.json().results; pm.expect(r.length).to.be.at.least(1); r.forEach(c => pm.expect(c.type).to.eql('product')); });",
+                  "pm.test(\"row shape\", () => { pm.expect(pm.response.json().results[0]).to.have.all.keys('id','type','parent','name','name_bn','slug','sort_order'); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('lk_category_id', String(pm.response.json().results[0].id)); }"
+                ]
+              }
+            }
+          ]
         },
+        {
+          "name": "Lookup — service categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/lookups/categories/?type=service&limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "lookups",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "service"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"service categories\", () => { const r = pm.response.json().results; pm.expect(r.length).to.be.at.least(1); r.forEach(c => pm.expect(c.type).to.eql('service')); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('lk_service_category_id', String(pm.response.json().results[0].id)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lookup — brands",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/lookups/brands/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "lookups",
+                "brands",
+                ""
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"wrapped list\", () => { pm.expect(pm.response.json()).to.have.property('results'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lookup — measurements",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/lookups/measurements/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "lookups",
+                "measurements",
+                ""
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"row shape\", () => { pm.expect(pm.response.json().results[0]).to.have.all.keys('id','name','slug','symbol'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lookup — attributes with their values (for SKU options)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/lookups/attributes/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "lookups",
+                "attributes",
+                ""
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"attributes carry their values\", () => { pm.response.json().results.forEach(a => pm.expect(a.values).to.be.an('array')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lookups are read-only (POST -> 405)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/lookups/brands/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "lookups",
+                "brands",
+                ""
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"x\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 405', () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create a listing — product (always pending)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                ""
+              ]
+            },
+            "description": "One endpoint for every kind of listing. The listing is **always `pending`** and owned by the seller. `seller`, `buyer`, `posted_by_role`, `status` and `requested_at` are not accepted. Required: `category`, `catalog_type`, `title`, `description`, and `skus` or `price`. The Bangla fields (`title_bn`, `description_bn`, `package_includes_bn`, `condition_note_bn`, `warranty_bn`, `origin_bn`) are optional.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{lk_category_id}},\n  \"catalog_type\": \"product\",\n  \"listing_type\": \"general\",\n  \"title\": \"{{listing_title}}\",\n  \"title_bn\": \"পোস্টম্যান টি-শার্ট\",\n  \"description\": \"Soft cotton t-shirt.\",\n  \"description_bn\": \"নরম সুতির টি-শার্ট।\",\n  \"origin\": \"Bangladesh\",\n  \"origin_bn\": \"বাংলাদেশ\",\n  \"price\": \"500\",\n  \"discounted_price\": \"450\",\n  \"stock_qty\": 20,\n  \"status\": \"approved\",\n  \"note\": \"ignored on create\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('listing_title', 'Postman Tee ' + pm.variables.get('uniq'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"pending, with a request time\", () => { const b = pm.response.json(); pm.expect(b.status).to.eql('pending'); pm.expect(b.requested_at).to.be.a('string'); });",
+                  "pm.test(\"owner fields are not exposed\", () => { const b = pm.response.json(); ['seller','buyer','posted_by_role','info_change_logs'].forEach(k => pm.expect(b).to.not.have.property(k)); });",
+                  "pm.test(\"Bangla text saved\", () => { const b = pm.response.json(); pm.expect(b.title_bn).to.eql('পোস্টম্যান টি-শার্ট'); pm.expect(b.origin_bn).to.eql('বাংলাদেশ'); });",
+                  "pm.test(\"history starts with the seller\", () => { const l = pm.response.json().status_change_logs; pm.expect(l.length).to.eql(1); pm.expect(l[0].creator_type).to.eql('seller'); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('listing_id', String(pm.response.json().id)); }",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('listing_sku_id', String(pm.response.json().skus[0].id)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create — the same title again (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                ""
+              ]
+            },
+            "description": "A seller cannot have two listings with the same title (case and extra spaces do not matter). If the earlier listing was rejected, update that one instead.",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"category\": {{lk_category_id}}, \"catalog_type\": \"product\", \"title\": \"{{listing_title}}\", \"description\": \"again\", \"price\": \"5\" }"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test(\"tells the seller to update the existing one\", () => { const m = pm.response.json().title[0]; pm.expect(m).to.include('You already have a listing with this title'); pm.expect(m).to.include('#' + pm.collectionVariables.get('listing_id')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create a listing — service",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                ""
+              ]
+            },
+            "description": "Services use the same endpoint: `catalog_type: service`, a service category, and the service fields (`price_type`, `hourly_rate`, `delivery_days`, `urgent`, `package_includes`, `available_from`, `available_to`).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{lk_service_category_id}},\n  \"catalog_type\": \"service\",\n  \"title\": \"{{service_title}}\",\n  \"title_bn\": \"পরিষ্কার সেবা\",\n  \"description\": \"Home cleaning.\",\n  \"price_type\": \"hourly\",\n  \"hourly_rate\": \"300\",\n  \"delivery_days\": 2,\n  \"urgent\": true,\n  \"package_includes\": \"Tools and cleaner\",\n  \"price\": \"300\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('service_title', 'Postman Cleaning ' + pm.variables.get('uniq'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"service fields saved, pending\", () => { const b = pm.response.json(); pm.expect(b.status).to.eql('pending'); pm.expect(b.price_type).to.eql('hourly'); pm.expect(b.hourly_rate).to.eql('300.00'); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('service_listing_id', String(pm.response.json().id)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create — no price and no SKU (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                ""
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"category\": {{lk_category_id}}, \"catalog_type\": \"product\", \"title\": \"Postman Bad {{$timestamp}}\", \"description\": \"d\" }"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test(\"asks for a SKU\", () => { pm.expect(pm.response.json()).to.have.property('skus'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My listings — filter by status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/?status=pending",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending"
+                }
+              ]
+            },
+            "description": "Filters: `status`, `catalog_type`, `listing_type`, `category`, `brand`, `created_from` / `created_to`, `requested_from` / `requested_to`, `search` (title, Bangla title, SKU code, brand name), `ordering` (`created_at`, `updated_at`, `requested_at`, `title`, `status`, `id`), `limit`, `offset`.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"wrapped list\", () => { const b = pm.response.json(); pm.expect(b).to.have.all.keys('count','next','previous','results'); pm.expect(b.count).to.be.at.least(2); });",
+                  "pm.test(\"only pending, only mine, no owner fields\", () => { pm.response.json().results.forEach(r => { pm.expect(r.status).to.eql('pending'); pm.expect(r).to.not.have.property('seller'); }); });",
+                  "pm.test(\"row shape\", () => { pm.expect(pm.response.json().results[0]).to.have.all.keys('id','title','title_bn','slug','catalog_type','listing_type','category','brand','price','discounted_price','status','note','requested_at','created_at','updated_at'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My listings — search and filter",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/?catalog_type=service&search=Postman",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "catalog_type",
+                  "value": "service"
+                },
+                {
+                  "key": "search",
+                  "value": "Postman"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"only the service\", () => { const r = pm.response.json().results; pm.expect(r.length).to.eql(1); pm.expect(String(r[0].id)).to.eql(pm.collectionVariables.get('service_listing_id')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve my listing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "The full listing: SKUs with options, price tiers, media and the status history. The seller does not get the info change log.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"full detail without the admin-only parts\", () => { const b = pm.response.json(); pm.expect(b.skus.length).to.eql(1); pm.expect(b).to.not.have.property('info_change_logs'); pm.expect(b).to.not.have.property('seller'); });",
+                  "pm.test(\"status history shows who, but not which admin\", () => { pm.expect(Object.keys(pm.response.json().status_change_logs[0]).sort()).to.eql(['created_at','creator_type','id','note','status']); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit a pending listing — stays pending",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "A seller can edit any of their listings. A pending listing stays pending and keeps its place in the admin's pending list.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Soft cotton t-shirt, edited while pending\",\n  \"title_bn\": \"পোস্টম্যান টি-শার্ট (নতুন)\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"still pending\", () => { pm.expect(pm.response.json().status).to.eql('pending'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin step] Approve the listing",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"approved\", () => { pm.expect(pm.response.json().status).to.eql('approved'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit an APPROVED listing — it stays approved",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "Whatever a seller changes on an **approved** listing (content, SKUs, prices, stock), it **stays approved**. The change goes into the admin-only info change log. Prices and stock are changed through `skus` with the SKU `id`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Soft cotton t-shirt, new wording\",\n  \"skus\": [\n    {\n      \"id\": {{listing_sku_id}},\n      \"price\": \"550\",\n      \"discounted_price\": \"500\",\n      \"stock_qty\": 99\n    }\n  ]\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"still approved\", () => { const b = pm.response.json(); pm.expect(b.status).to.eql('approved'); pm.expect(b.price).to.eql('550.00'); });",
+                  "pm.test(\"no new status entry\", () => { pm.expect(pm.response.json().status_change_logs.length).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A seller cannot set the status (expect it ignored)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"rejected\",\n  \"note\": \"self reject\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"unchanged\", () => { const b = pm.response.json(); pm.expect(b.status).to.eql('approved'); pm.expect(b.note).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin step] Reject the listing with a reason",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"rejected\",\n  \"note\": \"Please add a clear photo.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"rejected\", () => { pm.expect(pm.response.json().status).to.eql('rejected'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "The seller sees the rejection and the reason",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"rejected with the reason\", () => { const b = pm.response.json(); pm.expect(b.status).to.eql('rejected'); pm.expect(b.note).to.eql('Please add a clear photo.'); });",
+                  "pm.test(\"history has the admin's decision\", () => { pm.expect(pm.response.json().status_change_logs[0].creator_type).to.eql('admin'); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('requested_before', String(pm.response.json().requested_at)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create with the rejected title (expect 400): update it instead",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                ""
+              ]
+            },
+            "description": "The title of a rejected listing is still taken. The seller must update that listing.",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"category\": {{lk_category_id}}, \"catalog_type\": \"product\", \"title\": \"{{listing_title}}\", \"description\": \"again\", \"price\": \"5\" }"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test(\"names the existing listing\", () => { pm.expect(pm.response.json().title[0]).to.include('#' + pm.collectionVariables.get('listing_id')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Save the rejected listing — this is the resubmit",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "There is **no Resubmit button**: any save by the seller on a `rejected` or `changes_requested` listing sends it back to `pending` and to the top of the admin's pending list (`requested_at` = now). The `note` sent now is the seller's message to the reviewer; the admin's reason stays in the history.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Soft cotton t-shirt, now with a size chart.\",\n  \"note\": \"Added a size chart.\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"pending again, with the seller's message\", () => { const b = pm.response.json(); pm.expect(b.status).to.eql('pending'); pm.expect(b.note).to.eql('Added a size chart.'); });",
+                  "pm.test(\"request time moved forward\", () => { pm.expect(pm.response.json().requested_at > pm.collectionVariables.get('requested_before')).to.eql(true); });",
+                  "pm.test(\"history: pending, rejected, approved, pending\", () => { pm.expect(pm.response.json().status_change_logs.map(l => l.status)).to.eql(['pending','rejected','approved','pending']); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin step] The pending list shows it first",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/requests/?search=Postman&limit=5",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            },
+            "description": "Admin only. `status = pending`, newest request first, cursor pagination (`next` / `previous`, no `count`)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"cursor shape\", () => { const b = pm.response.json(); pm.expect(b).to.have.property('next'); pm.expect(b).to.not.have.property('count'); });",
+                  "pm.test(\"the resubmitted listing is first\", () => { pm.expect(String(pm.response.json().results[0].id)).to.eql(pm.collectionVariables.get('listing_id')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin step] Read the info change log",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "`info_change_logs` (admin only) lists every content change by the seller or an admin: `changed_fields`, and `previous_data` / `new_data` with the same keys. Stock is not recorded."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"changes by the seller are logged\", () => { const l = pm.response.json().info_change_logs; pm.expect(l.length).to.be.at.least(3); pm.expect(l.every(x => x.creator_type === 'seller')).to.eql(true); });",
+                  "pm.test(\"same keys before and after\", () => { pm.response.json().info_change_logs.forEach(l => pm.expect(Object.keys(l.previous_data).sort()).to.eql(Object.keys(l.new_data).sort())); });",
+                  "pm.test(\"the price change shows the SKU before and after\", () => { const l = pm.response.json().info_change_logs.find(x => x.changed_fields.includes('skus')); pm.expect(l).to.exist; pm.expect(l.previous_data.skus[0].price).to.eql('500.00'); pm.expect(l.new_data.skus[0].price).to.eql('550.00'); pm.expect(l.previous_data.skus[0]).to.not.have.property('stock_qty'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload a picture to my listing (multipart)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "Allowed: JPG, PNG, WEBP, GIF, MP4, PDF; 10 MB each; at most 10 per request and 20 per listing. **Pick a JPG, PNG, WEBP or PDF file for each `media_file` row in the Postman app** — a shared collection can't carry file paths, so under Newman these file rows are empty and the request fails with 400.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"one file\", () => { pm.expect(pm.response.json().media.length).to.eql(1); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('listing_media_id', String(pm.response.json().media[0].id)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete that picture",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "Remove files with `media_delete_ids`. The file is deleted from storage straight away.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "media_delete_ids",
+                  "value": "{{listing_media_id}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"none left\", () => { pm.expect(pm.response.json().media.length).to.eql(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sellers cannot delete a listing (expect 405)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 405', () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin step] Delete the demo listings",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin step] Delete the demo service listing",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{service_listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{service_listing_id}}",
+                ""
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A deleted listing is gone for the seller (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "After review — reject, resubmit, suspend, clean up",
+      "item": [
         {
           "name": "[Admin step] Reject with a note",
           "request": {

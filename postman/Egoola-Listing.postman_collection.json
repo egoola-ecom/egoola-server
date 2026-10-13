@@ -107,6 +107,10 @@
     {
       "key": "nodisc_sku_id",
       "value": ""
+    },
+    {
+      "key": "bn_listing_id",
+      "value": ""
     }
   ],
   "item": [
@@ -680,6 +684,47 @@
           ]
         },
         {
+          "name": "List pending listings (cursor pagination)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/requests/?limit=5",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            },
+            "description": "The admin's pending list: only `status = pending`, **newest request first** (`requested_at`), cursor pagination (`next` / `previous`, no `count`). Same filters as the list (`seller`, `catalog_type`, `listing_type`, `category`, `brand`, `created_from/to`, `requested_from/to`, `search`) and `ordering` (`requested_at`, `created_at`, `title`, `id`; `-` reverses). A listing a seller fixes after a rejection returns to the top. For a menu badge use `GET /catalog/listings/?status=pending&limit=1` and read `count`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('cursor shape: next / previous, no count', () => { const b = pm.response.json(); pm.expect(b).to.have.property('next'); pm.expect(b).to.have.property('previous'); pm.expect(b).to.not.have.property('count'); });",
+                  "pm.test('only pending listings, newest request first', () => { const r = pm.response.json().results; r.forEach(x => pm.expect(x.status).to.eql('pending')); for (let i = 1; i < r.length; i++) pm.expect(new Date(r[i-1].requested_at) >= new Date(r[i].requested_at)).to.eql(true); });",
+                  "pm.test('rows carry title_bn and requested_at', () => pm.response.json().results.forEach(x => { pm.expect(x).to.have.property('title_bn'); pm.expect(x.requested_at).to.be.a('string'); }));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Create Listing — brand listing (admin-created)",
           "request": {
             "method": "POST",
@@ -724,6 +769,50 @@
                   "pm.test('price / discounted_price', () => { pm.expect(b.price).to.eql('150.00'); pm.expect(b.discounted_price).to.eql('120.00'); });",
                   "pm.test('3 tiers, tier discount saved (no discount -> equals tier price)', () => { pm.expect(b.price_tiers.length).to.eql(3); pm.expect(b.price_tiers[0].discounted_price).to.eql('120.00'); pm.expect(b.price_tiers[2].discounted_price).to.eql('130.00'); });",
                   "pm.test('one history row', () => pm.expect(b.status_change_logs.length).to.eql(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing — Bangla fields (admin-created)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "description": "Optional Bangla versions of the text fields: `title_bn`, `description_bn`, `package_includes_bn`, `condition_note_bn`, `warranty_bn`, `origin_bn`. An admin-created listing is `approved` at once and has no `requested_at`.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{category_id}},\n  \"catalog_type\": \"product\",\n  \"listing_type\": \"general\",\n  \"title\": \"Demo Bangla Tee {{$timestamp}}\",\n  \"title_bn\": \"ডেমো টি-শার্ট\",\n  \"description\": \"Cotton tee.\",\n  \"description_bn\": \"সুতির টি-শার্ট।\",\n  \"origin\": \"Bangladesh\",\n  \"origin_bn\": \"বাংলাদেশ\",\n  \"warranty\": \"6 months\",\n  \"warranty_bn\": \"৬ মাস\",\n  \"condition_note\": \"New\",\n  \"condition_note_bn\": \"নতুন\",\n  \"price\": \"300\",\n  \"stock_qty\": 10\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('bn_listing_id', pm.response.json().id);",
+                  "pm.test('Bangla fields saved', () => { const b = pm.response.json(); pm.expect(b.title_bn).to.eql('ডেমো টি-শার্ট'); pm.expect(b.warranty_bn).to.eql('৬ মাস'); pm.expect(b.condition_note_bn).to.eql('নতুন'); });",
+                  "pm.test('approved at once, no request time', () => { const b = pm.response.json(); pm.expect(b.status).to.eql('approved'); pm.expect(b.requested_at).to.eql(null); });"
                 ]
               }
             }
@@ -1985,6 +2074,42 @@
           }
         },
         {
+          "name": "Retrieve Listing — status history and info change history",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "Two histories on the detail: `status_change_logs` (every status change with its reason) and `info_change_logs` (every content change by the seller or an admin: `changed_fields`, and `previous_data` / `new_data` with the same keys; prices, discounts and options are logged, stock is not). Both newest first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has both histories', () => { const b = pm.response.json(); pm.expect(b.status_change_logs).to.be.an('array').that.is.not.empty; pm.expect(b.info_change_logs).to.be.an('array').that.is.not.empty; });",
+                  "pm.test('the earlier admin edit is logged with the admin as author', () => { const l = pm.response.json().info_change_logs[0]; pm.expect(l.creator_type).to.eql('admin'); pm.expect(l.changed_fields).to.be.an('array').that.is.not.empty; });",
+                  "pm.test('before and after have the same keys', () => pm.response.json().info_change_logs.forEach(l => pm.expect(Object.keys(l.previous_data).sort()).to.eql(Object.keys(l.new_data).sort())));",
+                  "pm.test('has requested_at and Bangla fields', () => { const b = pm.response.json(); pm.expect(b).to.have.property('requested_at'); pm.expect(b).to.have.property('title_bn'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Delete Listing (soft delete)",
           "request": {
             "method": "DELETE",
@@ -2065,6 +2190,38 @@
                 ""
               ]
             }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the Bangla demo listing",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{bn_listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{bn_listing_id}}",
+                ""
+              ]
+            },
+            "description": "Admins can delete any listing (soft delete); sellers cannot."
           },
           "event": [
             {
