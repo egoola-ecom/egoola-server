@@ -2,7 +2,8 @@
 
 This is the **only** guide for the APIs built **for sellers** (the seller sign-up form, the seller panel and the
 seller app). It covers: public location lookups, sign-up with KYC documents, seller login, the seller's own profile
-(`/seller/me`), resubmit after a rejection, change password, and **the seller's listings** (section 6).
+(`/seller/me`), resubmit after a rejection, change password, **the seller's products** (section 6) and **the seller's gigs** (section 6b), each
+with its own thumbnail endpoint (section 6.8).
 
 - **Plain-language guides** (no API details): `Egoola_Seller_Guide.md` (the seller process) and `Egoola_Listing_Guide.md` (listings).
 - **Postman:** `postman/Egoola-SellerApp.postman_collection.json` (one collection for all of it) and
@@ -71,8 +72,12 @@ check, so a seller who cannot operate gets `403` there, with a message that says
 | Seller | `GET`, `PATCH /api/v1/seller/me/` | Own profile (section 5) |
 | Seller | `POST /api/v1/seller/me/resubmit/` | Resubmit after a rejection (section 5.4) |
 | Seller | `POST /api/v1/seller/me/change-password/` | Change own password (section 5.5) |
-| Seller (can operate) | `POST`, `GET /api/v1/seller/listings/` | Create a listing, list my listings (section 6) |
-| Seller (can operate) | `GET`, `PATCH`, `PUT /api/v1/seller/listings/{id}/` | See and edit one of my listings (section 6) |
+| Seller (can operate) | `POST`, `GET /api/v1/seller/listings/` | Create a product, list my products (section 6) |
+| Seller (can operate) | `GET`, `PATCH`, `PUT /api/v1/seller/listings/{id}/` | See and edit one of my products (section 6) |
+| Seller (can operate) | `PUT`, `DELETE /api/v1/seller/listings/{id}/thumbnail/` | Set, replace or remove the cover picture (section 6.8) |
+| Seller (can operate) | `POST`, `GET /api/v1/seller/gigs/` | Create a gig, list my gigs (section 6b) |
+| Seller (can operate) | `GET`, `PATCH`, `PUT /api/v1/seller/gigs/{id}/` | See and edit one of my gigs (section 6b) |
+| Seller (can operate) | `PUT`, `DELETE /api/v1/seller/gigs/{id}/thumbnail/` | Set, replace or remove the gig's cover picture (section 6.8) |
 | Seller (can operate) | `GET /api/v1/seller/lookups/{categories,brands,measurements,attributes}/` | Lists for the listing form (section 6.1) |
 
 What an admin does with these sellers (review the documents, approve, reject) is in the admin guide. Where this guide
@@ -441,19 +446,19 @@ seller who is already `pending`). The response is the same body as `GET /seller/
 
 ---
 
-## 6. Listings: create and manage my listings
+## 6. Listings: create and manage my products
 
-One shared set of endpoints for **every kind of listing**: product or service, and the six product formats (`general`, `used`,
-`village`, `retail`, `wholesale`, `brand`). Admin-side rules, SKUs and the full field reference are in
-[`listing-complete-guide.md`](listing-complete-guide.md); the plain-language version is `Egoola_Listing_Guide.md`.
+One shared set of endpoints for **every product format** (`general`, `used`, `village`, `retail`, `wholesale`, `brand`). A seller's
+**services are gigs**: they are on `/seller/gigs/` (section 6b), and a service sent here is `400`. Admin-side rules, SKUs and the full field
+reference are in [`listing-complete-guide.md`](listing-complete-guide.md); the plain-language version is `Egoola_Listing_Guide.md`.
 
 **Who can use it.** Only a seller who **can operate** (verified **and** active). Everyone else gets `403` with a message that says why:
 
 - not approved yet: `{"detail": "Your seller application is not approved yet. You can only edit your profile until an admin approves it."}`
 - approved but inactive: `{"detail": "Your seller account is inactive. You can only edit your profile until an admin makes it active."}`
 
-A seller sees and changes **only their own, non-deleted listings**. Another seller's listing, an admin-owned listing and a buyer request are `404`.
-**A seller cannot delete a listing** (`DELETE` is `405`).
+A seller sees and changes **only their own, non-deleted products**. Another seller's listing, an admin-owned listing, a buyer request and the
+seller's own gigs are `404` here. **A seller cannot delete a listing** (`DELETE` is `405`).
 
 ### 6.1 Lookups for the form (read-only)
 
@@ -488,10 +493,9 @@ Everything else is optional. The fields are the same as the admin's (see `listin
 
 | Group | Fields |
 |---|---|
-| Basics | `category`, `catalog_type` (`product` \| `service`), `listing_type`, `title`, `description` |
-| Bangla (all optional) | `title_bn`, `description_bn`, `package_includes_bn`, `condition_note_bn`, `warranty_bn`, `origin_bn` |
+| Basics | `category`, `catalog_type` (optional: it is always `product` here; `service` is `400`), `listing_type`, `title`, `description` |
+| Bangla (all optional) | `title_bn`, `description_bn`, `condition_note_bn`, `warranty_bn`, `origin_bn` |
 | Product | `brand` (needed for `listing_type: brand`), `model`, `origin`, `warranty`, `measurement`, `min_order_qty`, `condition_note`, `attributes` (JSON specs) |
-| Service | `price_type` (`fixed` \| `hourly`), `hourly_rate`, `delivery_days`, `urgent`, `package_includes`, `available_from`, `available_to` |
 | Place | `country`, `state`, `city`, `thana` (must match each other) |
 | Price and stock | `skus` (list: `sku`, `price`, `discounted_price`, discount dates, `stock_qty`, `is_active`, `variants`), **or** the create shortcut `price`, `discounted_price`, `discount_start_date`, `discount_end_date`, `stock_qty`, `sku` |
 | Quantity prices | `price_tiers` (list of `min_qty`, `max_qty`, `price`, `discounted_price`) |
@@ -544,7 +548,6 @@ Another seller may use the same title. An admin deleting a listing frees its tit
 | Param | Example | Meaning |
 |---|---|---|
 | `status` | `=rejected` | `pending`, `approved`, `rejected`, `changes_requested`, `draft` |
-| `catalog_type` | `=service` | product or service |
 | `listing_type` | `=used` | the six product formats |
 | `category`, `brand` | `category=18` | ids |
 | `created_from`, `created_to` | `=2026-10-01` | creation date, inclusive, `YYYY-MM-DD` |
@@ -608,6 +611,8 @@ Send `media_file` as repeated parts in a `multipart/form-data` create or edit. A
 | What went wrong | Response |
 |---|---|
 | no token / admin or buyer token | `401` / `403` |
+| `catalog_type: "service"`, or a service-only field (`delivery_days`, `urgent`, `package_includes`, ...), or a gig SKU field (`price_type`, `description`) | `400` (services are gigs: `/seller/gigs/`) |
+| a gig id on this endpoint | `404` |
 | seller cannot operate (pending, rejected, paused) | `403` with the message in the intro of this section |
 | another seller's listing, or an admin's | `404` |
 | `DELETE` | `405` |
@@ -623,11 +628,50 @@ Send `media_file` as repeated parts in a `multipart/form-data` create or edit. A
 | city not in the state | `400` `{"city": ["This city does not belong to the selected state."]}` |
 | a file of the wrong type, over 10 MB, or too many | `400` `{"media_file": [...]}` |
 
+### 6.8 The thumbnail (products and gigs)
+
+The cover picture has its own endpoints (it is not part of create or edit): `PUT` / `DELETE /seller/listings/{id}/thumbnail/` and
+`PUT` / `DELETE /seller/gigs/{id}/thumbnail/`. `PUT` is `multipart/form-data` with one field `image` (JPG, PNG or WEBP, up to 10 MB) and returns
+`{"image_path", "image_url", "status"}`; `DELETE` is `204`. The old file is deleted from storage. `image_path` / `image_url` are read only and come
+back on the list rows and the detail. It counts as an edit: it is written in the admin's info change log, and on a `rejected` / `changes_requested`
+product or gig it sends it back to `pending` (like saving it); on an approved or pending one the status stays. Only a seller who can operate, only on
+their own listing (`404` otherwise). Details and errors: [`listing-complete-guide.md`](listing-complete-guide.md) section 15.
+
+---
+
+## 6b. Gigs: create and manage my gigs
+
+A **gig** is a service the seller offers (cleaning, photography, repair). It is created, listed, seen and edited on **`/seller/gigs/`**, with the
+same access rules, moderation and "saving is resubmitting" behaviour as products, but a different price model: **packages**. Every package is a SKU with a
+`price_type` (`hourly`, `daily`, `weekly`, `monthly` or `fixed`), and a `price` (the rate for that unit). A package has **no duration**: the buyer chooses how many hours, days, weeks or months when ordering and pays the rate
+times that number. A gig has **no options, no stock, no brand and no quantity prices**, at most **one package per price
+type**, and no delete for the seller. The complete guide (every rule, error, filter and response) is **[`listing-complete-guide.md`](listing-complete-guide.md) section 14**; the plain-language
+version is `Egoola_Listing_Guide.md` section 12. In short:
+
+| Call | What it does |
+|---|---|
+| `POST /seller/gigs/` | create: always `pending`, owned by me (`seller`, `buyer`, `posted_by_role`, `status` are ignored). `catalog_type` is not needed |
+| `GET /seller/gigs/` | my gigs. Filters: `status`, `category`, `price_type`, `created_*`, `requested_*`, `search`, `ordering`, `limit`, `offset` |
+| `GET /seller/gigs/{id}/` | one gig with its packages and the status history (a product id is `404`) |
+| `PATCH` / `PUT /seller/gigs/{id}/` | edit. Rejected / changes-requested goes back to `pending`; approved stays approved |
+| `PUT` / `DELETE /seller/gigs/{id}/thumbnail/` | the cover picture (section 6.8) |
+| `DELETE /seller/gigs/{id}/` | not allowed (`405`) |
+
+```json
+POST /api/v1/seller/gigs/
+{ "category": 29, "title": "Logo Design", "description": "A logo in 3 days.", "delivery_days": 3,
+  "skus": [ { "price": "1500", "price_type": "fixed", "description": "One logo, two revisions" },
+            { "price": "400", "price_type": "hourly" } ] }
+```
+
+`201`: `"status": "pending"`, two packages (a fixed 1500 and an hourly 400), and a status history with the seller's creation entry. For a single package you can
+send `price` and `price_type` on the gig itself. Lookups: `GET /seller/lookups/categories/?type=service` and the public geography lists.
+
 ---
 
 ## 7. What a seller who cannot operate can NOT do
 
-Everything outside `/seller/me/...`. Listings (section 6) need a seller who **can operate** (verified **and** active), and so will orders, wallet and
+Everything outside `/seller/me/...`. Products (section 6) and gigs (section 6b) need a seller who **can operate** (verified **and** active), and so will orders, wallet and
 withdrawals when they are built. Everyone else gets `403` with a message that says which switch is holding them back:
 
 - not verified yet (unverified, pending, rejected):
@@ -654,7 +698,8 @@ Admin endpoints (`/accounts/...`) are always `403` for a seller, whatever their 
 | A seller logs in with **phone number + password** (not email); an admin changing the phone changes the login | login |
 | Email and phone cannot be changed by the seller (for now) | `/seller/me/` |
 | Identity documents (NID, birth certificate) locked once `verified`; at least one NID always | `/seller/me/` |
-| Listings: only a seller who can operate; always my own; new = `pending`; a save on a rejected / changes-requested listing = `pending` again; an approved listing stays approved; no delete; one title per seller | `/seller/listings/` |
+| Products and gigs: only a seller who can operate; always my own; new = `pending`; a save (or a thumbnail change) on a rejected / changes-requested one = `pending` again; an approved one stays approved; no delete; one title per seller per kind; products and gigs are separate endpoints (the other kind is `404`) | `/seller/listings/`, `/seller/gigs/` |
+| A gig is priced by packages: one SKU per `price_type` (the rate; the buyer chooses the duration when ordering); no options, stock or quantity prices | `/seller/gigs/` |
 | Only a `rejected` seller can resubmit; result is `pending` + back in the queue | `/seller/me/resubmit/` |
 | Every real profile change is logged (before and after) for admins | change log |
 
@@ -673,8 +718,8 @@ Do not build screens against these:
   one decision for the whole seller.
 - **Seeing the change history as a seller:** only admins see it, on the seller detail.
 - **Deleting or hiding a listing as a seller**, saving a seller draft, bulk upload, and any message to the seller when a listing is approved or rejected.
-- **The other seller features** (for sellers who can operate) (listings, orders, freelance, wallet, withdrawals): the
-  next Phase 3 steps.
+- **The other seller features** (for sellers who can operate): hire requests on a gig (accept, decline, deliver), the job board and bidding,
+  orders, the wallet and withdrawals: the next Phase 3 steps. Products, gigs and their thumbnails are built.
 
 ---
 
