@@ -91,7 +91,7 @@ check "listing B explicit pending honored" "pending" "$(echo "$BODY" | jget "['s
 echo
 echo "=== 3) Create Listing C (service, buyer_request) ==="
 R=$(curl -s -w '\n%{http_code}' -X POST "$BASE/catalog/listings/" -H "$AUTH" -H "Content-Type: application/json" \
-  -d "{\"buyer\":$BUYER_ID,\"category\":29,\"catalog_type\":\"service\",\"posted_by_role\":\"buyer_request\",\"title\":\"Smoke Listing C\",\"description\":\"need cleaning\",\"price\":\"30.00\",\"price_type\":\"hourly\",\"hourly_rate\":\"30.00\"}")
+  -d "{\"buyer\":$BUYER_ID,\"category\":29,\"catalog_type\":\"service\",\"posted_by_role\":\"buyer_request\",\"title\":\"Smoke Listing C\",\"description\":\"need cleaning\",\"price\":\"30.00\",\"price_type\":\"hourly\"}")
 CODE=$(echo "$R" | tail -1); BODY=$(echo "$R" | sed '$d')
 check "create listing C (service/buyer_request) status code" 201 "$CODE"
 LISTING_C=$(echo "$BODY" | jget "['id']")

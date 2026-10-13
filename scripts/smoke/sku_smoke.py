@@ -288,9 +288,10 @@ check("single-SKU listing can later get options", 200, A("PATCH", f"/catalog/lis
 check("negative shortcut price -> 400", 400, A("POST", "/catalog/listings/", listing_payload("Smoke SKU neg", price="-4"))[0])
 check("shortcut discount above price -> 400", 400, A("POST", "/catalog/listings/", listing_payload("Smoke SKU hi", price="4", discounted_price="9"))[0])
 check("duplicate SKU code on create -> 400", 400, A("POST", "/catalog/listings/", listing_payload("Smoke SKU dupcode", price="4", sku="SMOKE-OTHER"))[0])
-s, r = A("POST", "/catalog/listings/", listing_payload("Smoke SKU svc", price="2000", catalog_type="service", category=29, price_type="fixed"))
-check("services get SKUs too", 201, s)
-check("service has one SKU", 1, len(r["skus"]))
+s, r = A("POST", "/catalog/listings/", listing_payload("Smoke SKU job", price="2000", catalog_type="service", category=29, posted_by_role="buyer_request", listing_type=None, price_type="fixed"))
+check("job requests get SKUs too", 201, s)
+check("job request has one SKU", 1, len(r["skus"]))
+check("a seller's service offer is a gig: refused on the listing endpoint", 400, A("POST", "/catalog/listings/", listing_payload("Smoke SKU svc", price="2000", catalog_type="service", category=29, posted_by_role="seller_offer", listing_type=None))[0])
 
 print("\n=== Attribute protection ===")
 check("delete attribute in use -> 409", 409, A("DELETE", f"/catalog/attributes/{size['id']}/")[0])

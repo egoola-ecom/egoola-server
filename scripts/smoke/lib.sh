@@ -47,6 +47,8 @@ def starts(field, *prefixes):
     return q
 
 listings = Listing.all_objects.filter(starts('title', 'Smoke', 'Bad Listing', 'E2E', 'PROBE'))
+for thumbnail in listings.exclude(image_path__isnull=True).values_list('image_path', flat=True):
+    (Path(settings.MEDIA_ROOT) / thumbnail).unlink(missing_ok=True)
 for listing_id in list(listings.values_list('id', flat=True)):
     shutil.rmtree(Path(settings.MEDIA_ROOT) / 'listing' / str(listing_id), ignore_errors=True)
 listings.delete()
@@ -56,7 +58,7 @@ listing_media = Path(settings.MEDIA_ROOT) / 'listing'
 if listing_media.is_dir():
     existing = {str(i) for i in Listing.all_objects.values_list('id', flat=True)}
     for folder in listing_media.iterdir():
-        if folder.is_dir() and folder.name not in existing:
+        if folder.is_dir() and folder.name != 'thumbnails' and folder.name not in existing:
             shutil.rmtree(folder, ignore_errors=True)
 # Same for seller documents and profile pictures: once the Smoke*/e2e.* seller
 # rows are gone (below), any file no Seller/SellerMedia row points at is an orphan.

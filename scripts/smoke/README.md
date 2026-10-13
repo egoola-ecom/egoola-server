@@ -11,12 +11,14 @@ accounts in [`docs/test-accounts.md`](../../docs/test-accounts.md). The guides i
 | `buyer_smoke.sh` | Buyer Management | 49 |
 | `listing_smoke.sh` | Listings (CRUD, moderation, tiers, media, soft delete, bulk) | 54 |
 | `brand_smoke.sh` | Brands and the listing/brand/discount rules | 55 |
-| `sku_smoke.py` | Attributes, attribute values and listing SKUs (every SKU rule, update by id, discount windows, category delete protection) | 143 |
+| `sku_smoke.py` | Attributes, attribute values and listing SKUs (every SKU rule, update by id, discount windows, category delete protection) | 144 |
 | `cms_smoke.sh` | Banners, email templates, settings, site logo | 97 |
 | `seller_onboarding_smoke.sh` | Seller self-registration with KYC documents (validation, files, duplicates, location), pending-seller login, the Seller Request queue (cursor paging, ordering, every filter, permissions) and how admin actions clear the request flag | 162 |
 | `seller_self_smoke.sh` | The seller's own API (`/seller/me/`): sellers who cannot operate (pending, rejected, or approved but paused) can log in and edit only their profile, email/phone locked, documents (add, delete, replace, NID rules, locked after verification), password change, resubmit after a rejection, the profile change log (seller and admin edits, before/after, no password hash), suspended sellers, `IsActiveVerifiedSellerActor`, files removed from storage when media, a photo or an account is deleted, and the phone + password seller login | 156 |
-| `seller_listing_smoke.sh` | The seller listing API (every kind through one endpoint), lookups, access rules, the same-title rule (also on admin-created listings and in the database), Bangla fields, list filters, the admin pending list (cursor), approve / reject / fix by saving (no Resubmit button), approved listings staying approved, the info change log (before / after, stock not logged), file limits and files removed from storage | 221 |
+| `seller_listing_smoke.sh` | The seller product API (every product format through one endpoint), lookups, access rules, the same-title rule (also on admin-created listings and in the database), Bangla fields, list filters, the admin pending list (cursor), approve / reject / fix by saving (no Resubmit button), approved listings staying approved, the info change log (before / after, stock not logged), file limits and files removed from storage | 221 |
 | `public_geography_smoke.sh` | The public (no login) country / state / city / thana lists: shape, parent filters, search, read-only, no audit data, admin API still locked | 45 |
+| `gig_smoke.py` | The admin gig API (`/catalog/gigs/`): packages (price type, duration, one per type, no stock or options), every rule, edit by SKU id, list and filters, the pending gig list, bulk moderation, the product / gig / job separation (404 and 400), and the thumbnail endpoints on listings and gigs (upload, replace, remove, limits, files deleted, change log) | 157 |
+| `seller_gig_smoke.py` | The seller gig API (`/seller/gigs/`) and seller thumbnails: access, always pending, packages and their rules, the same-title rule per type, the product / gig split, approve / reject / fix, thumbnail resubmission, files removed | 99 |
 
 ```bash
 uv run manage.py runserver 8000        # in one terminal

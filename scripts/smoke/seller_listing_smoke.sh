@@ -17,7 +17,7 @@ py() { python -c "import sys,json;d=json.load(sys.stdin);print($1)" 2>/dev/null;
 jreq() { # token method url [json]
   local data=(); if [ -n "${4:-}" ]; then printf '%s' "$4" > "$SCRATCH/body.json"; data=(--data-binary "@$SCRATCH/body.json"); fi
   curl -s -w '
-%{http_code}' -X "$2" "$3" -H "Authorization: Bearer $1" -H "Content-Type: application/json" "${data[@]}"; }
+%{http_code}' -X "$2" "$3" -H "Authorization: Bearer $1" -H "Content-Type: application/json" ${data[@]+"${data[@]}"}; }
 areq() { jreq "$TOKEN" "$1" "$2" "${3:-}"; }
 sreq() { jreq "$ST" "$1" "$2" "${3:-}"; }
 s2req() { jreq "$ST2" "$1" "$2" "${3:-}"; }
@@ -96,14 +96,14 @@ check "attributes: value carries name_bn" "এম" "$(echo "$R" | py "[v['name_b
 check "lookups are read-only (POST -> 405)" 405 "$(curl -s -o /dev/null -w '%{http_code}' -X POST $LK/brands/ -H "Authorization: Bearer $ST" -H 'Content-Type: application/json' -d '{"name":"x"}')"
 
 echo "=== Create: always pending, always mine ==="
-R=$(sreq POST $SL/ '{"category":18,"catalog_type":"product","listing_type":"general","title":"Smoke Tee","title_bn":"স্মোক টি-শার্ট","description":"Plain tee","description_bn":"সাধারণ টি-শার্ট","origin":"Bangladesh","origin_bn":"বাংলাদেশ","warranty":"6 months","warranty_bn":"৬ মাস","condition_note":"New","condition_note_bn":"নতুন","package_includes":"1 tee","package_includes_bn":"১টি","price":"500","stock_qty":10}')
+R=$(sreq POST $SL/ '{"category":18,"catalog_type":"product","listing_type":"general","title":"Smoke Tee","title_bn":"স্মোক টি-শার্ট","description":"Plain tee","description_bn":"সাধারণ টি-শার্ট","origin":"Bangladesh","origin_bn":"বাংলাদেশ","warranty":"6 months","warranty_bn":"৬ মাস","condition_note":"New","condition_note_bn":"নতুন","price":"500","stock_qty":10}')
 check "create (price shortcut)" 201 "$(code "$R")"; L1=$(body "$R" | py "d['id']")
 check "status is pending" pending "$(body "$R" | py "d['status']")"
 check "requested_at is set" True "$(body "$R" | py "bool(d['requested_at'])")"
 check "no seller / buyer / posted_by_role in the seller's view" "None None None" "$(body "$R" | py "(d.get('seller'),d.get('buyer'),d.get('posted_by_role'))" | tr -d "(),'")"
 check "no info_change_logs in the seller's view" "None" "$(body "$R" | py "d.get('info_change_logs')")"
 check "status history has the creation entry by the seller" "1 pending seller" "$(body "$R" | py "str(len(d['status_change_logs']))+' '+d['status_change_logs'][0]['status']+' '+d['status_change_logs'][0]['creator_type']")"
-check "all six Bangla fields saved" "স্মোক টি-শার্ট|সাধারণ টি-শার্ট|বাংলাদেশ|৬ মাস|নতুন|১টি" "$(body "$R" | py "'|'.join([d['title_bn'],d['description_bn'],d['origin_bn'],d['warranty_bn'],d['condition_note_bn'],d['package_includes_bn']])")"
+check "all five Bangla fields of a product saved" "স্মোক টি-শার্ট|সাধারণ টি-শার্ট|বাংলাদেশ|৬ মাস|নতুন" "$(body "$R" | py "'|'.join([d['title_bn'],d['description_bn'],d['origin_bn'],d['warranty_bn'],d['condition_note_bn']])")"
 check "price comes from the SKU" "500.00" "$(body "$R" | py "d['price']")"
 check "slug generated" smoke-tee "$(body "$R" | py "d['slug']")"
 cd "$SERVER_DIR"
@@ -129,9 +129,10 @@ done
 check "listing_type=brand needs a brand -> 400" 400 "$(code "$(sreq POST $SL/ '{"category":18,"catalog_type":"product","listing_type":"brand","title":"Smoke Kind brand","description":"d","price":"10"}')")"
 check "listing_type=brand with a brand" 201 "$(code "$(sreq POST $SL/ "{\"category\":18,\"catalog_type\":\"product\",\"listing_type\":\"brand\",\"brand\":$BRAND,\"title\":\"Smoke Kind brand\",\"description\":\"d\",\"price\":\"10\"}")")"
 check "an inactive brand is refused -> 400" 400 "$(code "$(sreq POST $SL/ "{\"category\":18,\"catalog_type\":\"product\",\"listing_type\":\"general\",\"brand\":$BRAND_OFF,\"title\":\"Smoke Off Brand\",\"description\":\"d\",\"price\":\"10\"}")")"
-R=$(sreq POST $SL/ '{"category":29,"catalog_type":"service","title":"Smoke Cleaning Service","title_bn":"পরিষ্কার সেবা","description":"d","price_type":"hourly","hourly_rate":"300","delivery_days":2,"urgent":true,"package_includes":"tools","price":"300"}')
-check "a service listing" 201 "$(code "$R")"; LSV=$(body "$R" | py "d['id']")
-check "service fields saved" "hourly 300.00 2 True" "$(body "$R" | py "d['price_type']+' '+d['hourly_rate']+' '+str(d['delivery_days'])+' '+str(d['urgent'])")"
+R=$(sreq POST $SL/ '{"category":18,"catalog_type":"product","title":"Smoke Cleaning Service","title_bn":"পরিষ্কার সেবা","description":"d","origin":"Bangladesh","price":"300"}')
+check "a second product (Bangla title)" 201 "$(code "$R")"; LSV=$(body "$R" | py "d['id']")
+check "a service on the product endpoint -> 400 (a service offer is a gig)" 400 "$(code "$(sreq POST $SL/ '{"category":29,"catalog_type":"service","title":"Smoke Cleaning Gig","description":"d","price":"300"}')")"
+check "a service-only field on a product -> 400" 400 "$(code "$(sreq POST $SL/ '{"category":18,"catalog_type":"product","title":"Smoke Cleaning Days","description":"d","price":"300","delivery_days":2}')")"
 R=$(sreq POST $SL/ "{\"category\":18,\"catalog_type\":\"product\",\"listing_type\":\"general\",\"title\":\"Smoke Sized Tee\",\"description\":\"d\",\"measurement\":$MEAS,\"min_order_qty\":2,\"skus\":[{\"sku\":\"SMK-LST-M\",\"price\":\"100\",\"discounted_price\":\"80\",\"stock_qty\":4,\"variants\":[{\"attribute\":$ATTR,\"attribute_value\":$AV1}]},{\"sku\":\"SMK-LST-L\",\"price\":\"120\",\"stock_qty\":2,\"variants\":[{\"attribute\":$ATTR,\"attribute_value\":$AV2}]}],\"price_tiers\":[{\"min_qty\":1,\"max_qty\":9,\"price\":\"100\"},{\"min_qty\":10,\"price\":\"90\"}]}")
 check "product with SKU options and price tiers" 201 "$(code "$R")"; L3=$(body "$R" | py "d['id']")
 check "two SKUs saved" 2 "$(body "$R" | py "len(d['skus'])")"
@@ -181,7 +182,7 @@ echo "=== My list, detail and filters ==="
 R=$(sreq GET $SL/)
 check "list is limit/offset with a count" True "$(body "$R" | py "'count' in d and 'results' in d")"
 check "list rows carry the seller's view (no owner fields)" "None None" "$(body "$R" | py "(d['results'][0].get('seller'),d['results'][0].get('buyer'))" | tr -d "(),'")"
-check "list row keys" "brand,catalog_type,category,created_at,discounted_price,id,listing_type,note,price,requested_at,slug,status,title,title_bn,updated_at" "$(body "$R" | py "','.join(sorted(d['results'][0].keys()))")"
+check "list row keys" "brand,catalog_type,category,created_at,discounted_price,id,image_url,listing_type,note,price,requested_at,slug,status,title,title_bn,updated_at" "$(body "$R" | py "','.join(sorted(d['results'][0].keys()))")"
 TOTAL=$(body "$R" | py "d['count']")
 check "I only see my own listings" True "$(body "$(sreq GET "$SL/?limit=100")" | py "all(x['id'] != $LS2 for x in d['results'])")"
 check "detail of my listing" 200 "$(code "$(sreq GET $SL/$L1/)")"
@@ -192,9 +193,8 @@ check "an admin-owned listing is not mine either" 404 "$(code "$(sreq GET $SL/$(
 Q="$SL/?search=smoke"
 check "filter status=pending" True "$(body "$(sreq GET "$SL/?status=pending&limit=100")" | py "all(x['status']=='pending' for x in d['results']) and d['count']>0")"
 check "filter status=approved (none yet)" 0 "$(body "$(sreq GET "$SL/?status=approved")" | py "d['count']")"
-check "filter catalog_type=service" 1 "$(body "$(sreq GET "$SL/?catalog_type=service")" | py "d['count']")"
 check "filter listing_type=used" 1 "$(body "$(sreq GET "$SL/?listing_type=used")" | py "d['count']")"
-check "filter category=29" 1 "$(body "$(sreq GET "$SL/?category=29")" | py "d['count']")"
+check "filter category=29 (a service category: no gigs on the product list)" 0 "$(body "$(sreq GET "$SL/?category=29")" | py "d['count']")"
 check "filter brand" 1 "$(body "$(sreq GET "$SL/?brand=$BRAND")" | py "d['count']")"
 check "search by title" True "$(body "$(sreq GET "$SL/?search=Cleaning")" | py "d['count']==1 and d['results'][0]['id']==$LSV")"
 check "search by Bangla title" True "$(body "$(sreq GET "$SL/?search=%E0%A6%AA%E0%A6%B0%E0%A6%BF%E0%A6%B7%E0%A7%8D%E0%A6%95%E0%A6%BE%E0%A6%B0")" | py "d['count']==1 and d['results'][0]['id']==$LSV")"
@@ -219,7 +219,7 @@ check "newest request first" True "$(body "$R" | py "[x['requested_at'] for x in
 check "rows carry requested_at and title_bn" True "$(body "$R" | py "all(x['requested_at'] and 'title_bn' in x for x in d['results'])")"
 check "ordering=requested_at is oldest first" True "$(body "$(areq GET "$AQ&ordering=requested_at")" | py "[x['requested_at'] for x in d['results']]==sorted([x['requested_at'] for x in d['results']])")"
 check "filter by seller" True "$(body "$(areq GET "$AQ&seller=$S2")" | py "len(d['results'])==1 and d['results'][0]['seller']==$S2")"
-check "filter catalog_type=service" True "$(body "$(areq GET "$AQ&catalog_type=service")" | py "len(d['results'])==1")"
+check "filter catalog_type=service (a seller's services are gigs, not here)" True "$(body "$(areq GET "$AQ&catalog_type=service")" | py "len(d['results'])==0")"
 check "filter requested_from=today" True "$(body "$(areq GET "$AQ&requested_from=$TODAY")" | py "len(d['results'])>0")"
 check "filter requested_to=2000-01-01" 0 "$(body "$(areq GET "$AQ&requested_to=2000-01-01")" | py "len(d['results'])")"
 P1=$(areq GET "$AQ&limit=2")
@@ -300,12 +300,11 @@ echo "=== Details from the code review ==="
 R=$(sreq GET $SL/$L1/)
 check "the seller's status history shows who (seller / admin) but not which admin" "created_at,creator_type,id,note,status" "$(body "$R" | py "','.join(sorted(d['status_change_logs'][0].keys()))")"
 check "the admin still sees the admin's name" True "$(areq GET $AL/$L1/ | sed '$d' | py "any(l.get('creator_name') for l in d['status_change_logs'])")"
-sreq PATCH $SL/$LSV/ '{"available_from":"2026-12-01T10:00:00+06:00"}' >/dev/null
+sreq PATCH $SL/$LSV/ '{"origin":"Nepal"}' >/dev/null
 N1=$(areq GET $AL/$LSV/ | sed '$d' | py "len(d['info_change_logs'])")
-sreq PATCH $SL/$LSV/ '{"available_from":"2026-12-01T10:00:00+06:00"}' >/dev/null
-sreq PATCH $SL/$LSV/ '{"available_from":"2026-12-01T04:00:00Z"}' >/dev/null
-check "the same moment sent again (even in another time zone) writes no log row" "$N1" "$(areq GET $AL/$LSV/ | sed '$d' | py "len(d['info_change_logs'])")"
-check "a really different time is logged" True "$(sreq PATCH $SL/$LSV/ '{"available_from":"2026-12-02T10:00:00+06:00"}' >/dev/null; areq GET $AL/$LSV/ | sed '$d' | py "'available_from' in d['info_change_logs'][0]['changed_fields']")"
+sreq PATCH $SL/$LSV/ '{"origin":"Nepal"}' >/dev/null
+check "the same value sent again writes no log row" "$N1" "$(areq GET $AL/$LSV/ | sed '$d' | py "len(d['info_change_logs'])")"
+check "a really different value is logged" True "$(sreq PATCH $SL/$LSV/ '{"origin":"Bhutan"}' >/dev/null; areq GET $AL/$LSV/ | sed '$d' | py "'origin' in d['info_change_logs'][0]['changed_fields']")"
 check "the same SKU code twice in one request -> 400, not a crash" 400 "$(code "$(sreq POST $SL/ '{"category":18,"catalog_type":"product","title":"Smoke Dup Codes","description":"d","skus":[{"sku":"SMK-DUP-1","price":"5"},{"sku":"SMK-DUP-1","price":"6"}]}')")"
 R=$(sreq POST $SL/ '{"category":18,"catalog_type":"product","title":"পণ্য","description":"d","price":"5"}')
 check "a title with only Bangla letters still saves, with a usable slug" "201 True" "$(code "$R") $(body "$R" | py "d['slug'].startswith('listing')")"
