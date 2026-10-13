@@ -2,7 +2,7 @@
   "info": {
     "name": "Egoola API — Seller App (seller-facing APIs)",
     "_postman_id": "6b2f4a90-3c1d-4e57-8a42-egoola-sellerapp",
-    "description": "The APIs built for sellers: public location lookups, sign-up with KYC documents, seller login, the seller's own profile (/seller/me), resubmit after a rejection, change password. Read docs/seller-api-guide.md alongside it.\n\nRun top to bottom. Requests named **[Admin step]** are NOT seller APIs: they play the admin (approve, reject, suspend, clean up) so you can see what a seller experiences after each decision. The admin APIs themselves are in Egoola-Seller.postman_collection.json.\n\nRequests with file rows need a real JPG / PNG / WEBP / PDF chosen in the Postman app (file paths cannot be shared in a collection).",
+    "description": "The APIs built for sellers: public location lookups, sign-up with KYC documents, seller login, the seller's own profile (/seller/me), resubmit after a rejection, change password, **product listings and gigs** (and their thumbnails). Read docs/seller-api-guide.md (sections 6, 6b, 6.8) and docs/listing-complete-guide.md (sections 14, 15) alongside it.\n\nRun top to bottom. Requests named **[Admin step]** are NOT seller APIs: they play the admin (approve, reject, suspend, clean up) so you can see what a seller experiences after each decision. The admin APIs themselves are in Egoola-Seller.postman_collection.json.\n\nRequests with file rows need a real JPG / PNG / WEBP / PDF chosen in the Postman app (file paths cannot be shared in a collection).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -133,6 +133,21 @@
     },
     {
       "key": "requested_before",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "gig_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "gig_sku_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "gig_title",
       "value": "",
       "type": "string"
     }
@@ -3198,7 +3213,7 @@
                 ""
               ]
             },
-            "description": "One endpoint for every kind of listing. The listing is **always `pending`** and owned by the seller. `seller`, `buyer`, `posted_by_role`, `status` and `requested_at` are not accepted. Required: `category`, `catalog_type`, `title`, `description`, and `skus` or `price`. The Bangla fields (`title_bn`, `description_bn`, `package_includes_bn`, `condition_note_bn`, `warranty_bn`, `origin_bn`) are optional.",
+            "description": "One endpoint for every product format (`listing_type`). Services are gigs: `/seller/gigs/`. The listing is **always `pending`** and owned by the seller. `seller`, `buyer`, `posted_by_role`, `status` and `requested_at` are not accepted. Required: `category`, `title`, `description`, and `skus` or `price` (`catalog_type` is always `product` here and optional). The Bangla fields (`title_bn`, `description_bn`, `condition_note_bn`, `warranty_bn`, `origin_bn`) are optional.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"category\": {{lk_category_id}},\n  \"catalog_type\": \"product\",\n  \"listing_type\": \"general\",\n  \"title\": \"{{listing_title}}\",\n  \"title_bn\": \"পোস্টম্যান টি-শার্ট\",\n  \"description\": \"Soft cotton t-shirt.\",\n  \"description_bn\": \"নরম সুতির টি-শার্ট।\",\n  \"origin\": \"Bangladesh\",\n  \"origin_bn\": \"বাংলাদেশ\",\n  \"price\": \"500\",\n  \"discounted_price\": \"450\",\n  \"stock_qty\": 20,\n  \"status\": \"approved\",\n  \"note\": \"ignored on create\"\n}"
@@ -3294,7 +3309,7 @@
           ]
         },
         {
-          "name": "Create a listing — service",
+          "name": "Create a listing — a service (expect 400: it is a gig)",
           "request": {
             "method": "POST",
             "header": [
@@ -3316,11 +3331,11 @@
                 ""
               ]
             },
-            "description": "Services use the same endpoint: `catalog_type: service`, a service category, and the service fields (`price_type`, `hourly_rate`, `delivery_days`, `urgent`, `package_includes`, `available_from`, `available_to`).",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"category\": {{lk_service_category_id}},\n  \"catalog_type\": \"service\",\n  \"title\": \"{{service_title}}\",\n  \"title_bn\": \"পরিষ্কার সেবা\",\n  \"description\": \"Home cleaning.\",\n  \"price_type\": \"hourly\",\n  \"hourly_rate\": \"300\",\n  \"delivery_days\": 2,\n  \"urgent\": true,\n  \"package_includes\": \"Tools and cleaner\",\n  \"price\": \"300\"\n}"
+              "raw": "{\n  \"category\": {{lk_service_category_id}},\n  \"catalog_type\": \"service\",\n  \"title\": \"Postman Should Fail\",\n  \"description\": \"Home cleaning.\",\n  \"price\": \"300\"\n}"
             },
+            "description": "A seller's **services are gigs**: they are created on `/seller/gigs/` (see the **Seller gigs** folder). The product endpoint refuses `catalog_type: service`, the service-only fields (`delivery_days`, `urgent`, `package_includes`, ...) and the gig SKU fields (`price_type`, `duration`, `description`).",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3334,22 +3349,12 @@
           },
           "event": [
             {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.collectionVariables.set('service_title', 'Postman Cleaning ' + pm.variables.get('uniq'));"
-                ]
-              }
-            },
-            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "pm.test(\"service fields saved, pending\", () => { const b = pm.response.json(); pm.expect(b.status).to.eql('pending'); pm.expect(b.price_type).to.eql('hourly'); pm.expect(b.hourly_rate).to.eql('300.00'); });",
-                  "if (pm.response.code < 300) { pm.collectionVariables.set('service_listing_id', String(pm.response.json().id)); }"
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('refused', () => pm.expect(JSON.stringify(pm.response.json())).to.include('catalog_type'));"
                 ]
               }
             }
@@ -3450,9 +3455,9 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test(\"wrapped list\", () => { const b = pm.response.json(); pm.expect(b).to.have.all.keys('count','next','previous','results'); pm.expect(b.count).to.be.at.least(2); });",
+                  "pm.test(\"wrapped list\", () => { const b = pm.response.json(); pm.expect(b).to.have.all.keys('count','next','previous','results'); pm.expect(b.count).to.be.at.least(1); });",
                   "pm.test(\"only pending, only mine, no owner fields\", () => { pm.response.json().results.forEach(r => { pm.expect(r.status).to.eql('pending'); pm.expect(r).to.not.have.property('seller'); }); });",
-                  "pm.test(\"row shape\", () => { pm.expect(pm.response.json().results[0]).to.have.all.keys('id','title','title_bn','slug','catalog_type','listing_type','category','brand','price','discounted_price','status','note','requested_at','created_at','updated_at'); });"
+                  "pm.test(\"row shape\", () => { pm.expect(pm.response.json().results[0]).to.have.all.keys('id','title','title_bn','slug','catalog_type','listing_type','category','brand','price','discounted_price','image_url','status','note','requested_at','created_at','updated_at'); });"
                 ]
               }
             }
@@ -3464,7 +3469,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/seller/listings/?catalog_type=service&search=Postman",
+              "raw": "{{base_url}}/api/v1/seller/listings/?search={{listing_title}}",
               "host": [
                 "{{base_url}}"
               ],
@@ -3477,12 +3482,8 @@
               ],
               "query": [
                 {
-                  "key": "catalog_type",
-                  "value": "service"
-                },
-                {
                   "key": "search",
-                  "value": "Postman"
+                  "value": "{{listing_title}}"
                 }
               ]
             },
@@ -3505,7 +3506,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test(\"only the service\", () => { const r = pm.response.json().results; pm.expect(r.length).to.eql(1); pm.expect(String(r[0].id)).to.eql(pm.collectionVariables.get('service_listing_id')); });"
+                  "pm.test(\"only my product\", () => { const r = pm.response.json().results; pm.expect(r.length).to.eql(1); pm.expect(String(r[0].id)).to.eql(pm.collectionVariables.get('listing_id')); pm.expect(r[0].catalog_type).to.eql('product'); });"
                 ]
               }
             }
@@ -4146,6 +4147,148 @@
           ]
         },
         {
+          "name": "Set the thumbnail of my listing (multipart)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/thumbnail/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                "{{listing_id}}",
+                "thumbnail",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "description": "The cover picture has its own endpoint (not part of create or edit): multipart field `image`, JPG / PNG / WEBP, up to 10 MB. The old file is deleted. It counts as an edit: on a rejected / changes-requested listing it sends it back to `pending`. **Select a real JPG / PNG / WEBP file by hand in the Postman app** (a shared collection cannot carry file paths, so under Newman this is a 400). Do not set Content-Type yourself.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 with a picture selected, 400 without (Newman has no file)', () => pm.expect(pm.response.code).to.be.oneOf([200, 400]));",
+                  "if (pm.response.code === 200) { pm.test('thumbnail returned', () => pm.expect(pm.response.json().image_url).to.be.a('string').and.not.empty); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove the thumbnail of my listing",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/thumbnail/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                "{{listing_id}}",
+                "thumbnail",
+                ""
+              ]
+            },
+            "description": "`204`; the file is deleted.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A gig id on the product endpoint (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/listings/{{gig_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "listings",
+                "{{gig_id}}",
+                ""
+              ]
+            },
+            "description": "Products and gigs are separate endpoints: a gig is a 404 here (and a product id on `/seller/gigs/` is a 404).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Sellers cannot delete a listing (expect 405)",
           "request": {
             "method": "DELETE",
@@ -4222,39 +4365,6 @@
           ]
         },
         {
-          "name": "[Admin step] Delete the demo service listing",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/catalog/listings/{{service_listing_id}}/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "catalog",
-                "listings",
-                "{{service_listing_id}}",
-                ""
-              ]
-            },
-            "description": ""
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "A deleted listing is gone for the seller (expect 404)",
           "request": {
             "method": "GET",
@@ -4274,6 +4384,1109 @@
               ]
             },
             "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Seller gigs (needs an approved, active seller)",
+      "item": [
+        {
+          "name": "Create a gig — packages (always pending)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{lk_service_category_id}},\n  \"title\": \"{{gig_title}}\",\n  \"title_bn\": \"পরিষ্কার সেবা\",\n  \"description\": \"Home cleaning.\",\n  \"description_bn\": \"বাসা পরিষ্কার।\",\n  \"delivery_days\": 2,\n  \"package_includes\": \"Tools and cleaner\",\n  \"skus\": [\n    {\n      \"price\": \"400\",\n      \"price_type\": \"hourly\",\n      \"description\": \"Three hours\",\n      \"description_bn\": \"তিন ঘণ্টা\"\n    },\n    {\n      \"price\": \"9000\",\n      \"price_type\": \"fixed\"\n    }\n  ],\n  \"status\": \"approved\",\n  \"seller\": 1\n}"
+            },
+            "description": "A **gig** is a service the seller offers. It is created on `/seller/gigs/`: always `pending`, owned by the seller (`seller`, `buyer`, `posted_by_role`, `status`, `requested_at` are ignored). It is priced by **packages**: one SKU per `price_type` (`hourly`, `daily`, `weekly`, `monthly`, `fixed`), `price` is the rate for that unit. A package has no duration: the buyer chooses it when ordering and pays the rate times it. No options, stock, brand or quantity prices. For one package send `price` and `price_type` on the gig instead of `skus`.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('gig_title', 'Postman Gig ' + pm.variables.get('uniq'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const g = pm.response.json(); pm.collectionVariables.set('gig_id', String(g.id)); pm.collectionVariables.set('gig_sku_id', String(g.skus.find(s => s.price_type === 'hourly').id));",
+                  "pm.test('pending, with a request time', () => { pm.expect(g.status).to.eql('pending'); pm.expect(g.requested_at).to.be.a('string'); });",
+                  "pm.test('owner fields are not exposed', () => ['seller','buyer','posted_by_role','info_change_logs'].forEach(k => pm.expect(g).to.not.have.property(k)));",
+                  "pm.test('two packages, no duration on a SKU', () => { pm.expect(g.skus.length).to.eql(2); const h = g.skus.find(s => s.price_type === 'hourly'); pm.expect(h.price).to.eql('400.00'); pm.expect(h).to.not.have.property('duration'); });",
+                  "pm.test('no stock, no options', () => g.skus.forEach(s => { pm.expect(s.stock_qty).to.eql(null); pm.expect(s.variants).to.eql([]); }));",
+                  "pm.test('history starts with the seller', () => { const l = g.status_change_logs; pm.expect(l.length).to.eql(1); pm.expect(l[0].creator_type).to.eql('seller'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create a gig — the same title again (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{lk_service_category_id}},\n  \"title\": \"{{gig_title}}\",\n  \"description\": \"x\",\n  \"price\": \"5\",\n  \"price_type\": \"daily\"\n}"
+            },
+            "description": "One live gig per title for a seller (case and extra spaces ignored); update the existing gig instead. A product with the same title is allowed.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('tells the seller to update it', () => pm.expect(JSON.stringify(pm.response.json())).to.include('already have a listing with this title'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create a gig — a package without a price type (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{lk_service_category_id}},\n  \"title\": \"Postman Should Fail\",\n  \"description\": \"x\",\n  \"skus\": [\n    {\n      \"price\": \"5\"\n    }\n  ]\n}"
+            },
+            "description": "`price_type` is required on every gig package.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error mentions price_type', () => pm.expect(JSON.stringify(pm.response.json())).to.include('price_type'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create a gig — two packages with one price type (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{lk_service_category_id}},\n  \"title\": \"Postman Should Fail\",\n  \"description\": \"x\",\n  \"skus\": [\n    {\n      \"price\": \"5\",\n      \"price_type\": \"daily\"\n    },\n    {\n      \"price\": \"6\",\n      \"price_type\": \"daily\"\n    }\n  ]\n}"
+            },
+            "description": "A gig has at most one package per price type.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error mentions price type', () => pm.expect(JSON.stringify(pm.response.json())).to.include('price type'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create a gig — stock on a gig (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{lk_service_category_id}},\n  \"title\": \"Postman Should Fail\",\n  \"description\": \"x\",\n  \"skus\": [\n    {\n      \"price\": \"5\",\n      \"price_type\": \"daily\",\n      \"stock_qty\": 2\n    }\n  ]\n}"
+            },
+            "description": "A gig has no stock.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error mentions stock_qty', () => pm.expect(JSON.stringify(pm.response.json())).to.include('stock_qty'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create a gig — a product-only field (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": {{lk_service_category_id}},\n  \"title\": \"Postman Should Fail\",\n  \"description\": \"x\",\n  \"brand\": 1,\n  \"price\": \"5\",\n  \"price_type\": \"daily\"\n}"
+            },
+            "description": "Brand, model, origin, warranty, measurement, condition, quantity prices, ... are for products.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error mentions brand', () => pm.expect(JSON.stringify(pm.response.json())).to.include('brand'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My gigs — filter by status and price type",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/?status=pending&price_type=hourly&search={{gig_title}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending"
+                },
+                {
+                  "key": "price_type",
+                  "value": "hourly"
+                },
+                {
+                  "key": "search",
+                  "value": "{{gig_title}}"
+                }
+              ]
+            },
+            "description": "Filters: `status`, `category`, `price_type`, `created_*`, `requested_*`, `search`, `ordering`. Rows carry `price_type` of the lowest rate and `image_url`.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('only my gig', () => { const r = pm.response.json().results; pm.expect(r.length).to.eql(1); pm.expect(String(r[0].id)).to.eql(pm.collectionVariables.get('gig_id')); pm.expect(r[0].price_type).to.eql('hourly'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve my gig",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/{{gig_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                "{{gig_id}}",
+                ""
+              ]
+            },
+            "description": "Packages, media, thumbnail and the status history (not the info change log).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A product id on the gig endpoint (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit a pending gig — stays pending",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/{{gig_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                "{{gig_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Home cleaning, now with a checklist.\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('still pending', () => pm.expect(pm.response.json().status).to.eql('pending'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin step] Approve the gig",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/gigs/{{gig_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "gigs",
+                "{{gig_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}"
+            },
+            "description": "Gigs are moderated on `/catalog/gigs/` (their own pending list: `/catalog/gigs/requests/`)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('approved', () => pm.expect(pm.response.json().status).to.eql('approved'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit an APPROVED gig (change a package) — it stays approved",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/{{gig_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                "{{gig_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"skus\": [{ \"id\": {{gig_sku_id}}, \"price\": \"450\" }]\n}"
+            },
+            "description": "An approved gig stays approved whatever the seller changes; the admin sees it in the info change log. Packages merge by `id`; they are hidden with `is_active: false`, never deleted.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('approved, new rate', () => { const g = pm.response.json(); pm.expect(g.status).to.eql('approved'); const h = g.skus.find(s => String(s.id) === pm.collectionVariables.get('gig_sku_id')); pm.expect(h.price).to.eql('450.00'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A second hourly package (expect 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/{{gig_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                "{{gig_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"skus\": [\n    {\n      \"price\": \"1\",\n      \"price_type\": \"hourly\"\n    }\n  ]\n}"
+            },
+            "description": "One package per price type.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin step] Reject the gig with a reason",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/gigs/{{gig_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "gigs",
+                "{{gig_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"rejected\",\n  \"note\": \"Please add a clear thumbnail.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "The seller sees the rejection and the reason",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/{{gig_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                "{{gig_id}}",
+                ""
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('rejected with the reason', () => { const g = pm.response.json(); pm.expect(g.status).to.eql('rejected'); pm.expect(g.note).to.eql('Please add a clear thumbnail.'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set the gig thumbnail (multipart) — a rejected gig goes back to pending",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/{{gig_id}}/thumbnail/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                "{{gig_id}}",
+                "thumbnail",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "description": "The cover picture has its own endpoint: multipart field `image`, JPG / PNG / WEBP, up to 10 MB. Changing it is an edit, so on a rejected gig it sends it back to `pending` (like saving it); on an approved one the status stays. **Select a real JPG / PNG / WEBP file by hand in the Postman app** (a shared collection cannot carry file paths, so under Newman this is a 400). Do not set Content-Type yourself.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 with a picture selected, 400 without (Newman has no file)', () => pm.expect(pm.response.code).to.be.oneOf([200, 400]));",
+                  "if (pm.response.code === 200) { pm.test('pending again, with the picture', () => { const b = pm.response.json(); pm.expect(b.status).to.eql('pending'); pm.expect(b.image_url).to.be.a('string'); }); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Save the rejected gig — this is the resubmit",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/{{gig_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                "{{gig_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Home cleaning with a checklist and photos.\",\n  \"note\": \"Added details.\"\n}"
+            },
+            "description": "There is no Resubmit button: saving a rejected / changes-requested gig sends it back to `pending`, at the top of the admin's pending gig list. A `note` sent now is the seller's message to the reviewer.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('pending again', () => pm.expect(pm.response.json().status).to.eql('pending'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin step] The pending gig list shows it",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/gigs/requests/?search=Postman&limit=5",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "gigs",
+                "requests",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Postman"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('the gig is in the list', () => pm.expect(pm.response.json().results.map(r => String(r.id))).to.include(pm.collectionVariables.get('gig_id')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin step] Read the info change log",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/gigs/{{gig_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "gigs",
+                "{{gig_id}}",
+                ""
+              ]
+            },
+            "description": "Package changes (price type, descriptions) and the thumbnail are in `info_change_logs`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('package change is logged', () => pm.expect(pm.response.json().info_change_logs.some(l => l.changed_fields.includes('skus'))).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove the gig thumbnail",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/{{gig_id}}/thumbnail/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                "{{gig_id}}",
+                "thumbnail",
+                ""
+              ]
+            },
+            "description": "`204`; the file is deleted.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sellers cannot delete a gig (expect 405)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/{{gig_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                "{{gig_id}}",
+                ""
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 405', () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin step] Delete the demo gig",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/gigs/{{gig_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "gigs",
+                "{{gig_id}}",
+                ""
+              ]
+            },
+            "description": "Soft delete; its thumbnail file is removed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A deleted gig is gone for the seller (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/gigs/{{gig_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "gigs",
+                "{{gig_id}}",
+                ""
+              ]
+            },
             "auth": {
               "type": "bearer",
               "bearer": [
