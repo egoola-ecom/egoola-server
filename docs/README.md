@@ -76,12 +76,15 @@ Columns: **Overview** is plain language for everyone. **Technical guide** has wh
 
 | Feature | Overview | Technical guide | Postman | Smoke test | Database |
 |---|---|---|---|---|---|
-| **Listings, everything in plain words** (admin and seller: statuses, who can do what, the same-title rule, the pending list, change history) | **[`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md)** | — | — | — | — |
-| **Listings, start here (technical)**: how a listing relates to categories, brands, attributes, SKUs, owners and locations; how to create every kind; the seller's part (section 13) | [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md) | [`listing-complete-guide.md`](listing-complete-guide.md) | `Egoola-Listing`, `Egoola-Attribute` | `listing_smoke.sh`, `sku_smoke.py` | `listings`, `listingPriceTiers`, `listingMedia` |
-| **Seller listings**: create, list, see and edit my listings (every kind through one endpoint), the lookups for the form, Bangla fields | [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md) | [`seller-api-guide.md`](seller-api-guide.md) section 6 | **`Egoola-SellerApp`** → **Seller listings** | `seller_listing_smoke.sh` | `listings`, `listingStatusChangeLogs`, `listingInfoChangeLogs` |
-| Listing endpoints and **moderation** (approve / reject / request changes, bulk, history), the **pending list** (cursor), the info change log | [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md) | [`listing-module-guide.md`](listing-module-guide.md) (section 9 = what the seller feature added) | `Egoola-Listing` | `listing_smoke.sh`, `seller_listing_smoke.sh`, `e2e_smoke.sh` | `listings`, `listingStatusChangeLogs`, `listingInfoChangeLogs` |
+| **Listings, everything in plain words** (products and **gigs**: statuses, who can do what, the same-title rule, the pending list, change history, the thumbnail; gigs = section 12) | **[`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md)** | — | — | — | — |
+| **Listings, start here (technical)**: how a product relates to categories, brands, attributes, SKUs, owners and locations; how to create every kind; the seller's part (section 13); **gigs** (section 14); the **thumbnail** (section 15) | [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md) | [`listing-complete-guide.md`](listing-complete-guide.md) | `Egoola-Listing`, `Egoola-Attribute` | `listing_smoke.sh`, `sku_smoke.py` | `listings`, `listingPriceTiers`, `listingMedia` |
+| **Seller listings (products)**: create, list, see and edit my products (every product format through one endpoint), the lookups for the form, Bangla fields | [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md) | [`seller-api-guide.md`](seller-api-guide.md) section 6 | **`Egoola-SellerApp`** → **Seller listings** | `seller_listing_smoke.sh` | `listings`, `listingStatusChangeLogs`, `listingInfoChangeLogs` |
+| **Gigs, admin**: create, update, list, details, delete, the pending gig list, bulk moderation; packages (one SKU per price type) | [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md) §12 | [`listing-complete-guide.md`](listing-complete-guide.md) section 14 | `Egoola-Listing` → **Gigs** | `gig_smoke.py` | `listings`, `listingSkus` |
+| **Seller gigs**: create, list, see and edit my gigs | [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md) §12 | [`listing-complete-guide.md`](listing-complete-guide.md) section 14.5, [`seller-api-guide.md`](seller-api-guide.md) section 6b | **`Egoola-SellerApp`** → **Seller gigs** | `seller_gig_smoke.py` | `listings`, `listingSkus` |
+| **Thumbnail** of a product or a gig (own upload / replace / delete endpoints, admin and seller) | [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md) §4.1, [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md) §12 | [`listing-complete-guide.md`](listing-complete-guide.md) section 15 | `Egoola-Listing` → **Thumbnails**, `Egoola-SellerApp` → **Seller listings / gigs** | `gig_smoke.py`, `seller_gig_smoke.py` | `listings` (`imagePath`, `imageUrl`) |
+| Listing endpoints and **moderation** (approve / reject / request changes, bulk, history), the **pending list** (cursor), the info change log | [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md) | [`listing-module-guide.md`](listing-module-guide.md) (section 9 = what the seller feature added, 9.5 = thumbnail and gigs) | `Egoola-Listing` | `listing_smoke.sh`, `seller_listing_smoke.sh`, `e2e_smoke.sh` | `listings`, `listingStatusChangeLogs`, `listingInfoChangeLogs` |
 | Brands | — | [`listing-module-guide.md`](listing-module-guide.md) | `Egoola-Listing` | `brand_smoke.sh` | `brands` |
-| Attributes, attribute values and listing SKUs (sizes, colours, own price / discount / stock) | — | [`attribute-sku-guide.md`](attribute-sku-guide.md) | `Egoola-Attribute` | `sku_smoke.py` | `attributes`, `attributeValues`, `listingSkus`, `listingSkuVariants` |
+| Attributes, attribute values and listing SKUs (sizes, colours, own price / discount / stock; section 8 = gig SKUs) | — | [`attribute-sku-guide.md`](attribute-sku-guide.md) | `Egoola-Attribute` | `sku_smoke.py` | `attributes`, `attributeValues`, `listingSkus`, `listingSkuVariants` |
 
 ### 3.5 Content
 
@@ -93,7 +96,7 @@ Columns: **Overview** is plain language for everyone. **Technical guide** has wh
 
 - Admin dashboard data (counts, charts, recent activity).
 - Financial oversight: withdrawal requests, refunds, commission settings.
-- Freelance gigs and bids, seller orders, wallet and withdrawals (Phase 3, next rows).
+- Hire requests on a gig (accept, decline, deliver), the job board and bidding, seller orders, wallet and withdrawals (Phase 3, next rows). Gigs themselves (create, manage, price, thumbnail) are built.
 - Everything for buyers beyond account management (browsing, cart, checkout, orders, messages, reviews: Phase 4).
 - Email / phone code checks (OTP), notifications to sellers, forgot password.
 
@@ -109,11 +112,11 @@ All are in `postman/`. Import `Egoola-Local.postman_environment.json` first.
 |---|---|---|
 | `Egoola.postman_collection.json` | Admin | Auth for every actor, Admins, Sellers (basic), Buyers |
 | `Egoola-Seller.postman_collection.json` | Admin | Seller management, Seller Request queue, review, approve / reject / pause / suspend, change history |
-| `Egoola-SellerApp.postman_collection.json` | **Seller-facing** | Public lookups, sign-up, seller login, own profile, documents, change password, resubmit, **listings and the listing lookups**. (Requests named **[Admin step]** play the admin so you can see what a seller sees.) |
+| `Egoola-SellerApp.postman_collection.json` | **Seller-facing** | Public lookups, sign-up, seller login, own profile, documents, change password, resubmit, **product listings and the listing lookups**, **gigs**, thumbnails. (Requests named **[Admin step]** play the admin so you can see what a seller sees.) |
 | `Egoola-Geography.postman_collection.json` | Admin | Country, state, city, thana |
 | `Egoola-Category.postman_collection.json` | Admin | Category tree |
 | `Egoola-Measurement.postman_collection.json` | Admin | Measurements |
-| `Egoola-Listing.postman_collection.json` | Admin | Listings (Bangla fields, pending list, status and info history), brands, moderation |
+| `Egoola-Listing.postman_collection.json` | Admin | Listings (products and jobs: Bangla fields, pending list, status and info history), brands, moderation, **Gigs** (create, update, list, details, delete, pending list, bulk moderation), **Thumbnails** |
 | `Egoola-Attribute.postman_collection.json` | Admin | Attributes, values, listing SKUs |
 | `Egoola-CMS.postman_collection.json` | Admin | Banners, email templates, settings, site logo |
 | `openapi.json` | — | **Old snapshot. Do not use.** |
@@ -130,14 +133,16 @@ Start the server, then run `scripts/smoke/run_all.sh` for everything, or one scr
 | `e2e_smoke.sh` | Seller approval, listing moderation, buyer management, a second admin, banner update, plus the shared rules (notes, location, passwords) |
 | `admin_smoke.sh` | Admin management |
 | `buyer_smoke.sh` | Buyer management |
-| `listing_smoke.sh` | Listings: CRUD, moderation, price tiers, media, soft delete, bulk |
+| `listing_smoke.sh` | Listings (products, job requests): CRUD, moderation, price tiers, media, soft delete, bulk |
+| `gig_smoke.py` | Admin gigs: packages (price type), the rules, edit, list and filters, the pending gig list, bulk moderation, the product / gig / job separation, the thumbnail on listings and gigs |
+| `seller_gig_smoke.py` | The seller gig API and thumbnail: always pending, the product / gig split, packages, the same-title rule per type, approve / reject / fix, thumbnail resubmission |
 | `brand_smoke.sh` | Brands and their rules |
 | `sku_smoke.py` | Attributes, values, SKUs, category delete protection |
 | `cms_smoke.sh` | Banners, email templates, settings, logo |
 | `seller_onboarding_smoke.sh` | Seller sign-up with documents and the admin Seller Request queue |
 | `seller_self_smoke.sh` | The seller's own API, phone login, profile change log, files removed from storage |
 | `public_geography_smoke.sh` | Public location lists |
-| `seller_listing_smoke.sh` | The seller listing API and lookups, the same-title rule, the pending list, approve / reject / fix, the info change log, Bangla fields, file limits, files removed from storage |
+| `seller_listing_smoke.sh` | The seller product API and lookups, the same-title rule, the pending list, approve / reject / fix, the info change log, Bangla fields, file limits, files removed from storage |
 
 Web screen tests (frontend repo): `egoola-web/docs/admin-smoke-tests.md`.
 
@@ -149,6 +154,7 @@ Web screen tests (frontend repo): `egoola-web/docs/admin-smoke-tests.md`.
 |---|---|---|
 | Backend set-up | [`../README.md`](../README.md) | Run the backend locally |
 | Frontend work brief | [`frontend-handoff-prompt.md`](frontend-handoff-prompt.md) | Tasks and rules for the web session |
+| Frontend brief: Listings / Gigs panels, packages, thumbnail | [`frontend-gigs-thumbnail-prompt.md`](frontend-gigs-thumbnail-prompt.md) | The complete prompt to hand to the web session for the gig change (Task H) |
 | Knowledge Brief, Phase Tracker, Rebuild Guideline, DB Re-Design, migration documents | `egoola-document/` (sibling repo; it has its own README and rules) | Platform overview, task status, architecture, the new database, data migration |
 | Team rules | `CLAUDE.md` in the root and in each repo | How the five sessions work together |
 
@@ -162,6 +168,8 @@ Web screen tests (frontend repo): `egoola-web/docs/admin-smoke-tests.md`.
 - Location: state must belong to the country, city to the state, thana to the city (any level may be left out).
 - A rejection or change request on a seller or listing needs a note.
 - Prices, discounts and stock are on **SKUs**, not on the listing. Every listing has at least one SKU; hide a SKU with `is_active: false` (SKUs are never deleted).
+- **Product, gig and job are separate kinds with separate endpoints** (`/catalog/listings/` + `/seller/listings/`, `/catalog/gigs/` + `/seller/gigs/`; jobs stay on `/catalog/listings/` for now). A row of the other kind is `404`; `catalog_type` and `posted_by_role` cannot change after creation.
+- **A gig is priced by packages**: one SKU per `price_type` (`hourly`, `daily`, `weekly`, `monthly`, `fixed`) (the rate); the buyer chooses the duration when ordering (it is kept on the order item, with `total`, `subtotal` and the order's `payable`). No options, stock, brand or quantity prices on a gig. The thumbnail is a separate `PUT` / `DELETE .../thumbnail/`.
 - Lists are paginated with `?limit=` / `?offset=` (default 20, max 100). The exception is the Seller Request queue, which uses **cursor** pagination (follow `next` / `previous`, no `count`).
 
 ---
@@ -172,6 +180,7 @@ Web screen tests (frontend repo): `egoola-web/docs/admin-smoke-tests.md`.
 |---|---|
 | A seller rule or flow | `Egoola_Seller_Guide.md` (plain words) **and** the matching technical guide, Postman collection and smoke test |
 | A listing rule or flow | `Egoola_Listing_Guide.md` (plain words) **and** `listing-complete-guide.md`, `listing-module-guide.md` / `seller-api-guide.md`, the Postman collection and smoke test |
+| A gig or thumbnail rule or flow | `Egoola_Listing_Guide.md` §12 (plain words) **and** `listing-complete-guide.md` sections 14–15, `seller-api-guide.md` section 6b, `attribute-sku-guide.md` section 8, the Postman collections and `gig_smoke.py` / `seller_gig_smoke.py` |
 | An API endpoint | The feature's technical guide, its Postman collection, its smoke test |
 | A table or column | `egoola-document/database/Egolola DB Re-Design.docx` (the table's section) |
 | Added a guide, collection or script | This file |
