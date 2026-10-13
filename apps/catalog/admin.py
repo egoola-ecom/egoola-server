@@ -74,8 +74,8 @@ class ListingSkuVariantInline(admin.TabularInline):
 
 @admin.register(ListingSku)
 class ListingSkuAdmin(admin.ModelAdmin):
-    list_display = ("id", "listing", "sku", "price", "discounted_price", "stock_qty", "is_active")
-    list_filter = ("is_active",)
+    list_display = ("id", "listing", "sku", "price_type", "price", "discounted_price", "stock_qty", "is_active")
+    list_filter = ("is_active", "price_type")
     search_fields = ("sku", "listing__title")
     inlines = [ListingSkuVariantInline]
 
@@ -87,8 +87,8 @@ class ListingMediaInline(admin.TabularInline):
 
 @admin.register(Listing)
 class ListingAdmin(admin.ModelAdmin):
-    list_display = ("id", "title", "catalog_type", "listing_type", "seller", "buyer", "status")
-    list_filter = ("catalog_type", "listing_type", "status")
+    list_display = ("id", "title", "catalog_type", "posted_by_role", "listing_type", "seller", "buyer", "status")
+    list_filter = ("catalog_type", "posted_by_role", "listing_type", "status")
     search_fields = ("title", "slug", "description")
     inlines = [ListingSkuInline, ListingPriceTierInline, ListingMediaInline]
 
