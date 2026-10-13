@@ -542,3 +542,54 @@ All test data was removed afterwards.
 - Show `note` as the current reason, and `status_change_logs` as the timeline.
 - `listing_type = brand` → mark the Brand dropdown as required.
 - Attribute / Color / Origin dropdowns are not available yet.
+
+---
+
+## 9. Added for seller listings (reference)
+
+Sellers can now create and manage their own listings (see [listing-complete-guide.md](listing-complete-guide.md) section 13 and
+[seller-api-guide.md](seller-api-guide.md) section 6). What that added to the admin side:
+
+### 9.1 Database changes (`listings` and a new log table)
+
+| Column / table | What |
+|---|---|
+| `listings.titleBn`, `descriptionBn`, `originBn`, `warrantyBn`, `packageIncludesBn`, `conditionNoteBn` | optional Bangla versions of the text fields |
+| `listings.requestedAt` | when the listing joined the pending list (a seller created it, or it went back to `pending`). `null` for admin-created approved listings |
+| constraint `unique_listing_title_per_seller` | one live listing per `(seller, lower(title))`; ignores deleted listings and listings with no seller |
+| index `listings_pending_queue_idx` | `(status, -requestedAt)`, for the pending list |
+| `listingInfoChangeLogs` | `listingId`, `changedFields`, `previousData`, `newData`, `createdBy`, `creatorType`, `creatorName`, `createdAt`. Append-only |
+
+`requestedAt` of listings that were already `pending` was set to their creation time by the migration.
+
+### 9.2 Behaviour that changed on the admin endpoints
+
+- **Bangla fields** are accepted and returned by `POST` / `PATCH /listings/`.
+- **Title rule:** a seller cannot have two live listings with the same title (case and extra spaces ignored). `400` `{"title": ["This seller already has a listing with this title. Update that listing instead. (listing #123)"]}`.
+- **`requested_at`** is read only, set when a listing becomes `pending` (created as pending, or moved to `pending`).
+- **`info_change_logs`** on the detail: every content change by a seller or an admin, before and after (not stock). Status changes stay in `status_change_logs`.
+- **Filters** on `GET /listings/`: added `created_from`, `created_to`, `requested_from`, `requested_to`; `search` also matches `title_bn`. Rows have `title_bn` and `requested_at`.
+- **`media_delete_ids`** now also deletes the file from storage.
+
+### 9.3 The pending list — `GET /listings/requests/`
+
+Admin only. `status = pending`, newest request first (`-requested_at`), **cursor pagination** (`next` / `previous`, no `count`). Same filters as the list,
+plus `ordering` (`requested_at`, `created_at`, `title`, `id`). Row shape = the list row.
+
+```json
+{ "next": "http://127.0.0.1:8000/api/v1/catalog/listings/requests/?cursor=cD0y...&limit=20", "previous": null,
+  "results": [ { "id": 503, "title": "Smoke Probe Tee", "title_bn": "...", "status": "pending",
+                 "requested_at": "2026-10-12T09:06:51.782805+06:00", "seller": 312, "...": "..." } ] }
+```
+
+### 9.4 Seller endpoints in one table
+
+| Call | Notes |
+|---|---|
+| `POST /seller/listings/` | always `pending`; owner is the seller |
+| `GET /seller/listings/`, `GET /seller/listings/{id}/` | only the seller's own |
+| `PATCH` / `PUT /seller/listings/{id}/` | `rejected` / `changes_requested` -> `pending`; `approved` and `pending` keep their status |
+| `GET /seller/lookups/{categories,brands,measurements,attributes}/` | active items only |
+| `DELETE` | not allowed |
+
+All need a verified and active seller. Details and examples: [seller-api-guide.md](seller-api-guide.md) section 6.
