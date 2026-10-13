@@ -41,7 +41,10 @@ class CartItem(AuditedModel):
         "catalog.ListingSku", on_delete=models.CASCADE, null=True, blank=True, related_name="cart_items",
         db_column="listingSkuId",
     )
-    qty = models.IntegerField()
+    # Null for a gig: a gig has no quantity; the buyer chooses how many price-type
+    # units (hours, days, ...) instead (`duration`). A product always has a qty.
+    qty = models.IntegerField(null=True, blank=True)
+    duration = models.PositiveIntegerField(null=True, blank=True)
     color = models.CharField(max_length=100, null=True, blank=True)
     size = models.CharField(max_length=100, null=True, blank=True)
 
@@ -114,10 +117,16 @@ class Order(AuditedModel):
     )
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.PENDING)
 
+    # Sum of the items' amounts. `total` is before any product discount (original
+    # prices), `subtotal` after it (the prices actually charged), so the product
+    # discount is `total - subtotal`. `discount` is an extra order-level discount
+    # (a coupon, for example). `payable` is what the buyer actually has to pay:
+    # `subtotal + deliveryCost - discount`.
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
     delivery_cost = models.DecimalField(db_column="deliveryCost", max_digits=12, decimal_places=2, default=0)
     discount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2)
+    payable = models.DecimalField(max_digits=12, decimal_places=2)
     commission_rate = models.DecimalField(db_column="commissionRate", max_digits=5, decimal_places=2)
     commission_amount = models.DecimalField(db_column="commissionAmount", max_digits=12, decimal_places=2)
 
@@ -135,27 +144,29 @@ class Order(AuditedModel):
 
 
 class OrderItem(AuditedModel):
-    class Status(models.TextChoices):
-        PENDING = "pending", "Pending"
-        SHIPPED = "shipped", "Shipped"
-        DELIVERED = "delivered", "Delivered"
-
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items", db_column="orderId")
     listing = models.ForeignKey(
         "catalog.Listing", on_delete=models.PROTECT, related_name="order_items", db_column="listingId"
     )
-    # The exact SKU bought (the colour/size text below stays as a snapshot).
+    # The exact SKU bought: its options (size, colour) are the variants of this SKU.
     listing_sku = models.ForeignKey(
         "catalog.ListingSku", on_delete=models.PROTECT, null=True, blank=True, related_name="order_items",
         db_column="listingSkuId",
     )
     title_snapshot = models.CharField(db_column="titleSnapshot", max_length=255)
+    # The original unit price (product) or rate (gig) when it was ordered.
     price_snapshot = models.DecimalField(db_column="priceSnapshot", max_digits=12, decimal_places=2)
-    qty = models.IntegerField()
-    color = models.CharField(max_length=100, null=True, blank=True)
-    size = models.CharField(max_length=100, null=True, blank=True)
-    status = models.CharField(max_length=10, choices=Status.choices, null=True, blank=True)
+    # Gig only: what the rate was for (hourly, daily, weekly, monthly or fixed).
+    price_type_snapshot = models.CharField(db_column="priceTypeSnapshot", max_length=10, null=True, blank=True)
+    # Product: how many. Null for a gig.
+    qty = models.IntegerField(null=True, blank=True)
+    # Gig: how many price-type units the buyer chose (3 with hourly = 3 hours). Null for a product.
+    duration = models.PositiveIntegerField(null=True, blank=True)
     deliverable_path = models.CharField(db_column="deliverablePath", max_length=255, null=True, blank=True)
+    # The line amount with the original price: price x qty (product) or rate x duration (gig).
+    total = models.DecimalField(max_digits=12, decimal_places=2)
+    # The same with the price actually charged (the discounted price while a discount runs, else the
+    # normal price).
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
 
     class Meta:
