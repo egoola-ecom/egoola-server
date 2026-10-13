@@ -3,6 +3,10 @@
 How to sell one product in many sizes, colours or other options, where each
 combination has its own price, discount and stock.
 
+> **This guide is about product SKUs (options such as size and colour).** A **gig** (a seller's service offer) is priced by SKUs too, but they
+> are *packages*: one per price type (hourly, daily, weekly, monthly, fixed), and no options or stock. See section 8 and
+> [`listing-complete-guide.md`](listing-complete-guide.md) section 14.
+
 Admin-only. Header on every request: `Authorization: Bearer <admin access token>`.
 A seller or buyer token gets `403`, no token gets `401`.
 Lists are paginated: `?limit=` / `?offset=` (default 20, max 100).
@@ -23,8 +27,8 @@ are in its **Listing SKUs** folder). Listings in general: [listing-module-guide.
 So a panjabi in 4 sizes and 3 colours is **one listing with 12 SKUs**, and each
 SKU has two variants (one Size, one Colour).
 
-- A listing with no options (a simple product, a service, a job request) has **exactly one
-  SKU with no variants**.
+- A listing with no options (a simple product, a job request) has **exactly one
+  SKU with no variants**. A gig has one SKU per price type, never with variants.
 - Price, discount and stock are on the **SKU**, not on the listing.
 - A SKU is **never deleted**. To hide one, set `is_active` to `false`. The frontend should
   skip inactive SKUs.
@@ -131,9 +135,10 @@ SKUs are sent inside the listing: `skus` on `POST` / `PATCH /api/v1/catalog/list
 | price | original price, **required for a new SKU**, cannot be negative |
 | discounted_price | price while the discount runs. Not sent or `null` → equals `price`. Cannot be higher than `price` |
 | discount_start_date, discount_end_date | optional. The discount only applies between them (empty = no limit on that side) |
-| stock_qty | optional, cannot be negative. Empty = stock is not tracked (e.g. services) |
+| stock_qty | optional, cannot be negative. Empty = stock is not tracked (gigs and jobs). A gig SKU must leave it empty |
 | is_active | default `true` |
 | variants | list of `{ "attribute": <id>, "attribute_value": <id> }`, one per attribute. Empty for a listing with no options |
+| price_type, description, description_bn | **gig SKUs only** (section 8). On a product SKU they are `400` (`"Only for gigs."`) |
 | *(read only)* | `reserved_qty` (starts at 0, kept by the order flow later), `effective_price`, `is_discount_active`, and on each variant `attribute_name` / `attribute_value_name` |
 
 `effective_price` is the price a buyer pays **right now**: the discounted price while the
@@ -185,7 +190,7 @@ On **create only**, if you send a plain `price` and no `skus`, one default SKU i
   "price": "100.00", "discounted_price": "80.00", "stock_qty": 7, "sku": "CHG-20W" }
 ```
 The shortcut accepts `price`, `discounted_price`, `discount_start_date`, `discount_end_date`,
-`stock_qty` and `sku`. It cannot be sent together with `skus`, and it is rejected on update.
+`stock_qty` and `sku` (and `price_type` for a gig or a job). It cannot be sent together with `skus`, and it is rejected on update.
 
 ### 4.2 Update SKUs — merge by id, never delete
 
@@ -288,3 +293,26 @@ colour and size text columns stay as a snapshot of what was bought.
 - Postman `Egoola-Attribute.postman_collection.json`: 98 assertions, 0 failed (it can be run again and again; it leaves a few
   deactivated attributes behind because soft-deleted listings keep their SKUs).
 - All other smoke suites and Postman collections were re-run after the change and pass.
+
+## 8. Gig SKUs (packages)
+
+A gig is a service offer (`/catalog/gigs/`, `/seller/gigs/`). It uses the same SKU table, but each SKU is a **package** (a way of charging),
+not an option combination:
+
+| | Product SKU | Gig SKU |
+|---|---|---|
+| `price_type` | empty (`400` if sent) | **required**: `hourly`, `daily`, `weekly`, `monthly`, `fixed` |
+| `price` | the price | the **rate** for that price type. A SKU has **no duration**: the buyer chooses it when ordering (`orderItems.duration`) and pays the rate times it |
+| `description`, `description_bn` | empty (`400` if sent) | optional text about the package |
+| `variants` | the options (attribute + value), same attributes on every SKU | **must be empty** |
+| `stock_qty` | optional | **must be empty** |
+| uniqueness | no two SKUs with the same combination of options | **no two SKUs with the same `price_type`** (hidden SKUs count; also a database rule) |
+
+Attributes and values are not used by gigs. Everything else (discounts and windows, `sku` codes, merge-by-id on update, hide with `is_active: false`,
+all-or-nothing) works as in section 4. Errors, examples and the endpoints: [`listing-complete-guide.md`](listing-complete-guide.md) section 14.
+
+## 9. What changed in the database for gigs
+
+`listingSkus` gained `priceType`, `description`, `descriptionBn` and the constraint `unique_sku_price_type_per_listing` (listing + price type,
+where the price type is set). `listings.priceType` and `listings.hourlyRate` were removed (migration `catalog 0013`); their values moved onto the SKUs
+(`catalog 0012`). Orders (`orders 0003`): `cartItems.qty` and `orderItems.qty` became optional, `cartItems` and `orderItems` gained `duration` (the gig duration the buyer chooses), `orderItems` gained `priceTypeSnapshot` and `total` and lost `color`, `size` and `status`, and `orders` gained `payable` (see [`listing-complete-guide.md`](listing-complete-guide.md) section 14.7).
