@@ -489,7 +489,7 @@ Please do not promise these to sellers yet.
 - **Seller changing their own email or phone.**
 - **"Forgot password"** by the seller. For now, an admin sets a new password.
 - **Checking each document separately** (for example, accept the NID but ask for a new certificate). Today the decision is for the whole seller.
-- **Some seller features** are still being built: orders, the wallet and withdrawals. **Listings are ready** (see the Egoola Listing Guide): only sellers who are **Verified and Active** can use them. A seller who cannot operate sees a clear message that says whether they are "not approved yet" or "inactive".
+- **Some seller features** are still being built: orders, the wallet and withdrawals. **Products and gigs are ready** (see the Egoola Listing Guide, which has a Gigs section): only sellers who are **Verified and Active** can use them. A seller who cannot operate sees a clear message that says whether they are "not approved yet" or "inactive".
 - **A limit on how often someone can send the sign-up form** (to stop misuse). This will be added before launch.
 
 ---
