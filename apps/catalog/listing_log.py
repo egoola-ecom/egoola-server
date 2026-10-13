@@ -8,9 +8,10 @@ the things that really changed (nothing is written when nothing changed). The
 same code serves the seller's own edits and an admin's edits.
 
 Tracked: the text fields and their Bangla versions, category, brand, measurement,
-owner, location, service details, `attributes`, and three groups shown as whole
-lists: `price_tiers`, `skus` (prices, discount windows, active flag, options; NOT
-stock or reserved quantity, which change all the time) and `media`.
+owner, location, service details, `attributes`, the thumbnail, and three groups
+shown as whole lists: `price_tiers`, `skus` (prices, discount windows, active
+flag, options, and for a gig the price type and descriptions; NOT stock
+or reserved quantity, which change all the time) and `media`.
 Not tracked: status and note (see ListingStatusChangeLog), slug, stock.
 """
 
@@ -23,7 +24,7 @@ SIMPLE_FIELDS = (
     "catalog_type", "listing_type", "posted_by_role",
     "title", "title_bn", "description", "description_bn",
     "model", "origin", "origin_bn", "warranty", "warranty_bn", "currency",
-    "price_type", "hourly_rate", "delivery_days", "urgent",
+    "delivery_days", "urgent",
     "package_includes", "package_includes_bn", "available_from", "available_to",
     "min_order_qty", "condition_note", "condition_note_bn", "attributes",
 )
@@ -71,10 +72,13 @@ def snapshot(listing):
             "price": _plain(sku.price), "discounted_price": _plain(sku.discounted_price),
             "discount_start_date": _plain(sku.discount_start_date), "discount_end_date": _plain(sku.discount_end_date),
             "is_active": sku.is_active,
+            "price_type": sku.price_type,
+            "description": sku.description, "description_bn": sku.description_bn,
             "options": sorted(f"{v.attribute.name}: {v.attribute_value.name}" for v in sku.variants.all()),
         }
         for sku in skus
     ]
+    data["thumbnail"] = listing.image_url
     data["media"] = [
         {"id": media.id, "media_type": media.media_type, "media_url": media.media_url}
         for media in ListingMedia.objects.filter(listing=listing).order_by("id")

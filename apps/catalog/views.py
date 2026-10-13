@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 from django.db import transaction
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, Q
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from django_filters.rest_framework import DjangoFilterBackend
@@ -14,7 +14,9 @@ from apps.core.models import ActorType
 from apps.core.mixins import AuditedViewSetMixin
 from apps.core.pagination import DefaultCursorPagination
 
-from .filters import ListingFilter
+from config.storage import delete_upload
+
+from .filters import GigFilter, ListingFilter
 from .models import Attribute, AttributeValue, Brand, Category, Listing, ListingStatusChangeLog, Measurement
 from .serializers import (
     AttributeSerializer,
@@ -22,10 +24,13 @@ from .serializers import (
     BrandSerializer,
     CategoryBriefSerializer,
     CategorySerializer,
+    GigListSerializer,
+    GigSerializer,
     ListingListSerializer,
     ListingSerializer,
     MeasurementSerializer,
 )
+from .thumbnail import ThumbnailViewSetMixin
 
 
 class _InUseDeleteMixin:
@@ -284,12 +289,13 @@ class AttributeValueViewSet(
         return queryset
 
 
-class ListingViewSet(AuditedViewSetMixin, viewsets.ModelViewSet):
-    """Admin Listing Management & Moderation. Price tiers, media, and
-    status-change history are handled through this same API (see
-    ListingSerializer) — there's no separate /listings/{id}/media/ or
-    /listings/{id}/price-tiers/ endpoint, same approach as Seller
-    Management.
+class _AdminListingViewSet(ThumbnailViewSetMixin, AuditedViewSetMixin, viewsets.ModelViewSet):
+    """Admin Listing Management & Moderation, shared by the product and the gig
+    endpoints. Each subclass names the rows it may touch (`scope`) and its
+    serializers; a row of another kind is a 404 there. Price tiers, media,
+    SKUs and status-change history are handled through this same API (see
+    ListingSerializer) — there's no separate media or price-tiers endpoint,
+    same approach as Seller Management. The thumbnail has its own endpoint.
 
     Delete is soft: destroy() stamps deleted_at instead of removing the
     row, and Listing's default manager (ActiveListingManager) already
@@ -298,26 +304,30 @@ class ListingViewSet(AuditedViewSetMixin, viewsets.ModelViewSet):
     here."""
 
     permission_classes = [IsAdminActor]
-    filterset_class = ListingFilter
-    search_fields = ["title", "title_bn", "brand__name", "model", "skus__sku"]
+    scope = Q()
+    serializer_class = ListingSerializer
+    list_serializer_class = ListingListSerializer
     # Used only by the pending list's OrderingFilter (below).
     ordering_fields = ["requested_at", "created_at", "title", "id"]
     ordering = ["-requested_at", "-id"]
 
     def get_serializer_class(self):
-        return ListingListSerializer if self.action in ("list", "listing_requests") else ListingSerializer
+        if self.action in ("list", "listing_requests"):
+            return self.list_serializer_class
+        return self.serializer_class
 
     def get_queryset(self):
+        rows = Listing.objects.filter(self.scope)
         if self.action == "list":
-            return Listing.objects.select_related("category", "brand", "seller", "buyer").prefetch_related("skus")
-        if self.action in ("update", "partial_update"):
+            return rows.select_related("category", "brand", "seller", "buyer").prefetch_related("skus")
+        if self.action in ("update", "partial_update", "thumbnail"):
             # Lock the row for the whole save (see SellerListingViewSet).
-            return Listing.objects.select_for_update(of=("self",))
+            return rows.select_for_update(of=("self",))
         if self.action == "listing_requests":
-            return Listing.objects.filter(status=Listing.Status.PENDING).select_related(
+            return rows.filter(status=Listing.Status.PENDING).select_related(
                 "category", "brand", "seller", "buyer"
             ).prefetch_related("skus")
-        return Listing.objects.select_related(
+        return rows.select_related(
             "category", "brand", "seller", "buyer", "measurement", "country", "state", "city", "thana"
         ).prefetch_related(
             "price_tiers", "media", "status_change_logs", "info_change_logs",
@@ -336,7 +346,7 @@ class ListingViewSet(AuditedViewSetMixin, viewsets.ModelViewSet):
         filter_backends=[DjangoFilterBackend, SearchFilter, OrderingFilter],
     )
     def listing_requests(self, request):
-        """GET /listings/requests/ — the admin's pending list: listings waiting
+        """GET .../requests/ — the admin's pending list: listings waiting
         for a decision (status `pending`), newest request first, cursor-paged
         (follow `next` / `previous`; no `count`). Same filters as the list."""
         queryset = self.filter_queryset(self.get_queryset())
@@ -347,16 +357,24 @@ class ListingViewSet(AuditedViewSetMixin, viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         actor = request.user
+        old_thumbnail = instance.image_path
         instance.deleted_at = timezone.now()
+        instance.image_path = None  # the thumbnail file goes with the listing
+        instance.image_url = None
         instance.updated_by = getattr(actor, "id", None)
         instance.updater_type = getattr(actor, "actor_type", ActorType.SYSTEM)
         instance.updater_name = getattr(actor, "name", None)
-        instance.save(update_fields=["deleted_at", "updated_by", "updater_type", "updater_name", "updated_at"])
+        with transaction.atomic():
+            instance.save(update_fields=[
+                "deleted_at", "image_path", "image_url", "updated_by", "updater_type", "updater_name", "updated_at",
+            ])
+            if old_thumbnail:
+                transaction.on_commit(lambda: delete_upload(old_thumbnail))
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=["post"], url_path="bulk-moderate")
     def bulk_moderate(self, request):
-        """POST /listings/bulk-moderate/
+        """POST .../bulk-moderate/
         {"listing_ids": [1, 2, 3], "status": "approved", "note": "..."}
 
         Applies one status to many listings in one call (an admin
@@ -396,7 +414,7 @@ class ListingViewSet(AuditedViewSetMixin, viewsets.ModelViewSet):
         # All-or-nothing: a failure part-way must not leave some listings
         # moderated without their history row.
         with transaction.atomic():
-            found = {listing.id: listing for listing in Listing.objects.filter(id__in=listing_ids)}
+            found = {listing.id: listing for listing in Listing.objects.filter(self.scope, id__in=listing_ids)}
             # Request order, each id once; unknown / deleted ids drop out.
             for listing in (found[i] for i in dict.fromkeys(listing_ids) if i in found):
                 if listing.status == new_status:
@@ -425,3 +443,27 @@ class ListingViewSet(AuditedViewSetMixin, viewsets.ModelViewSet):
                 updated_ids.append(listing.id)
 
         return Response({"updated": updated_ids, "skipped": skipped_ids})
+
+
+class ListingViewSet(_AdminListingViewSet):
+    """Admin products (`/catalog/listings/`). Until the Job step is built it also
+    manages a buyer's job requests (a service with `posted_by_role = buyer_request`).
+    A seller's service offer is a gig and lives on `/catalog/gigs/`: it is not
+    visible here (404)."""
+
+    scope = Q(catalog_type=Listing.CatalogType.PRODUCT) | Q(posted_by_role=Listing.PostedByRole.BUYER_REQUEST)
+    filterset_class = ListingFilter
+    search_fields = ["title", "title_bn", "brand__name", "model", "skus__sku"]
+
+
+class GigViewSet(_AdminListingViewSet):
+    """Admin gigs (`/catalog/gigs/`): a seller's service offer. Create, update,
+    list, details and delete, plus the pending list, bulk moderation and the
+    thumbnail. Priced by SKUs, one per price type (hourly, daily, weekly,
+    monthly, fixed)."""
+
+    scope = Q(catalog_type=Listing.CatalogType.SERVICE, posted_by_role=Listing.PostedByRole.SELLER_OFFER)
+    serializer_class = GigSerializer
+    list_serializer_class = GigListSerializer
+    filterset_class = GigFilter
+    search_fields = ["title", "title_bn", "skus__sku"]
