@@ -344,6 +344,8 @@ These actions are open to every seller who is **not suspended**, whatever their 
 
 **Rules for documents**
 
+- **Before the seller is Verified** (just joined, pending, or rejected), they can change **any** document, including the
+  NID. This is how a rejected seller fixes their application.
 - There must **always be at least one NID**. A seller cannot delete their only NID. To change it, they
   upload the new NID and remove the old one in the same step.
 - After the seller is **Verified**, the **NID and birth certificate are locked**. The seller cannot add,
@@ -487,7 +489,7 @@ Please do not promise these to sellers yet.
 - **Seller changing their own email or phone.**
 - **"Forgot password"** by the seller. For now, an admin sets a new password.
 - **Checking each document separately** (for example, accept the NID but ask for a new certificate). Today the decision is for the whole seller.
-- **Seller features** such as adding products and services, orders, the wallet and withdrawals. They are being built step by step. When they are ready, only sellers who are **Verified and Active** will be able to use them. A seller who cannot operate will see a clear message that says whether they are "not approved yet" or "inactive".
+- **Some seller features** are still being built: orders, the wallet and withdrawals. **Listings are ready** (see the Egoola Listing Guide): only sellers who are **Verified and Active** can use them. A seller who cannot operate sees a clear message that says whether they are "not approved yet" or "inactive".
 - **A limit on how often someone can send the sign-up form** (to stop misuse). This will be added before launch.
 
 ---
