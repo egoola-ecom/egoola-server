@@ -1,5 +1,6 @@
 """
-The seller's own listing endpoints (`/api/v1/seller/listings/`) and the read-only
+The seller's own listing endpoints (`/api/v1/seller/listings/` for products,
+`/api/v1/seller/gigs/` for gigs) and the read-only
 lookups a seller needs to fill the listing form (`/api/v1/seller/lookups/...`).
 
 Only a seller who can operate (verified AND active) may use them — see
@@ -8,6 +9,7 @@ listings. There is no delete: only an admin can delete a listing.
 """
 
 from django.db import transaction
+from django.db.models import Q
 from rest_framework import mixins, serializers, viewsets
 from rest_framework.filters import OrderingFilter, SearchFilter
 
@@ -17,12 +19,19 @@ from apps.authentication.permissions import IsActiveVerifiedSellerActor
 from apps.core.mixins import AuditedViewSetMixin
 from apps.core.pagination import LargeListPagination
 
-from .filters import SellerListingFilter
+from .filters import SellerGigFilter, SellerListingFilter
 from .models import Attribute, AttributeValue, Brand, Category, Listing, Measurement
-from .serializers import SellerListingListSerializer, SellerListingSerializer
+from .serializers import (
+    SellerGigListSerializer,
+    SellerGigSerializer,
+    SellerListingListSerializer,
+    SellerListingSerializer,
+)
+from .thumbnail import ThumbnailViewSetMixin
 
 
-class SellerListingViewSet(
+class _SellerListingBaseViewSet(
+    ThumbnailViewSetMixin,
     AuditedViewSetMixin,
     mixins.CreateModelMixin,
     mixins.RetrieveModelMixin,
@@ -30,30 +39,36 @@ class SellerListingViewSet(
     mixins.ListModelMixin,
     viewsets.GenericViewSet,
 ):
-    """Create, list, see and edit my listings. (No delete.)
+    """Create, list, see and edit my listings (products or gigs, see the two
+    subclasses). No delete.
 
     Create: always `pending`, owned by the logged-in seller. Edit (PATCH / PUT):
     a `rejected` or `changes_requested` listing goes back to `pending`; an
-    `approved` or `pending` listing keeps its status. See SellerListingSerializer."""
+    `approved` or `pending` listing keeps its status. The thumbnail has its own
+    endpoint and follows the same rule. See SellerListingMixin."""
 
     permission_classes = [IsActiveVerifiedSellerActor]
-    filterset_class = SellerListingFilter
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    search_fields = ["title", "title_bn", "skus__sku", "brand__name"]
     ordering_fields = ["created_at", "updated_at", "requested_at", "title", "status", "id"]
     ordering = ["-created_at", "-id"]
+    thumbnail_resubmits = True
+
+    # What the subclass decides: the rows it may touch and its serializers.
+    scope = Q()
+    serializer_class = None
+    list_serializer_class = None
 
     def get_serializer_class(self):
-        return SellerListingListSerializer if self.action == "list" else SellerListingSerializer
+        return self.list_serializer_class if self.action == "list" else self.serializer_class
 
     def update(self, request, *args, **kwargs):
         with transaction.atomic():
             return super().update(request, *args, **kwargs)
 
     def get_queryset(self):
-        # Always limited to the logged-in seller's own, non-deleted listings.
-        queryset = Listing.objects.filter(seller=self.request.user)
-        if self.action in ("update", "partial_update"):
+        # Always limited to the logged-in seller's own, non-deleted listings of this kind.
+        queryset = Listing.objects.filter(self.scope, seller=self.request.user)
+        if self.action in ("update", "partial_update", "thumbnail"):
             # Lock the row for the whole save, so an admin's decision made at the
             # same moment cannot be overwritten by this (older) copy of the listing.
             return queryset.select_for_update(of=("self",))
@@ -64,6 +79,28 @@ class SellerListingViewSet(
         ).prefetch_related(
             "price_tiers", "media", "status_change_logs", "skus__variants__attribute", "skus__variants__attribute_value"
         )
+
+
+class SellerListingViewSet(_SellerListingBaseViewSet):
+    """My products (`/seller/listings/`). My gigs are on `/seller/gigs/`; a gig id
+    here is a 404."""
+
+    scope = Q(catalog_type=Listing.CatalogType.PRODUCT)
+    serializer_class = SellerListingSerializer
+    list_serializer_class = SellerListingListSerializer
+    filterset_class = SellerListingFilter
+    search_fields = ["title", "title_bn", "skus__sku", "brand__name"]
+
+
+class SellerGigViewSet(_SellerListingBaseViewSet):
+    """My gigs (`/seller/gigs/`): service offers, priced by SKUs (one per price
+    type). A product id here is a 404."""
+
+    scope = Q(catalog_type=Listing.CatalogType.SERVICE, posted_by_role=Listing.PostedByRole.SELLER_OFFER)
+    serializer_class = SellerGigSerializer
+    list_serializer_class = SellerGigListSerializer
+    filterset_class = SellerGigFilter
+    search_fields = ["title", "title_bn", "skus__sku"]
 
 
 # ------------------------------------------------------------------ lookups

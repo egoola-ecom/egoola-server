@@ -9,6 +9,7 @@ from apps.core.location import LocationConsistencyMixin
 from apps.core.models import ActorType
 from config.storage import infer_media_type, save_upload
 
+from . import kinds
 from .listing_log import record_listing_changes, snapshot
 from .models import (
     Attribute,
@@ -347,7 +348,8 @@ class ListingSkuSerializer(serializers.ModelSerializer):
         model = ListingSku
         fields = [
             "id", "sku", "price", "discounted_price", "discount_start_date", "discount_end_date",
-            "effective_price", "is_discount_active", "stock_qty", "reserved_qty", "is_active", "variants",
+            "effective_price", "is_discount_active", "stock_qty", "reserved_qty", "is_active",
+            "price_type", "description", "description_bn", "variants",
         ]
         read_only_fields = ["reserved_qty"]
         extra_kwargs = {
@@ -355,6 +357,9 @@ class ListingSkuSerializer(serializers.ModelSerializer):
             "price": {"required": False, "min_value": 0},
             "discounted_price": {"required": False, "allow_null": True, "min_value": 0},
             "stock_qty": {"min_value": 0},
+            "price_type": {"required": False, "allow_null": True},
+            "description": {"required": False, "allow_null": True, "allow_blank": True},
+            "description_bn": {"required": False, "allow_null": True, "allow_blank": True},
         }
 
     def get_effective_price(self, obj):
@@ -366,12 +371,15 @@ class ListingSkuSerializer(serializers.ModelSerializer):
 
 SKU_SHORTCUT_FIELDS = (
     "price", "discounted_price", "discount_start_date", "discount_end_date", "stock_qty", "sku",
-)
+    "price_type",
+)  # (A SKU's own `description` / `description_bn` go through `skus`: the listing has fields of the same name.)
 
 
 def _cheapest_sku(listing):
     """The active SKU with the lowest price right now — what a listing page
-    shows as "from ...". Uses prefetched SKUs when available."""
+    shows as "from ...". For a gig this is the lowest rate; `price_type` says
+    what the rate is for (an hour, a day, a week, a month, or a fixed price).
+    Uses prefetched SKUs when available."""
     active = [sku for sku in listing.skus.all() if sku.is_active]
     return min(active, key=lambda sku: (sku.effective_price(), sku.price)) if active else None
 
@@ -389,6 +397,10 @@ class ListingFromPriceMixin:
         sku = _cheapest_sku(obj)
         return str(sku.effective_price()) if sku else None
 
+    def get_price_type(self, obj):
+        sku = _cheapest_sku(obj)
+        return sku.price_type if sku else None
+
 
 class ListingListSerializer(ListingFromPriceMixin, serializers.ModelSerializer):
     """List page — basic information only (see CategoryBriefSerializer)."""
@@ -399,9 +411,25 @@ class ListingListSerializer(ListingFromPriceMixin, serializers.ModelSerializer):
     class Meta:
         model = Listing
         fields = [
-            "id", "title", "title_bn", "slug", "catalog_type", "listing_type",
-            "category", "brand", "seller", "buyer", "price", "discounted_price", "status",
+            "id", "title", "title_bn", "slug", "catalog_type", "listing_type", "posted_by_role",
+            "category", "brand", "seller", "buyer", "price", "discounted_price", "image_url", "status",
             "requested_at", "created_at",
+        ]
+
+
+class GigListSerializer(ListingFromPriceMixin, serializers.ModelSerializer):
+    """The gig list: `price` / `discounted_price` / `price_type` are those of the
+    package with the lowest rate (see _cheapest_sku)."""
+
+    price = serializers.SerializerMethodField()
+    discounted_price = serializers.SerializerMethodField()
+    price_type = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Listing
+        fields = [
+            "id", "title", "title_bn", "slug", "category", "seller", "price", "discounted_price",
+            "price_type", "image_url", "status", "requested_at", "created_at",
         ]
 
 
@@ -444,14 +472,23 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
     # What the error says when the seller already has a listing with this title.
     duplicate_title_message = "This seller already has a listing with this title. Update that listing instead."
 
+    # Which kind of listing this serializer handles (apps.catalog.kinds): `gig`
+    # or `product` fix `catalog_type` / `posted_by_role` themselves; `None` is
+    # the admin's listing endpoint, which takes products and (for now) jobs.
+    scope = None
+    # Fields that belong to another kind of listing and are left out of this
+    # serializer's `Meta.fields`; sending one is a 400 (see to_internal_value).
+    foreign_fields = ()
+
     class Meta:
         model = Listing
         fields = [
             "id", "seller", "buyer", "category", "catalog_type", "listing_type", "posted_by_role",
             "title", "title_bn", "slug", "description", "description_bn",
+            "image_path", "image_url",
             "brand", "brand_name", "model", "origin", "origin_bn", "warranty", "warranty_bn",
             "price", "discounted_price", "currency", "skus",
-            "price_type", "hourly_rate", "delivery_days", "urgent",
+            "delivery_days", "urgent",
             "package_includes", "package_includes_bn",
             "available_from", "available_to",
             "min_order_qty", "measurement",
@@ -462,9 +499,8 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
             "status_change_logs", "info_change_logs",
             "created_at", "updated_at",
         ]
-        read_only_fields = ["slug", "requested_at", "created_at", "updated_at"]
+        read_only_fields = ["slug", "image_path", "image_url", "requested_at", "created_at", "updated_at"]
         extra_kwargs = {
-            "hourly_rate": {"min_value": 0},
             "delivery_days": {"min_value": 0},
             "min_order_qty": {"min_value": 1},
         }
@@ -472,6 +508,15 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
     # ---- input: the create-time price shortcut --------------------------------
 
     def to_internal_value(self, data):
+        # Fields of another kind are not part of this serializer at all (a gig has
+        # no brand), so DRF would drop them silently: refuse them instead.
+        errors = {
+            field: "Not available here."
+            for field in self.foreign_fields
+            if field in data and data.get(field) not in (None, "", [], {}, False)
+        }
+        if errors:
+            raise serializers.ValidationError(errors)
         shortcut = {key: data[key] for key in SKU_SHORTCUT_FIELDS if key in data}
         validated = super().to_internal_value(data)
         if shortcut:
@@ -592,9 +637,31 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
                     item_errors["variants"] = f"'{attribute.name}: {value.name}' is inactive."
                     break
 
+            price_type = item["price_type"] if "price_type" in item else getattr(current, "price_type", None)
+            kind = self._kind
+            if kind == kinds.PRODUCT:
+                for field in kinds.GIG_SKU_FIELDS:
+                    if item.get(field) not in (None, ""):
+                        item_errors[field] = "Only for gigs."
+            else:
+                if kind == kinds.GIG:
+                    if price_type is None:
+                        item_errors["price_type"] = "This field is required for a gig SKU."
+                    if item.get("stock_qty") is not None:
+                        item_errors["stock_qty"] = "A gig has no stock."
+                    if variants:
+                        item_errors["variants"] = "A gig SKU has no options."
+                else:
+                    for field in ("description", "description_bn"):
+                        if item.get(field) not in (None, ""):
+                            item_errors[field] = "Only for gigs."
+
             if item_errors:
                 errors[index] = item_errors
-            merged.append({**item, "_existing": current, "_variants": variants, "_price": price, "_discounted": discounted})
+            merged.append({
+                **item, "_existing": current, "_variants": variants, "_price": price, "_discounted": discounted,
+                "_price_type": price_type,
+            })
 
         if errors:
             raise serializers.ValidationError({"skus": errors})
@@ -607,6 +674,15 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
         for sku_id, sku in existing.items():
             if sku_id not in seen_ids:
                 final.append([{"attribute": v.attribute, "attribute_value": v.attribute_value} for v in sku.variants.all()])
+        if self._kind == kinds.GIG:
+            # A gig is priced by price type: one SKU for each (hourly, daily, ...), no options.
+            types = [entry["_price_type"] for entry in merged]
+            types += [sku.price_type for sku_id, sku in existing.items() if sku_id not in seen_ids and sku.price_type]
+            if len(set(types)) != len(types):
+                raise serializers.ValidationError(
+                    {"skus": "Every gig SKU needs its own price type (two SKUs have the same one)."}
+                )
+            return merged
         combos = [frozenset((v["attribute"].id, v["attribute_value"].id) for v in variants) for variants in final]
         if len(set(combos)) != len(combos):
             raise serializers.ValidationError(
@@ -619,9 +695,64 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
             )
         return merged
 
+    def _apply_scope(self, attrs):
+        """Fixes (or checks) which kind of listing this is, rejects the fields
+        that belong to another kind, and remembers the kind for the SKU checks."""
+        instance = self.instance
+        forced = {}
+        if self.scope == kinds.GIG:
+            forced = {
+                "catalog_type": Listing.CatalogType.SERVICE,
+                "posted_by_role": Listing.PostedByRole.SELLER_OFFER,
+            }
+        elif self.scope == kinds.PRODUCT:
+            forced = {"catalog_type": Listing.CatalogType.PRODUCT}
+        for field, value in forced.items():
+            if field in attrs and attrs[field] != value:
+                raise serializers.ValidationError(
+                    {field: f"This endpoint only handles {self.scope}s: this field must be '{value}'."}
+                )
+            attrs[field] = value
+        if instance is not None:
+            for field in ("catalog_type", "posted_by_role"):
+                if field in attrs and attrs[field] != getattr(instance, field):
+                    raise serializers.ValidationError({field: "Cannot be changed after the listing is created."})
+
+        catalog_type = attrs.get("catalog_type", getattr(instance, "catalog_type", None))
+        role = attrs.get("posted_by_role", getattr(instance, "posted_by_role", None))
+        if catalog_type == Listing.CatalogType.PRODUCT:
+            if role == Listing.PostedByRole.BUYER_REQUEST:
+                raise serializers.ValidationError({"posted_by_role": "A product cannot be a buyer_request."})
+            kind = kinds.PRODUCT
+        elif role == Listing.PostedByRole.BUYER_REQUEST:
+            kind = kinds.JOB
+        else:
+            kind = kinds.GIG
+        if self.scope is None and kind == kinds.GIG:
+            raise serializers.ValidationError(
+                {"catalog_type": "A seller's service offer is a gig: use the gig endpoints (/catalog/gigs/). "
+                                 "This endpoint handles products and buyer requests."}
+            )
+        self._kind = kind
+
+        # Fields of another kind are refused (an empty value is fine).
+        errors = {}
+        if kind == kinds.PRODUCT:
+            forbidden, message = kinds.SERVICE_ONLY_FIELDS, "Only for gigs and job requests."
+        else:
+            forbidden, message = kinds.PRODUCT_ONLY_FIELDS, f"Not available for a {'gig' if kind == kinds.GIG else 'job request'}."
+        for field in forbidden:
+            if field in attrs and attrs[field] not in (None, "", [], {}, False):
+                errors[field] = message
+        if kind != kinds.PRODUCT and attrs.get("price_tiers"):
+            errors["price_tiers"] = message
+        if errors:
+            raise serializers.ValidationError(errors)
+
     def validate(self, attrs):
         instance = self.instance
         self._check_location(attrs)
+        self._apply_scope(attrs)
         if "skus" in attrs:
             attrs["skus"] = self._validate_skus(attrs["skus"])
         if instance is None and not attrs.get("skus"):
@@ -676,7 +807,10 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
         # the owner is being set.
         title = attrs["title"] if "title" in attrs else getattr(instance, "title", None)
         if seller is not None and title and ("title" in attrs or "seller" in attrs):
-            clash = Listing.objects.filter(seller=seller, title__iexact=title)
+            clash = Listing.objects.filter(
+                seller=seller, title__iexact=title,
+                catalog_type=attrs.get("catalog_type", getattr(instance, "catalog_type", None)),
+            )
             if instance is not None:
                 clash = clash.exclude(pk=instance.pk)
             existing = clash.values_list("id", flat=True).first()
@@ -732,7 +866,7 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
             fields = {
                 key: entry[key]
                 for key in ("sku", "price", "discounted_price", "discount_start_date", "discount_end_date",
-                            "stock_qty", "is_active")
+                            "stock_qty", "is_active", "price_type", "description", "description_bn")
                 if key in entry
             }
             sku = entry["_existing"]
@@ -898,7 +1032,7 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
 
 
 class SellerListingListSerializer(ListingFromPriceMixin, serializers.ModelSerializer):
-    """A seller's own listing list: what they need to see at a glance."""
+    """A seller's own product list: what they need to see at a glance."""
 
     price = serializers.SerializerMethodField()
     discounted_price = serializers.SerializerMethodField()
@@ -907,8 +1041,23 @@ class SellerListingListSerializer(ListingFromPriceMixin, serializers.ModelSerial
         model = Listing
         fields = [
             "id", "title", "title_bn", "slug", "catalog_type", "listing_type",
-            "category", "brand", "price", "discounted_price",
+            "category", "brand", "price", "discounted_price", "image_url",
             "status", "note", "requested_at", "created_at", "updated_at",
+        ]
+
+
+class SellerGigListSerializer(ListingFromPriceMixin, serializers.ModelSerializer):
+    """A seller's own gig list (see GigListSerializer for the price fields)."""
+
+    price = serializers.SerializerMethodField()
+    discounted_price = serializers.SerializerMethodField()
+    price_type = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Listing
+        fields = [
+            "id", "title", "title_bn", "slug", "category", "price", "discounted_price", "price_type",
+            "image_url", "status", "note", "requested_at", "created_at", "updated_at",
         ]
 
 
@@ -931,9 +1080,9 @@ LISTING_MEDIA_MAX_PER_REQUEST = 10
 LISTING_MEDIA_MAX_PER_LISTING = 20
 
 
-class SellerListingSerializer(ListingSerializer):
-    """A seller's own listing (`/seller/listings/`): the same fields an admin
-    uses, with the moderation parts taken away from the seller.
+class SellerListingMixin:
+    """What makes a listing serializer a seller's own (`/seller/listings/`,
+    `/seller/gigs/`): the moderation parts are taken away from the seller.
 
     - The owner is always the logged-in seller and the listing is always a
       `seller_offer`: `seller`, `buyer` and `posted_by_role` are not accepted.
@@ -947,14 +1096,6 @@ class SellerListingSerializer(ListingSerializer):
     - The seller sees the status history but not the info change log."""
 
     duplicate_title_message = "You already have a listing with this title. Update the existing listing instead."
-    status_change_logs = SellerStatusLogSerializer(many=True, read_only=True)
-
-    class Meta(ListingSerializer.Meta):
-        fields = [
-            name for name in ListingSerializer.Meta.fields
-            if name not in ("seller", "buyer", "posted_by_role", "info_change_logs")
-        ]
-        read_only_fields = ListingSerializer.Meta.read_only_fields + ["status"]
 
     def validate_media_file(self, files):
         # Sellers upload through a public-facing form, so the files are limited
@@ -992,9 +1133,63 @@ class SellerListingSerializer(ListingSerializer):
 
     def update(self, instance, validated_data):
         # A listing an admin left as a draft is submitted the same way.
-        if instance.status in (Listing.Status.REJECTED, Listing.Status.CHANGES_REQUESTED, Listing.Status.DRAFT):
+        if instance.status in RESUBMIT_STATUSES:
             validated_data["status"] = Listing.Status.PENDING
             validated_data["note"] = validated_data.get("note") or None
         else:
             validated_data.pop("note", None)
         return super().update(instance, validated_data)
+
+
+# A seller's save sends a listing in one of these statuses back to the admin (`pending`).
+RESUBMIT_STATUSES = (Listing.Status.REJECTED, Listing.Status.CHANGES_REQUESTED, Listing.Status.DRAFT)
+
+_SELLER_HIDDEN_FIELDS = ("seller", "buyer", "posted_by_role", "info_change_logs")
+
+
+class SellerListingSerializer(SellerListingMixin, ListingSerializer):
+    """A seller's own product (`/seller/listings/`). Service fields are not
+    part of a product; a seller's service offer is a gig (SellerGigSerializer)."""
+
+    scope = kinds.PRODUCT
+    foreign_fields = kinds.SERVICE_ONLY_FIELDS
+    status_change_logs = SellerStatusLogSerializer(many=True, read_only=True)
+
+    class Meta(ListingSerializer.Meta):
+        fields = [
+            name for name in ListingSerializer.Meta.fields
+            if name not in _SELLER_HIDDEN_FIELDS and name not in kinds.SERVICE_ONLY_FIELDS
+        ]
+        read_only_fields = ListingSerializer.Meta.read_only_fields + ["status"]
+        extra_kwargs = {**ListingSerializer.Meta.extra_kwargs, "catalog_type": {"required": False}}
+
+
+_GIG_HIDDEN_FIELDS = kinds.PRODUCT_ONLY_FIELDS + ("brand_name", "price_tiers", "buyer")
+
+
+class GigSerializer(ListingSerializer):
+    """The admin's gig (`/catalog/gigs/`): a seller's service offer. It is priced
+    by its SKUs, one per price type (hourly, daily, weekly, monthly, fixed); the
+    buyer chooses the duration when ordering. It has no options, stock, brand or quantity prices. The
+    owner (`seller`) is optional for an admin."""
+
+    scope = kinds.GIG
+    foreign_fields = kinds.PRODUCT_ONLY_FIELDS + ("price_tiers",)
+
+    class Meta(ListingSerializer.Meta):
+        fields = [name for name in ListingSerializer.Meta.fields if name not in _GIG_HIDDEN_FIELDS]
+        extra_kwargs = {
+            **ListingSerializer.Meta.extra_kwargs,
+            "catalog_type": {"required": False},
+            "posted_by_role": {"required": False},
+        }
+
+
+class SellerGigSerializer(SellerListingMixin, GigSerializer):
+    """A seller's own gig (`/seller/gigs/`)."""
+
+    status_change_logs = SellerStatusLogSerializer(many=True, read_only=True)
+
+    class Meta(GigSerializer.Meta):
+        fields = [name for name in GigSerializer.Meta.fields if name not in _SELLER_HIDDEN_FIELDS]
+        read_only_fields = GigSerializer.Meta.read_only_fields + ["status"]
