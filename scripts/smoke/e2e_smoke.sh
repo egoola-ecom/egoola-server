@@ -59,7 +59,8 @@ check "discounted_price defaults to price" "100.00" "$(body "$R" | jget "['disco
 check "1 status log on create" 1 "$(body "$R" | jget "['status_change_logs'].__len__()")"
 R=$(mk "E2E Listing B"); LB=$(body "$R" | jget "['id']")
 R=$(mk "E2E Listing C"); LC=$(body "$R" | jget "['id']")
-R=$(mk "E2E Listing A"); check "same title gets a unique slug" True "$([ "$(body "$R" | jget "['slug']")" == "e2e-listing-a-2" ] && echo True)"; LD=$(body "$R" | jget "['id']")
+check "the same seller cannot reuse a title -> 400" 400 "$(code "$(mk "E2E Listing A")")"
+R=$(req POST /catalog/listings/ '{"category":18,"catalog_type":"product","listing_type":"general","title":"E2E Listing A","description":"d","price":"100.00"}'); check "same title (no seller) gets a unique slug" True "$([ "$(body "$R" | jget "['slug']")" == "e2e-listing-a-2" ] && echo True)"; LD=$(body "$R" | jget "['id']")
 check "reject w/o note -> 400" 400 "$(code "$(req PATCH /catalog/listings/$LA/ '{"status":"rejected"}')")"
 check "changes_requested w/o note -> 400" 400 "$(code "$(req PATCH /catalog/listings/$LA/ '{"status":"changes_requested"}')")"
 R=$(req PATCH /catalog/listings/$LA/ '{"status":"rejected","note":"Photos missing"}')
