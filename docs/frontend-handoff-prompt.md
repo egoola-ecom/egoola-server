@@ -40,6 +40,7 @@ all data comes from `egoola-server` over REST only. Follow the patterns already 
 |---|---|---|
 | Login, tokens, errors, pagination, filters | `frontend-api-guide.md`, `authentication.md` | `Egoola.postman_collection.json` → Auth |
 | **Listings (start here)** | **`listing-complete-guide.md`** (relations, how to create every kind of listing, moderation) and `listing-module-guide.md` (endpoint reference) | `Egoola-Listing.postman_collection.json` |
+| **Gigs (service offers), thumbnails** | **`listing-complete-guide.md`** sections 14–15 (+ plain words: `Egoola_Listing_Guide.md` section 12) | **`Egoola-Listing.postman_collection.json`** → **Gigs**, **Thumbnails** |
 | **Attributes, values, SKUs** | **`attribute-sku-guide.md`** | **`Egoola-Attribute.postman_collection.json`** |
 | Sellers (admin side) + Seller Requests | `seller-verification-guide.md`, `frontend-api-guide.md` §8 | `Egoola-Seller.postman_collection.json` |
 | **Seller-facing APIs** (sign-up, seller login, own profile) | **`seller-api-guide.md`** | **`Egoola-SellerApp.postman_collection.json`** |
@@ -78,6 +79,14 @@ category, cms, geography, listing, measurement.
 
 ## 3. Your tasks, in priority order
 
+### Task H — NEW, do first: separate Listings and Gigs panels, gig packages and the thumbnail (BREAKING backend change)
+
+Product, gig (a seller's service offer) and job (a buyer's request) are now separate kinds with **separate APIs**; `price_type` and `hourly_rate`
+left the listing, a gig is priced by packages (one SKU per price type; the buyer chooses the duration when ordering), and every listing and gig has a
+thumbnail with its own endpoints. **The full brief for this task is [`frontend-gigs-thumbnail-prompt.md`](frontend-gigs-thumbnail-prompt.md): read it
+and follow it** (API contract, the two panels with Product / Service defaults, the packages editor, the thumbnail control, error mapping, tasks and
+the definition of done). Tracker row: Admin Web 10.1.
+
 ### Task A — Update the Listing screens to the new SKU model (BREAKING backend change)
 
 The backend moved **price, discount and stock off the listing onto SKUs**. `src/lib/listing-api.ts`,
@@ -85,7 +94,7 @@ The backend moved **price, discount and stock off the listing onto SKUs**. `src/
 use the old shape and will now misbehave. Read `listing-complete-guide.md` and `attribute-sku-guide.md` first.
 
 What changed:
-- **Removed from the listing:** `price`, `discounted_price` (as writable), `stock_qty`, `reserved_qty`, `color`, `colors`, `sizes`.
+- **Removed from the listing:** `price`, `discounted_price` (as writable), `stock_qty`, `reserved_qty`, `color`, `colors`, `sizes` (and, later, `price_type`, `hourly_rate`: see Task H and `frontend-gigs-thumbnail-prompt.md`).
 - **New on the listing:** `skus` (list). Each SKU: `id`, `sku` (code), `price`, `discounted_price`, `discount_start_date`,
   `discount_end_date`, `stock_qty`, `reserved_qty` (read only), `is_active`, `variants`
   (`[{attribute, attribute_name, attribute_value, attribute_value_name}]`), and read-only `effective_price`, `is_discount_active`.
