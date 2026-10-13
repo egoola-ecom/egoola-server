@@ -13,7 +13,7 @@ section 3 in order.
 2. `D:\egola-ecom\egoola-document\Egoola_Knowledge_Brief.md` — platform overview.
 3. `D:\egola-ecom\egoola-web\CLAUDE.md` and `AGENTS.md` — this repo's conventions. **Next.js here has breaking changes:
    read the relevant guide in `node_modules/next/dist/docs/` before writing code.**
-4. `D:\egola-ecom\egoola-server\docs\README.md` — the index of backend docs and Postman collections (this brief
+4. `D:\egola-ecom\egoola-server\docs\README.md` — the index of every backend document, Postman collection and smoke test (this brief
    uses the same names).
 
 Conventions that matter: admin lives under `admin/` (own login), admin and seller screens keep the current theme/CSS,
@@ -196,6 +196,10 @@ The admin side of sellers is in **`seller-verification-guide.md`** (+ `frontend-
   `verification_status__in`, `has_business_profile`, `business_type`, ...).
 - `inactive` is the account switch: the seller can log in but only edit their profile until an admin sets `active` (a new sign-up, or an approved
   seller an admin paused). It is NOT the same as "not approved" (that is `verification_status`). Only `suspended` sellers cannot log in. Failed logins are `401`. **Sellers now log in with PHONE + password (not email)**: see `seller-api-guide.md` §4.
+
+**Seller documents (screen rule):** unverified / pending / rejected seller = can add, delete and replace ANY document (at least one NID must
+remain; replacing the last NID = delete + upload in one request). Verified seller (active or inactive) = NID and birth_certificate are LOCKED
+(hide their delete/replace buttons); certificate / other stay editable. Admins are never blocked.
 
 **Seller-side screens** (seller panel / Flutter app; do them only when the user asks): public sign-up form (dropdowns from the PUBLIC lists
 `/public/geography/{countries,states,cities,thanas}/`, no token), login (`can_operate`, `verification_status`), own profile `/seller/me/`
