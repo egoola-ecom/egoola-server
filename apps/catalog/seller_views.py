@@ -68,7 +68,7 @@ class _SellerListingBaseViewSet(
     def get_queryset(self):
         # Always limited to the logged-in seller's own, non-deleted listings of this kind.
         queryset = Listing.objects.filter(self.scope, seller=self.request.user)
-        if self.action in ("update", "partial_update", "thumbnail"):
+        if self.action in ("update", "partial_update"):
             # Lock the row for the whole save, so an admin's decision made at the
             # same moment cannot be overwritten by this (older) copy of the listing.
             return queryset.select_for_update(of=("self",))
