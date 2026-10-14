@@ -65,42 +65,44 @@ class ThumbnailViewSetMixin:
             "updater_type": getattr(actor, "actor_type", ActorType.SYSTEM),
             "updater_name": getattr(actor, "name", None),
         }
-        new_path = None
-        with transaction.atomic():
-            listing = self.get_object()
-            before = snapshot(listing)
-            old_path = listing.image_path
-            if request.method == "PUT":
-                serializer = ThumbnailUploadSerializer(data=request.data)
-                serializer.is_valid(raise_exception=True)
-                new_path, listing.image_url = save_upload(serializer.validated_data["image"], "listing", "thumbnails")
-                listing.image_path = new_path
-            else:
-                listing.image_path = None
-                listing.image_url = None
-            changed_fields = ["image_path", "image_url"]
-            for key, value in stamp.items():
-                setattr(listing, key, value)
-            changed_fields += list(stamp)
+        listing = self.get_object()  # 404 / ownership first, so nothing is uploaded for a listing the caller may not touch
+        new_path = new_url = None
+        if request.method == "PUT":
+            serializer = ThumbnailUploadSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            # Upload before taking the row lock: a slow upload must not block a moderation
+            # decision or a seller's save on the same listing.
+            new_path, new_url = save_upload(serializer.validated_data["image"], "listing", "thumbnails")
+        try:
+            with transaction.atomic():
+                listing = type(listing).objects.select_for_update(of=("self",)).get(pk=listing.pk)
+                before = snapshot(listing)
+                old_path = listing.image_path
+                listing.image_path, listing.image_url = new_path, new_url  # both None on DELETE
+                changed_fields = ["image_path", "image_url"]
+                for key, value in stamp.items():
+                    setattr(listing, key, value)
+                changed_fields += list(stamp)
 
-            resubmitted = self.thumbnail_resubmits and listing.status in (
-                Listing.Status.REJECTED, Listing.Status.CHANGES_REQUESTED, Listing.Status.DRAFT
-            )
-            if resubmitted:
-                listing.status = Listing.Status.PENDING
-                listing.note = None
-                listing.requested_at = timezone.now()
-                changed_fields += ["status", "note", "requested_at"]
-            listing.save(update_fields=changed_fields + ["updated_at"])
-            if resubmitted:
-                ListingStatusChangeLog.objects.create(
-                    listing=listing, status=listing.status, note=None,
-                    created_by=stamp["updated_by"], creator_type=stamp["updater_type"],
-                    creator_name=stamp["updater_name"],
-                )
-            record_listing_changes(listing, before, stamp["updated_by"], stamp["updater_type"], stamp["updater_name"])
-            if old_path and old_path != listing.image_path:
-                transaction.on_commit(lambda: delete_upload(old_path))
+                resubmitted = self.thumbnail_resubmits and listing.status in Listing.RESUBMIT_STATUSES
+                if resubmitted:
+                    listing.status = Listing.Status.PENDING
+                    listing.note = None
+                    listing.requested_at = timezone.now()
+                    changed_fields += ["status", "note", "requested_at"]
+                listing.save(update_fields=changed_fields + ["updated_at"])
+                if resubmitted:
+                    ListingStatusChangeLog.objects.create(
+                        listing=listing, status=listing.status, note=None,
+                        created_by=stamp["updated_by"], creator_type=stamp["updater_type"],
+                        creator_name=stamp["updater_name"],
+                    )
+                record_listing_changes(listing, before, stamp["updated_by"], stamp["updater_type"], stamp["updater_name"])
+                if old_path and old_path != listing.image_path:
+                    transaction.on_commit(lambda: delete_upload(old_path))
+        except Exception:
+            delete_upload(new_path)  # the row was not saved: do not leave the new file behind
+            raise
 
         if request.method == "DELETE":
             return Response(status=status.HTTP_204_NO_CONTENT)
