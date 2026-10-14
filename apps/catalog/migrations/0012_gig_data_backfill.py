@@ -11,6 +11,10 @@ def move_price_type_to_skus(apps, schema_editor):
       one), otherwise `fixed`.
     - A gig has at most one SKU per price type and no options, so the other SKUs
       of a gig are hidden (`is_active = false`); nothing is deleted.
+
+    One-way in practice: an hourly service's SKU price is replaced by the old hourly
+    rate (the previous price is not kept), so the reverse step restores the price
+    type and hourly rate but not the old SKU price.
     """
     Listing = apps.get_model("catalog", "Listing")
     ListingSku = apps.get_model("catalog", "ListingSku")

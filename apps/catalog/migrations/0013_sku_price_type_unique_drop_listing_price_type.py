@@ -5,7 +5,10 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     """Step 3 of 3: one SKU per price type on a listing (database rule), the
     same-title rule per type, and the old `priceType` / `hourlyRate` columns
-    leave `listings`."""
+    leave `listings`.
+
+    Reverse caveat: it puts the same-title rule back to "per seller" (all types), so it
+    fails if a seller already has a product and a gig with the same title."""
 
     dependencies = [
         ("catalog", "0012_gig_data_backfill"),
