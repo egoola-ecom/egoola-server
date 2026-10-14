@@ -961,7 +961,7 @@ and the detail.
 - `GET` on this URL is `405`. The id must be of the right kind (a gig id on a product thumbnail endpoint is `404`).
 - Seller rules: only a seller who can operate, only their own listings (`404` otherwise).
 - **It is an edit like any other.** It is written in the info change log (`changed_fields: ["thumbnail"]`, the picture URL before and after).
-  When a **seller** changes it on a `rejected` / `changes_requested` listing, the listing goes back to `pending` at the top of the admin's pending
+  When a **seller** changes it on a `rejected` / `changes_requested` listing (or an admin-made `draft`), the listing goes back to `pending` at the top of the admin's pending
   list, with a status history entry by the seller. On an `approved` or `pending` listing the status stays. An admin's change never changes the status.
 - Deleting a listing or a gig (admin) removes its thumbnail file; the gallery files stay as before.
 - The thumbnail is optional: nothing requires one before approval.

@@ -543,7 +543,7 @@ The Admin token stamps `created_by`, `creator_type` (`admin`) and
 | Review smoke (price / tier / category validation, note rules, bulk order) | 19 / 19 |
 | Attribute / SKU smoke (`scripts/smoke/sku_smoke.py`) | 144 / 144 |
 | Brand + listing changes smoke (brand CRUD, brand rules, discount rules incl. default to price) | 55 / 55 |
-| Gig smoke (`scripts/smoke/gig_smoke.py`: admin gig API, thumbnails, product / gig / job separation) | 157 / 157 |
+| Gig smoke (`scripts/smoke/gig_smoke.py`: admin gig API, thumbnails, product / gig / job separation) | 160 / 160 |
 | Seller gig smoke (`scripts/smoke/seller_gig_smoke.py`) | 99 / 99 |
 | Seller listing smoke (`seller_listing_smoke.sh`, products only) | 221 / 221 |
 | Postman collections | the earlier Newman run (93 assertions) predates the gig change; re-run the collections before relying on them |
