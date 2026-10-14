@@ -271,6 +271,11 @@ check("a job request is not a gig (not on the gig endpoint)", 404, A("GET", f"/c
 check("a job SKU may carry a price type", "hourly", j["skus"][0]["price_type"])
 check("job: product-only field -> 400", 400, A("POST", "/catalog/listings/", dict(job, title="Smoke Gig Job2", brand=1))[0])
 check("job: SKU description -> 400", 400, A("POST", "/catalog/listings/", dict(job, title="Smoke Gig Job3", price=None, skus=[{"price": "5", "description": "x"}]))[0])
+jb = {k: v for k, v in job.items() if k not in ("price", "price_type")}
+r = A("POST", "/catalog/listings/", dict(jb, title="Smoke Gig Job4", skus=[{"price": "5", "price_type": "hourly"}, {"price": "6", "price_type": "hourly"}]))
+check("job: two SKUs with the same price type -> 400 (not a database error)", True, r[0] == 400 and "price type" in json.dumps(r[1]))
+check("a zero in a service-only field on a product is still refused", 400, A("POST", "/catalog/listings/", product("Smoke Gig E25", delivery_days=0))[0])
+check("a zero in a product-only field on a gig is still refused", 400, A("POST", "/catalog/gigs/", gig("Smoke Gig E26", price="5", price_type="daily", min_order_qty=0))[0])
 check("job: category / type cannot change", 400, A("PATCH", f"/catalog/listings/{j['id']}/", {"posted_by_role": "seller_offer"})[0])
 
 print("\n=== Moderation and the pending list ===")
