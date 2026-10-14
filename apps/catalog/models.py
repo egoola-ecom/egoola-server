@@ -111,6 +111,9 @@ class Listing(AuditedModel):
         REJECTED = "rejected", "Rejected"
         CHANGES_REQUESTED = "changes_requested", "Changes Requested"
 
+    # A seller's save (or thumbnail change) sends a listing in one of these statuses back to the admin.
+    RESUBMIT_STATUSES = (Status.REJECTED, Status.CHANGES_REQUESTED, Status.DRAFT)
+
     # Both are optional (an Admin can create a listing owned by neither);
     # when set, at most one of the two is, matching posted_by_role — see
     # the correctness note in DB Redesign doc Section 3.5.
