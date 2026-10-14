@@ -320,7 +320,7 @@ class _AdminListingViewSet(ThumbnailViewSetMixin, AuditedViewSetMixin, viewsets.
         rows = Listing.objects.filter(self.scope)
         if self.action == "list":
             return rows.select_related("category", "brand", "seller", "buyer").prefetch_related("skus")
-        if self.action in ("update", "partial_update", "thumbnail"):
+        if self.action in ("update", "partial_update"):
             # Lock the row for the whole save (see SellerListingViewSet).
             return rows.select_for_update(of=("self",))
         if self.action == "listing_requests":
@@ -414,7 +414,11 @@ class _AdminListingViewSet(ThumbnailViewSetMixin, AuditedViewSetMixin, viewsets.
         # All-or-nothing: a failure part-way must not leave some listings
         # moderated without their history row.
         with transaction.atomic():
-            found = {listing.id: listing for listing in Listing.objects.filter(self.scope, id__in=listing_ids)}
+            # Locked, like a single PATCH, so a seller's save made at the same moment is not decided on a stale status.
+            found = {
+                listing.id: listing
+                for listing in Listing.objects.filter(self.scope, id__in=listing_ids).select_for_update(of=("self",))
+            }
             # Request order, each id once; unknown / deleted ids drop out.
             for listing in (found[i] for i in dict.fromkeys(listing_ids) if i in found):
                 if listing.status == new_status:
