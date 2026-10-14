@@ -279,6 +279,12 @@ class ListingInfoChangeLogSerializer(serializers.ModelSerializer):
         ]
 
 
+def _is_empty(value):
+    """True for "nothing was sent": None, False, "", [] and {}. (Not `0`: a zero
+    is a real value, and `0 == False` would otherwise let it through.)"""
+    return value is None or value is False or (isinstance(value, (str, list, dict)) and not value)
+
+
 def _check_discount(price, discounted_price):
     if price is not None and discounted_price is not None and discounted_price > price:
         raise serializers.ValidationError(
@@ -513,7 +519,7 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
         errors = {
             field: "Not available here."
             for field in self.foreign_fields
-            if field in data and data.get(field) not in (None, "", [], {}, False)
+            if field in data and not _is_empty(data.get(field))
         }
         if errors:
             raise serializers.ValidationError(errors)
@@ -674,15 +680,18 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
         for sku_id, sku in existing.items():
             if sku_id not in seen_ids:
                 final.append([{"attribute": v.attribute, "attribute_value": v.attribute_value} for v in sku.variants.all()])
-        if self._kind == kinds.GIG:
-            # A gig is priced by price type: one SKU for each (hourly, daily, ...), no options.
-            types = [entry["_price_type"] for entry in merged]
+        if self._kind != kinds.PRODUCT:
+            # A listing has at most one SKU per price type (a database rule too): for a gig
+            # this is how it is priced (hourly, daily, ...); a job may set one on its budget SKU.
+            types = [entry["_price_type"] for entry in merged if entry["_price_type"]]
             types += [sku.price_type for sku_id, sku in existing.items() if sku_id not in seen_ids and sku.price_type]
             if len(set(types)) != len(types):
+                who = "gig SKU" if self._kind == kinds.GIG else "SKU of a job request"
                 raise serializers.ValidationError(
-                    {"skus": "Every gig SKU needs its own price type (two SKUs have the same one)."}
+                    {"skus": f"Every {who} needs its own price type (two SKUs have the same one)."}
                 )
-            return merged
+        if self._kind == kinds.GIG:
+            return merged  # a gig has no options: nothing else to compare
         combos = [frozenset((v["attribute"].id, v["attribute_value"].id) for v in variants) for variants in final]
         if len(set(combos)) != len(combos):
             raise serializers.ValidationError(
@@ -742,7 +751,7 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
         else:
             forbidden, message = kinds.PRODUCT_ONLY_FIELDS, f"Not available for a {'gig' if kind == kinds.GIG else 'job request'}."
         for field in forbidden:
-            if field in attrs and attrs[field] not in (None, "", [], {}, False):
+            if field in attrs and not _is_empty(attrs[field]):
                 errors[field] = message
         if kind != kinds.PRODUCT and attrs.get("price_tiers"):
             errors["price_tiers"] = message
@@ -847,6 +856,10 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
         constraint = getattr(getattr(getattr(error, "__cause__", None), "diag", None), "constraint_name", "") or ""
         if constraint == "unique_listing_title_per_seller":
             return serializers.ValidationError({"title": [self.duplicate_title_message]})
+        if constraint == "unique_sku_price_type_per_listing":
+            return serializers.ValidationError(
+                {"skus": ["Every SKU needs its own price type (two SKUs have the same one)."]}
+            )
         if "sku" in constraint.lower():
             return serializers.ValidationError({"skus": ["A SKU code is already in use."]})
         if "slug" in constraint.lower():
@@ -1133,16 +1146,13 @@ class SellerListingMixin:
 
     def update(self, instance, validated_data):
         # A listing an admin left as a draft is submitted the same way.
-        if instance.status in RESUBMIT_STATUSES:
+        if instance.status in Listing.RESUBMIT_STATUSES:
             validated_data["status"] = Listing.Status.PENDING
             validated_data["note"] = validated_data.get("note") or None
         else:
             validated_data.pop("note", None)
         return super().update(instance, validated_data)
 
-
-# A seller's save sends a listing in one of these statuses back to the admin (`pending`).
-RESUBMIT_STATUSES = (Listing.Status.REJECTED, Listing.Status.CHANGES_REQUESTED, Listing.Status.DRAFT)
 
 _SELLER_HIDDEN_FIELDS = ("seller", "buyer", "posted_by_role", "info_change_logs")
 
