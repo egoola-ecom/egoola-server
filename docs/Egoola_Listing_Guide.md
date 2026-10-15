@@ -109,16 +109,18 @@ The seller picks categories, brands, measurements and options from lists that sh
 **What the seller cannot do when creating:** choose the owner, choose the status, create a service (that is a gig) or create a buyer's
 request. The listing is always theirs and always Pending.
 
-### 4.1 The thumbnail
+### 4.1 The thumbnail and the photos
 
-A **thumbnail** is the one cover picture of a product (or a gig), shown in lists. It is different from the photo gallery.
+A **thumbnail** is the one cover picture of a product (or a gig), shown in lists. It is different from the **gallery** (more pictures, videos, PDFs).
 
-- It is added, replaced and removed on its **own**, after the product is saved. It is not part of the create form.
-- Allowed: **JPG, PNG or WEBP**, up to **10 MB**. Other files are refused.
-- Replacing or removing it **deletes the old file** from storage. Deleting the product (admin) removes it too.
+- Saving a product or gig (create or change) sends **text only**. Pictures and videos go through their own step, after the product is saved: **add files** (first time) and **change files** (replace or remove).
+- **Add files:** a thumbnail and/or any number of gallery files. Both are optional; sending nothing is fine.
+- **Change files:** remove the thumbnail, send a new thumbnail (it **replaces** the old one, even if "remove" is not ticked), remove some gallery files, add new ones. Each part works on its own.
+- Thumbnail: **JPG, PNG or WEBP**, up to **10 MB**. Gallery: JPG, PNG, WEBP, GIF, MP4 or PDF; a seller is limited to 10 MB per file, 10 per step and 20 per product.
+- If one file is refused, nothing in that step is saved.
+- Replacing or removing a file **deletes the old file** from storage. Deleting the product (admin) removes the thumbnail too.
 - It is optional. Nothing requires one before approval.
-- **It counts as an edit** (it is written in the change history). When a seller changes the thumbnail of a **rejected** or
-  **changes-requested** product, it goes back to **Pending**, like saving it. On an approved or pending product the status does not change.
+- **It is written in the change history** (admins only), but it **never changes the status**, for a seller or an admin. A rejected product stays rejected after a file change; only saving the product itself sends it back to Pending.
 - An admin can add, replace or remove the thumbnail of any product or gig; that never changes the status.
 
 ---
@@ -361,7 +363,7 @@ removes its thumbnail file.
 ### 12.5 Seller: changing a gig
 
 The same rules as section 7: a **Pending** gig stays Pending; an **Approved** gig stays Approved whatever changes (packages and prices included); a
-**Rejected** or **Changes requested** gig goes back to **Pending** when the seller saves it (or changes its thumbnail). There is no Resubmit button, and a
+**Rejected** or **Changes requested** gig goes back to **Pending** when the seller saves it (changing files does not). There is no Resubmit button, and a
 seller **cannot delete** a gig. They can hide a package, and an admin can delete the whole gig.
 
 ---
@@ -385,7 +387,7 @@ seller **cannot delete** a gig. They can hide a package, and an admin can delete
 | Bangla | Title, description, condition note, warranty, origin (and "package includes" for gigs). All optional. |
 | Change history | Admins only. Stock is not recorded. |
 | Photos | Deleting a photo deletes its file. |
-| Thumbnail | Own add / replace / remove step. JPG, PNG, WEBP, 10 MB. Counts as an edit. Old file deleted. |
+| Thumbnail and photos | Own "add files" and "change files" steps (not in the save form). Thumbnail JPG, PNG, WEBP, 10 MB. Never changes the status. Old files deleted. |
 | Products and gigs | Separate lists, forms and rules. Each place only accepts its own kind. |
 | Gig category | A service category, active. |
 | Gig package | Price type + price (a rate). The price type is required. The buyer chooses the duration when ordering. |
@@ -472,7 +474,7 @@ Please do not promise these to sellers yet.
 - **Restoring** a deleted listing.
 - **Uploading many listings at once.**
 - **Sellers seeing the change history** of their listings.
-- **Creating a listing with its thumbnail in one step.** The thumbnail is added after the listing is saved.
+- **Creating a listing with its files in one step.** Files are added after the listing is saved.
 - **Buyers browsing, buying or hiring a gig** (the buyer side, cart and payment are not built).
 - **The seller's hire requests** (accepting, declining, delivering) and the **job board and bidding**: the next steps.
 - **Different delivery times for each package** (delivery days belongs to the gig).
