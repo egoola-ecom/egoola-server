@@ -323,7 +323,9 @@ class User(AuditedModel):
         SUSPENDED = "suspended", "Suspended"
 
     name = models.CharField(max_length=255)
-    email = models.EmailField(unique=True)
+    # Optional: a buyer signs up with a name, a mobile number and a password.
+    # Several buyers may have no email (NULLs do not collide in the unique index).
+    email = models.EmailField(unique=True, null=True, blank=True)
     phone = models.CharField(max_length=32, unique=True)
     password = models.CharField(max_length=255)
     profile_pic_path = models.CharField(db_column="profilePicPath", max_length=255, null=True, blank=True)
