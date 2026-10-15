@@ -1,12 +1,13 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from .views import AdminLoginView, BuyerLoginView, SellerLoginView, SellerRegisterView
+from .views import AdminLoginView, BuyerLoginView, BuyerRegisterView, SellerLoginView, SellerRegisterView
 
 urlpatterns = [
     path("admin/login/", AdminLoginView.as_view(), name="admin-login"),
     path("seller/login/", SellerLoginView.as_view(), name="seller-login"),
     path("seller/register/", SellerRegisterView.as_view(), name="seller-register"),
+    path("buyer/register/", BuyerRegisterView.as_view(), name="buyer-register"),
     path("buyer/login/", BuyerLoginView.as_view(), name="buyer-login"),
     # SimpleJWT copies every custom claim (actor_type, actor_id) from the
     # refresh token onto the new access token automatically, so one shared

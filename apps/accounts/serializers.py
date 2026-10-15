@@ -1,4 +1,5 @@
 import os
+import re
 
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password as run_password_validators
@@ -723,8 +724,25 @@ class BuyerListSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "email", "phone", "profile_pic_url", "wallet_balance", "status"]
 
 
+class OptionalBuyerEmailMixin:
+    """A buyer's email is optional: an empty value means "no email" (stored as
+    NULL, so two buyers without one do not clash), and a given one must be new
+    (upper / lower case count as the same email, like at login)."""
+
+    def validate_email(self, value):
+        if value in (None, ""):
+            return None
+        clash = User.objects.filter(email__iexact=value)
+        if self.instance is not None:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise serializers.ValidationError("buyer with this email already exists.")
+        return value
+
+
 class UserSerializer(
-    LocationConsistencyMixin, MediaSyncMixin, ProfilePicUploadMixin, PasswordWriteMixin, serializers.ModelSerializer
+    OptionalBuyerEmailMixin, LocationConsistencyMixin, MediaSyncMixin, ProfilePicUploadMixin, PasswordWriteMixin,
+    serializers.ModelSerializer,
 ):
     """Buyer serializer — model is named `User` (see models.py docstring),
     not Django's own auth user."""
@@ -764,3 +782,54 @@ class UserSerializer(
             "profile_pic_path": {"read_only": True},
             "profile_pic_url": {"read_only": True},
         }
+
+
+MOBILE_PATTERN = re.compile(r"^\+?[0-9]{6,15}$")
+
+
+class BuyerRegistrationSerializer(
+    OptionalBuyerEmailMixin, LocationConsistencyMixin, ProfilePicUploadMixin, PasswordWriteMixin,
+    serializers.ModelSerializer,
+):
+    """A buyer signing up by themselves (public endpoint, no login).
+
+    Required: `name`, `phone` (the mobile number, also the login) and `password`.
+    Everything else is optional: `email`, `profile_pic`, `description`, `address_line`,
+    `country` / `state` / `city` / `thana` (one branch of the geography tree) and the
+    free-form `skills`, `experiences`, `interests`, `educations`. The account is active
+    at once and is attributed to the buyer themselves. Status and wallet cannot be sent."""
+
+    password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"})
+    profile_pic = serializers.ImageField(write_only=True, required=False)
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "name", "phone", "password", "email", "profile_pic", "profile_pic_url", "description",
+            "address_line", "country", "state", "city", "thana",
+            "skills", "experiences", "interests", "educations", "status",
+        ]
+        read_only_fields = ["profile_pic_url", "status"]
+        extra_kwargs = {
+            "name": {"required": True, "allow_blank": False},
+            "phone": {"required": True, "validators": []},  # uniqueness is checked in validate_phone
+            "description": {"allow_blank": True},
+            "address_line": {"allow_blank": True},
+        }
+
+    def validate_phone(self, value):
+        phone = re.sub(r"[\s-]", "", value)
+        if not MOBILE_PATTERN.match(phone):
+            raise serializers.ValidationError("Enter a valid mobile number (digits only, may start with +).")
+        if User.objects.filter(phone=phone).exists():
+            raise serializers.ValidationError("buyer with this phone already exists.")
+        return phone
+
+    def create(self, validated_data):
+        validated_data.update(creator_type=ActorType.USER, creator_name=validated_data["name"])
+        buyer = super().create(validated_data)
+        # The buyer is their own creator: their id only exists after the save.
+        buyer.created_by = buyer.pk
+        buyer.save(update_fields=["created_by"])
+        return buyer
+

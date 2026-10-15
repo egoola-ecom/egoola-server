@@ -6,17 +6,20 @@ Buyer log in with email + password, a Seller with phone + password) and which
 `actor_type` claim to stamp on the token it issues.
 """
 
+import re
+
 from django.contrib.auth.hashers import check_password
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import Admin, Seller, User
-from apps.accounts.serializers import SellerRegistrationSerializer
+from apps.accounts.serializers import BuyerRegistrationSerializer, SellerRegistrationSerializer
 from apps.core.models import ActorType
 
 from .tokens import tokens_for_actor
@@ -32,6 +35,20 @@ class SellerLoginInputSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, style={"input_type": "password"})
 
 
+class BuyerLoginInputSerializer(serializers.Serializer):
+    """A buyer logs in with the mobile number they signed up with, or with their
+    email when they gave one: send exactly one of `phone` or `email`."""
+
+    phone = serializers.CharField(required=False)
+    email = serializers.EmailField(required=False)
+    password = serializers.CharField(write_only=True, style={"input_type": "password"})
+
+    def validate(self, attrs):
+        if ("phone" in attrs) == ("email" in attrs):
+            raise serializers.ValidationError({"phone": "Send either phone or email (one of them)."})
+        return attrs
+
+
 class BaseActorLoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []  # logging in is how you get a token, so it never requires one
@@ -43,10 +60,12 @@ class BaseActorLoginView(APIView):
     def post(self, request):
         serializer = self.input_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        identifier = serializer.validated_data[self.login_field]
+        login_field = self.get_login_field(serializer.validated_data)
+        identifier = serializer.validated_data[login_field]
         password = serializer.validated_data["password"]
+        identifier = self.normalize_identifier(login_field, identifier)
 
-        actor = self.actor_model.objects.filter(**{f"{self.login_field}__iexact": identifier}).first()
+        actor = self.actor_model.objects.filter(**{f"{login_field}__iexact": identifier}).first()
         if actor is None or not check_password(password, actor.password):
             # Same error either way — confirming "no such email/phone" to a
             # client would let anyone probe which accounts are registered.
@@ -76,6 +95,12 @@ class BaseActorLoginView(APIView):
         )
 
     invalid_message = "Invalid email or password."
+
+    def get_login_field(self, validated_data):
+        return self.login_field
+
+    def normalize_identifier(self, login_field, identifier):
+        return identifier.strip() if login_field == "phone" else identifier
 
     def get_authenticate_header(self, request):
         # Login has no authenticator, and DRF turns a 401 into a 403 when
@@ -146,5 +171,49 @@ class SellerRegisterView(APIView):
 
 
 class BuyerLoginView(BaseActorLoginView):
+    """A buyer logs in with phone + password, or with email + password."""
+
     actor_model = User
     actor_type = ActorType.USER
+    input_serializer = BuyerLoginInputSerializer
+    invalid_message = "Invalid phone number, email or password."
+
+    def get_login_field(self, validated_data):
+        return "phone" if "phone" in validated_data else "email"
+
+    def normalize_identifier(self, login_field, identifier):
+        # Registration stores the mobile number without spaces or hyphens.
+        return re.sub(r"[\s-]", "", identifier) if login_field == "phone" else identifier
+
+    def extra_login_fields(self, actor):
+        return {"phone": actor.phone}
+
+
+class BuyerRegisterView(APIView):
+    """A buyer signs up by themselves. Public — no token needed.
+
+    Required: `name`, `phone`, `password`; everything else is optional (see
+    BuyerRegistrationSerializer). JSON, or multipart/form-data when a `profile_pic`
+    file is sent. The account is active at once, so the response carries the tokens
+    (the buyer is logged in) and the profile."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+
+    def post(self, request):
+        serializer = BuyerRegistrationSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            buyer = serializer.save()
+        refresh = tokens_for_actor(buyer, ActorType.USER)
+        return Response(
+            {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "actor_type": ActorType.USER,
+                **{key: value for key, value in serializer.data.items() if key != "password"},
+                "message": "Welcome to Egoola. Your account is ready.",
+            },
+            status=status.HTTP_201_CREATED,
+        )
