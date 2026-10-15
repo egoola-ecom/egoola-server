@@ -1,4 +1,3 @@
-import os
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -7,7 +6,7 @@ from rest_framework import serializers
 
 from apps.core.location import LocationConsistencyMixin
 from apps.core.models import ActorType
-from config.storage import infer_media_type, save_upload
+from config.storage import save_upload
 
 from . import kinds
 from .listing_log import record_listing_changes, snapshot
@@ -318,8 +317,8 @@ class ListingPriceTierSerializer(serializers.ModelSerializer):
 
 
 class ListingMediaSerializer(serializers.ModelSerializer):
-    """Read-only — shown on a Listing's detail page. Writes happen through
-    ListingSerializer's media_file/media_delete_ids instead."""
+    """Read-only — shown on a Listing's detail page. Gallery files are written
+    through the listing-files APIs (apps.catalog.listing_files)."""
 
     class Meta:
         model = ListingMedia
@@ -454,10 +453,8 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
     whatever list was sent (including an empty list, which clears them);
     omitting the key on a PATCH leaves existing tiers untouched.
 
-    Media works like accounts' MediaSyncMixin (media_file +
-    media_delete_ids), except there's no `media_for` purpose tag — a
-    Listing's media is a plain gallery, so `media_type` is inferred from each
-    uploaded file via infer_media_type().
+    Files are not handled here: the thumbnail and the gallery (`media`, shown
+    read-only) have their own multipart APIs, see apps.catalog.listing_files.
     """
 
     price = serializers.SerializerMethodField()
@@ -465,12 +462,6 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
     skus = ListingSkuSerializer(many=True, required=False)
     price_tiers = ListingPriceTierSerializer(many=True, required=False)
     media = ListingMediaSerializer(many=True, read_only=True)
-    media_file = serializers.ListField(
-        child=serializers.FileField(), write_only=True, required=False, default=list,
-    )
-    media_delete_ids = serializers.ListField(
-        child=serializers.IntegerField(), write_only=True, required=False, default=list,
-    )
     status_change_logs = ListingStatusChangeLogSerializer(many=True, read_only=True)
     info_change_logs = ListingInfoChangeLogSerializer(many=True, read_only=True)
     brand_name = serializers.CharField(source="brand.name", read_only=True, default=None)
@@ -501,7 +492,7 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
             "condition_note", "condition_note_bn", "attributes",
             "country", "state", "city", "thana",
             "status", "note", "requested_at",
-            "price_tiers", "media", "media_file", "media_delete_ids",
+            "price_tiers", "media",
             "status_change_logs", "info_change_logs",
             "created_at", "updated_at",
         ]
@@ -903,22 +894,10 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
                         attribute_value=variant["attribute_value"], **stamp["create"],
                     )
 
-    def _create_media(self, instance, media_file_list):
-        for uploaded_file in media_file_list:
-            path, url = save_upload(uploaded_file, "listing", str(instance.id))
-            ListingMedia.objects.create(
-                listing=instance,
-                media_type=infer_media_type(uploaded_file),
-                media_path=path,
-                media_url=url,
-            )
-
     @transaction.atomic
     def create(self, validated_data):
         skus_data = validated_data.pop("skus")
         tiers_data = validated_data.pop("price_tiers", None)
-        media_file_list = validated_data.pop("media_file", [])
-        validated_data.pop("media_delete_ids", None)  # nothing to delete yet on create
         stamp = {
             "create": {
                 "created_by": validated_data.get("created_by"),
@@ -959,7 +938,6 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
             raise self._integrity_error(error) or error
         if tiers_data is not None:
             self._save_price_tiers(instance, tiers_data)
-        self._create_media(instance, media_file_list)
 
         ListingStatusChangeLog.objects.create(
             listing=instance,
@@ -975,8 +953,6 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
     def update(self, instance, validated_data):
         skus_data = validated_data.pop("skus", None)
         tiers_data = validated_data.pop("price_tiers", None)
-        media_file_list = validated_data.pop("media_file", [])
-        delete_ids = validated_data.pop("media_delete_ids", [])
         stamp = {
             "create": {
                 "created_by": validated_data.get("updated_by"),
@@ -1023,9 +999,6 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
                 raise self._integrity_error(error) or error
         if tiers_data is not None:
             self._save_price_tiers(instance, tiers_data)
-        if delete_ids:
-            instance.media.filter(id__in=delete_ids).delete()
-        self._create_media(instance, media_file_list)
         record_listing_changes(
             instance, before,
             validated_data.get("updated_by"), validated_data.get("updater_type", ActorType.SYSTEM),
@@ -1083,16 +1056,6 @@ class SellerStatusLogSerializer(serializers.ModelSerializer):
         fields = ["id", "status", "note", "creator_type", "created_at"]
 
 
-# Files a seller may attach to a listing: pictures, a short video or a PDF.
-LISTING_MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".pdf"}
-LISTING_MEDIA_CONTENT_TYPES = {
-    "image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "application/pdf",
-}
-LISTING_MEDIA_MAX_BYTES = 10 * 1024 * 1024
-LISTING_MEDIA_MAX_PER_REQUEST = 10
-LISTING_MEDIA_MAX_PER_LISTING = 20
-
-
 class SellerListingMixin:
     """What makes a listing serializer a seller's own (`/seller/listings/`,
     `/seller/gigs/`): the moderation parts are taken away from the seller.
@@ -1110,34 +1073,7 @@ class SellerListingMixin:
 
     duplicate_title_message = "You already have a listing with this title. Update the existing listing instead."
 
-    def validate_media_file(self, files):
-        # Sellers upload through a public-facing form, so the files are limited
-        # (an admin's uploads are not).
-        if len(files) > LISTING_MEDIA_MAX_PER_REQUEST:
-            raise serializers.ValidationError(f"Upload at most {LISTING_MEDIA_MAX_PER_REQUEST} files at a time.")
-        for uploaded in files:
-            extension = os.path.splitext(uploaded.name)[1].lower()
-            content_type = (uploaded.content_type or "").lower()
-            if extension not in LISTING_MEDIA_EXTENSIONS or content_type not in LISTING_MEDIA_CONTENT_TYPES:
-                raise serializers.ValidationError(
-                    f"{uploaded.name}: only JPG, PNG, WEBP, GIF, MP4 or PDF files are accepted."
-                )
-            if uploaded.size > LISTING_MEDIA_MAX_BYTES:
-                raise serializers.ValidationError(
-                    f"{uploaded.name}: each file must be {LISTING_MEDIA_MAX_BYTES // (1024 * 1024)} MB or smaller."
-                )
-        return files
-
     def validate(self, attrs):
-        new_files = attrs.get("media_file") or []
-        if new_files:
-            keeping = 0
-            if self.instance is not None:
-                keeping = self.instance.media.exclude(id__in=attrs.get("media_delete_ids") or []).count()
-            if keeping + len(new_files) > LISTING_MEDIA_MAX_PER_LISTING:
-                raise serializers.ValidationError(
-                    {"media_file": f"A listing can have at most {LISTING_MEDIA_MAX_PER_LISTING} files."}
-                )
         if self.instance is None:
             attrs["seller"] = self.context["request"].user
             attrs["posted_by_role"] = Listing.PostedByRole.SELLER_OFFER

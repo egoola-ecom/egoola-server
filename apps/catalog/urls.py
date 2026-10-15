@@ -1,4 +1,7 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
+
+from .listing_files import AdminListingFilesView
 
 from .views import (
     AttributeValueViewSet,
@@ -19,4 +22,7 @@ router.register("attribute-values", AttributeValueViewSet, basename="attribute-v
 router.register("listings", ListingViewSet, basename="listing")
 router.register("gigs", GigViewSet, basename="gig")
 
-urlpatterns = router.urls
+urlpatterns = [
+    path("listing-files/<int:listing_id>/", AdminListingFilesView.as_view(), name="listing-files"),
+    *router.urls,
+]

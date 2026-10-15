@@ -7,6 +7,7 @@ from rest_framework import mixins, status, viewsets
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 
 from apps.authentication.permissions import IsAdminActor
@@ -30,7 +31,6 @@ from .serializers import (
     ListingSerializer,
     MeasurementSerializer,
 )
-from .thumbnail import ThumbnailViewSetMixin
 
 
 class _InUseDeleteMixin:
@@ -289,13 +289,14 @@ class AttributeValueViewSet(
         return queryset
 
 
-class _AdminListingViewSet(ThumbnailViewSetMixin, AuditedViewSetMixin, viewsets.ModelViewSet):
+class _AdminListingViewSet(AuditedViewSetMixin, viewsets.ModelViewSet):
     """Admin Listing Management & Moderation, shared by the product and the gig
     endpoints. Each subclass names the rows it may touch (`scope`) and its
     serializers; a row of another kind is a 404 there. Price tiers, media,
     SKUs and status-change history are handled through this same API (see
     ListingSerializer) — there's no separate media or price-tiers endpoint,
-    same approach as Seller Management. The thumbnail has its own endpoint.
+    same approach as Seller Management. JSON only: pictures and videos
+    have their own APIs (apps.catalog.listing_files).
 
     Delete is soft: destroy() stamps deleted_at instead of removing the
     row, and Listing's default manager (ActiveListingManager) already
@@ -304,6 +305,7 @@ class _AdminListingViewSet(ThumbnailViewSetMixin, AuditedViewSetMixin, viewsets.
     here."""
 
     permission_classes = [IsAdminActor]
+    parser_classes = [JSONParser]
     scope = Q()
     serializer_class = ListingSerializer
     list_serializer_class = ListingListSerializer
