@@ -4038,28 +4038,31 @@
           ]
         },
         {
-          "name": "Upload a picture to my listing (multipart)",
+          "name": "Add files to my listing (POST, multipart)",
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/",
+              "raw": "{{base_url}}/seller/listing-files/{{listing_id}}/",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "api",
-                "v1",
                 "seller",
-                "listings",
+                "listing-files",
                 "{{listing_id}}",
                 ""
               ]
             },
-            "description": "Allowed: JPG, PNG, WEBP, GIF, MP4, PDF; 10 MB each; at most 10 per request and 20 per listing. **Pick a JPG, PNG, WEBP or PDF file for each `media_file` row in the Postman app** — a shared collection can't carry file paths, so under Newman these file rows are empty and the request fails with 400.",
+            "description": "A product or gig id of mine (`404` for anyone else's). `thumbnail` optional (`400` if one exists: use PATCH); `media_file` repeated, optional. Gallery limits for a seller: JPG, PNG, WEBP, GIF, MP4, PDF; 10 MB each, 10 per request, 20 per listing. **Select real files by hand in the Postman app** (a shared collection cannot carry file paths; under Newman the file parts are simply absent). Do not set Content-Type yourself.",
             "body": {
               "mode": "formdata",
               "formdata": [
+                {
+                  "key": "thumbnail",
+                  "type": "file",
+                  "src": []
+                },
                 {
                   "key": "media_file",
                   "type": "file",
@@ -4084,40 +4087,103 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test(\"one file\", () => { pm.expect(pm.response.json().media.length).to.eql(1); });",
-                  "if (pm.response.code < 300) { pm.collectionVariables.set('listing_media_id', String(pm.response.json().media[0].id)); }"
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([201, 400]));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Delete that picture",
+          "name": "Change files of my listing (PATCH, multipart)",
           "request": {
             "method": "PATCH",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/",
+              "raw": "{{base_url}}/seller/listing-files/{{listing_id}}/",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "api",
-                "v1",
                 "seller",
-                "listings",
+                "listing-files",
                 "{{listing_id}}",
                 ""
               ]
             },
-            "description": "Remove files with `media_delete_ids`. The file is deleted from storage straight away.",
+            "description": "Independent parts: a new `thumbnail` replaces the old; `remove_thumbnail=true` alone removes; `remove_media_ids` removes gallery files, `media_file` adds. It never changes the status. **Select real files by hand in the Postman app** (a shared collection cannot carry file paths; under Newman the file parts are simply absent). Do not set Content-Type yourself.",
             "body": {
               "mode": "formdata",
               "formdata": [
                 {
-                  "key": "media_delete_ids",
-                  "value": "{{listing_media_id}}",
+                  "key": "remove_thumbnail",
+                  "value": "false",
+                  "type": "text"
+                },
+                {
+                  "key": "thumbnail",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "remove_media_ids",
+                  "value": "1",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "media_file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200, 400]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove the thumbnail of my listing",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/seller/listing-files/{{listing_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "seller",
+                "listing-files",
+                "{{listing_id}}",
+                ""
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "remove_thumbnail",
+                  "value": "true",
                   "type": "text"
                 }
               ]
@@ -4139,107 +4205,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test(\"none left\", () => { pm.expect(pm.response.json().media.length).to.eql(0); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Set the thumbnail of my listing (multipart)",
-          "request": {
-            "method": "PUT",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/thumbnail/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "seller",
-                "listings",
-                "{{listing_id}}",
-                "thumbnail",
-                ""
-              ]
-            },
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "image",
-                  "type": "file",
-                  "src": []
-                }
-              ]
-            },
-            "description": "The cover picture has its own endpoint (not part of create or edit): multipart field `image`, JPG / PNG / WEBP, up to 10 MB. The old file is deleted. It counts as an edit: on a rejected / changes-requested listing it sends it back to `pending`. **Select a real JPG / PNG / WEBP file by hand in the Postman app** (a shared collection cannot carry file paths, so under Newman this is a 400). Do not set Content-Type yourself.",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{own_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200 with a picture selected, 400 without (Newman has no file)', () => pm.expect(pm.response.code).to.be.oneOf([200, 400]));",
-                  "if (pm.response.code === 200) { pm.test('thumbnail returned', () => pm.expect(pm.response.json().image_url).to.be.a('string').and.not.empty); }"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Remove the thumbnail of my listing",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/seller/listings/{{listing_id}}/thumbnail/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "seller",
-                "listings",
-                "{{listing_id}}",
-                "thumbnail",
-                ""
-              ]
-            },
-            "description": "`204`; the file is deleted.",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{own_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
                 ]
               }
             }
@@ -5165,36 +5131,38 @@
           ]
         },
         {
-          "name": "Set the gig thumbnail (multipart) — a rejected gig goes back to pending",
+          "name": "Change the gig files (multipart) — the status does not change",
           "request": {
-            "method": "PUT",
+            "method": "PATCH",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/seller/gigs/{{gig_id}}/thumbnail/",
+              "raw": "{{base_url}}/seller/listing-files/{{gig_id}}/",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "api",
-                "v1",
                 "seller",
-                "gigs",
+                "listing-files",
                 "{{gig_id}}",
-                "thumbnail",
                 ""
               ]
             },
+            "description": "Changing files never changes the status (a rejected gig stays rejected; only saving the gig resubmits it). **Select real files by hand in the Postman app** (a shared collection cannot carry file paths; under Newman the file parts are simply absent). Do not set Content-Type yourself.",
             "body": {
               "mode": "formdata",
               "formdata": [
                 {
-                  "key": "image",
+                  "key": "thumbnail",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "media_file",
                   "type": "file",
                   "src": []
                 }
               ]
             },
-            "description": "The cover picture has its own endpoint: multipart field `image`, JPG / PNG / WEBP, up to 10 MB. Changing it is an edit, so on a rejected gig it sends it back to `pending` (like saving it); on an approved one the status stays. **Select a real JPG / PNG / WEBP file by hand in the Postman app** (a shared collection cannot carry file paths, so under Newman this is a 400). Do not set Content-Type yourself.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5212,8 +5180,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('200 with a picture selected, 400 without (Newman has no file)', () => pm.expect(pm.response.code).to.be.oneOf([200, 400]));",
-                  "if (pm.response.code === 200) { pm.test('pending again, with the picture', () => { const b = pm.response.json(); pm.expect(b.status).to.eql('pending'); pm.expect(b.image_url).to.be.a('string'); }); }"
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200, 400]));",
+                  "if (pm.response.code === 200 && pm.response.json().image_url) { pm.test('status unchanged', () => pm.expect(pm.response.json().status).to.eql('rejected')); }"
                 ]
               }
             }
@@ -5266,7 +5234,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('pending again', () => pm.expect(pm.response.json().status).to.eql('pending'));"
+                  "pm.test('status unchanged', () => pm.expect(pm.response.json().status).to.eql('rejected'));"
                 ]
               }
             }
@@ -5352,24 +5320,31 @@
         {
           "name": "Remove the gig thumbnail",
           "request": {
-            "method": "DELETE",
+            "method": "PATCH",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/seller/gigs/{{gig_id}}/thumbnail/",
+              "raw": "{{base_url}}/seller/listing-files/{{gig_id}}/",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "api",
-                "v1",
                 "seller",
-                "gigs",
+                "listing-files",
                 "{{gig_id}}",
-                "thumbnail",
                 ""
               ]
             },
-            "description": "`204`; the file is deleted.",
+            "description": "",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "remove_thumbnail",
+                  "value": "true",
+                  "type": "text"
+                }
+              ]
+            },
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5387,7 +5362,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
                 ]
               }
             }
