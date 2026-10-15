@@ -22,7 +22,7 @@ topic, the other guides go deeper:
 | Category tree and parent chain | [category-tree-api-guide.md](category-tree-api-guide.md) |
 | Country / state / city / thana | [geography-api-guide.md](geography-api-guide.md) |
 | Login, tokens, errors, pagination | [frontend-api-guide.md](frontend-api-guide.md) |
-| Postman | `postman/Egoola-Listing.postman_collection.json` (listings, **Gigs**, **Thumbnails**), `postman/Egoola-Attribute.postman_collection.json` (admin); `postman/Egoola-SellerApp.postman_collection.json` → **Seller listings**, **Seller gigs** (seller) |
+| Postman | `postman/Egoola-Listing.postman_collection.json` (listings, **Gigs**, **Listing files**), `postman/Egoola-Attribute.postman_collection.json` (admin); `postman/Egoola-SellerApp.postman_collection.json` → **Seller listings**, **Seller gigs** (seller) |
 
 Base URL: `http://127.0.0.1:8000/api/v1`. Sections 1-12 are the **admin** product endpoints (`/catalog/...`; gigs: section 14): every call needs
 `Authorization: Bearer <admin access token>`; seller and buyer tokens get `403`; no token gets `401`. The **seller** endpoints
@@ -320,26 +320,11 @@ section 14.
 Here `price` is the buyer's budget (one default SKU, with an optional `price_type`). Do not send a `seller`. A job request has no product
 fields (`brand`, `model`, `listing_type`, ...) and no SKU `description`.
 
-### 4.7 With photos and files (multipart)
+### 4.7 Photos, videos and the thumbnail
 
-Images go in a **multipart/form-data** request. Multipart cannot carry the nested `skus` list, so choose one of these:
-
-- **Simple listing:** one multipart `POST` with the flat fields (`price`, `stock_qty` ...) and `media_file` repeated once per file. Verified: the shortcut works in multipart.
-- **Listing with options:** create it with JSON first, then add the files with a multipart `PATCH` containing only `media_file`.
-
-```bash
-curl -X PATCH http://127.0.0.1:8000/api/v1/catalog/listings/276/ \
-  -H "Authorization: Bearer <token>" \
-  -F "media_file=@front.jpg" -F "media_file=@box.jpg"
-```
-- `media_type` (`image` / `video` / `document`) is detected from each file. Files are saved under `media/listing/<listing id>/`
-  and returned as `media: [{ id, media_type, media_path, media_url }]`.
-- Remove files with `{"media_delete_ids": [4, 5]}`.
-
-### 4.7b The thumbnail
-
-The cover picture of a listing is **not** part of create or `PATCH`: it has its own endpoint, `PUT` / `DELETE /catalog/listings/{id}/thumbnail/`
-(`multipart`, one field `image`). Create the listing first, then upload the picture. Full rules, errors and the gig and seller versions: **section 15**.
+Create and update are **JSON only** (multipart is `415`). Pictures and videos have their own API, used after the listing exists:
+`POST` / `PATCH /catalog/listing-files/{id}/` (admin) and `/seller/listing-files/{id}/` (seller). It works for a product id or a gig id.
+Full rules, fields and errors: **section 15**.
 
 ### 4.8 Choosing the status when you create
 
@@ -418,8 +403,6 @@ adds a SKU; SKUs you leave out are untouched. To retire a SKU send `{"id": 41, "
 | `skus` | list | **yes on create** (or `price`) | section 5 |
 | `price`, `discounted_price`, `discount_start_date`, `discount_end_date`, `stock_qty`, `sku`, `price_type` | — | create only | shortcut for one default SKU (`price_type` only for a gig or a job) |
 | `price_tiers` | list | no | whole-list replace |
-| `media_file` | files (multipart) | no | |
-| `media_delete_ids` | list of ids | no | |
 
 ### 6.2 What comes back
 
@@ -531,9 +514,8 @@ Only `approved`, `rejected`, `changes_requested` are allowed here. The answer li
 | Add a size/colour combination | `skus` item without `id`, with `variants` |
 | Hide a combination | `skus` item `{"id": .., "is_active": false}` |
 | Replace quantity prices | `price_tiers` (whole list) |
-| Add photos | multipart `media_file` |
-| Remove photos | `media_delete_ids` |
-| Set / replace / remove the thumbnail | `PUT` / `DELETE /catalog/listings/{id}/thumbnail/` (section 4.7b) |
+| Add / remove photos and videos | the listing-files API: `PATCH /catalog/listing-files/{id}/` (section 15) |
+| Set / replace / remove the thumbnail | the same call (section 15) |
 | Change status | `status` (+ `note`) |
 
 If you change `title`, the `slug` is regenerated. **A seller cannot have two live listings of the same type (product or service) with the same title** (upper / lower case and extra
@@ -598,7 +580,7 @@ There is no restore endpoint yet.
 6. **Options?** If yes, pick attributes and values (`/attributes/?is_active=true`, values come with each attribute), generate every combination as a row with
    `sku` code, `price`, `discounted_price`, discount dates, `stock_qty`, and send them as `skus`. If no, show one price box and send `price` (+ stock).
 7. **Quantity prices** (wholesale): a small table → `price_tiers`.
-8. **Media:** upload after the listing exists (multipart `PATCH`), or in the same multipart request for a simple listing. The **thumbnail** is a separate `PUT .../thumbnail/` after saving.
+8. **Files:** the thumbnail and the gallery are separate multipart calls after saving (`POST` / `PATCH .../listing-files/{id}/`, section 15). Create and update are JSON only.
 9. **Status:** leave the default, or choose `pending`.
 10. On the **edit** screen, load `GET /listings/{id}/`, send back only what changed, with SKU ids.
 
@@ -613,7 +595,7 @@ There is no restore endpoint yet.
 - *Is the category required?* Yes, and it must match the listing type and be active.
 - *Do services use SKUs?* Yes. Every listing has at least one SKU. A gig has one SKU per price type (hourly, daily, ...), with no options or stock; the buyer chooses the duration when ordering.
 - *Where do I create a service?* As a gig: `/catalog/gigs/` (admin) or `/seller/gigs/` (seller).
-- *Where is the cover picture?* `image_path` / `image_url`, set with `PUT .../thumbnail/` (not in create or `PATCH`).
+- *Where is the cover picture?* `image_path` / `image_url`, set with `POST` / `PATCH /catalog/listing-files/{id}/` (not in create or update).
 - *Where does the order flow come in?* Cart items and order items already have a `listingSkuId`; the order APIs are not built yet.
 - *What if I delete a listing?* It is hidden (soft delete); everything is kept.
 
@@ -632,7 +614,7 @@ A seller who is **verified and active** manages their own **products** through o
 | `GET /seller/listings/` | my listings, with filters (below) |
 | `GET /seller/listings/{id}/` | one of my listings: full detail, SKUs, tiers, media, **status history** (not the info change log) |
 | `PATCH` / `PUT /seller/listings/{id}/` | edit it |
-| `PUT` / `DELETE /seller/listings/{id}/thumbnail/` | set, replace or remove the cover picture (section 4.7b) |
+| `POST` / `PATCH /seller/listing-files/{id}/` | add, replace or remove the thumbnail, and add or remove gallery files (section 15) |
 | `GET /seller/lookups/categories/`, `/brands/`, `/measurements/`, `/attributes/` | read-only lists to fill the form (only active ones) |
 | `DELETE` | **not allowed** (`405`). Only an admin can delete a listing |
 
@@ -650,7 +632,7 @@ fields (`price_type`, `description`) are `400` on a product. The seller can atta
 |---|---|
 | `pending` | stays `pending`; `requested_at` unchanged |
 | `approved` | stays `approved`, **whatever changes** (content, SKUs, prices, stock, thumbnail). The edit is written to the info change log for the admin |
-| `rejected` or `changes_requested` | goes back to **`pending`**, `requested_at` = now (top of the admin's pending list). There is no separate Resubmit button: saving (or changing the thumbnail) is resubmitting |
+| `rejected` or `changes_requested` | goes back to **`pending`**, `requested_at` = now (top of the admin's pending list). There is no separate Resubmit button: saving the listing is resubmitting (a files change is not) |
 
 For a rejected listing the seller reads the admin's reason in `note`. A `note` sent when saving a rejected / changes-requested listing becomes the
 seller's message to the reviewer (an empty or missing note clears it); in any other state a `note` is ignored. The admin's reason is kept in
@@ -680,7 +662,7 @@ New ones arrive in the pending list; approve or reject with `PATCH` or `bulk-mod
 A **gig** is a service a seller offers (cleaning, photography, repair). Gigs are rows of the same `listings` table, but they have their own endpoints
 and their own price model. This section is the complete gig reference: admin and seller endpoints, packages, errors, the order and cart changes and the
 database changes. The plain-language version is in [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md) section 12. Postman: `Egoola-Listing` →
-**Gigs** and **Thumbnails** (admin), `Egoola-SellerApp` → **Seller gigs** (seller). Smoke tests: `scripts/smoke/gig_smoke.py` (admin side and thumbnails),
+**Gigs** and **Listing files** (admin), `Egoola-SellerApp` → **Seller gigs** (seller). Smoke tests: `scripts/smoke/gig_smoke.py` (admin side), `scripts/smoke/listing_files_smoke.py` (files),
 `scripts/smoke/seller_gig_smoke.py` (seller side).
 
 ### 14.1 Product, gig, job: three kinds, three APIs
@@ -704,7 +686,7 @@ What the server checks, on every call:
   `warranty`, `warranty_bn`, `measurement`, `min_order_qty`, `condition_note`, `condition_note_bn`, `attributes`, `price_tiers`:
   `{"brand": "Not available here."}`. On a product: `delivery_days`, `urgent`, `package_includes`, `package_includes_bn`, `available_from`,
   `available_to`, and the gig SKU fields (14.3).
-- A gig id on a product endpoint (or the other way round) is `404`, for `GET`, `PATCH`, `DELETE` and the thumbnail alike.
+- A gig id on a product endpoint (or the other way round) is `404`, for `GET`, `PATCH` and `DELETE`. The listing-files API takes both kinds.
 
 ### 14.2 What a gig is
 
@@ -722,8 +704,7 @@ same fields as a service listing, but it is **priced differently**: not by optio
 | `skus` | **the packages** (14.3). At least one on create |
 | `seller` | admin only, optional (a gig can have no owner when an admin creates it) |
 | `status`, `note` | admin only. A seller's gig is always `pending` on create |
-| `media_file`, `media_delete_ids` | the gallery, multipart (same limits as listing media) |
-| `image_path`, `image_url` | the thumbnail, **read only here** (section 15) |
+| `image_path`, `image_url`, `media` | the thumbnail and the gallery, **read only here** (section 15) |
 
 ### 14.3 Packages: gig SKUs
 
@@ -818,7 +799,7 @@ Admin only (`Authorization: Bearer <admin access token>`). Seller and buyer toke
 | `DELETE /catalog/gigs/{id}/` | soft delete (`204`); the row and its history stay, the **thumbnail file is deleted** |
 | `GET /catalog/gigs/requests/` | the **pending gig list**, newest request first, cursor pagination (`next` / `previous`, no `count`) |
 | `POST /catalog/gigs/bulk-moderate/` | `{"listing_ids": [...], "status": "approved", "note": null}`; only gigs are touched, other ids are ignored |
-| `PUT` / `DELETE /catalog/gigs/{id}/thumbnail/` | the thumbnail (section 15) |
+| `POST` / `PATCH /catalog/listing-files/{id}/` | the thumbnail and the gallery of a gig (section 15) |
 
 List filters: `status`, `category`, `seller`, `price_type` (gigs that have an **active** package priced that way), `created_from` / `created_to`
 and `requested_from` / `requested_to` (`YYYY-MM-DD`, inclusive), `search` (title, Bangla title, SKU code), `limit`, `offset`. The pending list
@@ -848,7 +829,7 @@ or an admin-owned gig is `404`). **A seller cannot delete a gig** (`DELETE` is `
 | `GET /seller/gigs/` | my gigs (limit/offset, default 20, max 100) |
 | `GET /seller/gigs/{id}/` | one gig: packages, media, **status history** (not the info change log) |
 | `PATCH` / `PUT /seller/gigs/{id}/` | edit |
-| `PUT` / `DELETE /seller/gigs/{id}/thumbnail/` | the thumbnail (section 15) |
+| `POST` / `PATCH /seller/listing-files/{id}/` | the thumbnail and the gallery of a gig (section 15) |
 
 The lookups for the form are the same as for products: `GET /seller/lookups/categories/?type=service`, and the public geography lists. There
 is no brand, measurement or attribute lookup for a gig.
@@ -942,34 +923,59 @@ extra SKUs of an old gig were hidden (`is_active = false`), not deleted. The mig
 
 ---
 
-## 15. The thumbnail (listings and gigs)
+## 15. Files: thumbnail and gallery (listings and gigs)
 
-Every listing and gig can have one **thumbnail**: the cover picture shown in lists. It is separate from the gallery (`media`). It has its own
-endpoints and is **not** part of create or `PATCH`; `image_path` and `image_url` are read only everywhere and come back on the list rows
-and the detail.
+A listing or gig has one **thumbnail** (the cover picture shown in lists, `image_path` / `image_url`) and a **gallery** (`media`: pictures, videos, PDFs).
+Create and update of listings and gigs are **JSON only**; sending multipart to them is `415`. `image_path`, `image_url` and `media` are read only there
+and come back on the detail (the list rows carry `image_url`). Files have **4 APIs**, all `multipart/form-data` (do not set `Content-Type` yourself),
+each for a product id or a gig id (a job id is `404`):
 
-| Who | Call |
+| Who | Add (create) | Change (update) |
+|---|---|---|
+| Admin | `POST /catalog/listing-files/{id}/` | `PATCH /catalog/listing-files/{id}/` |
+| Seller (can operate, own listings; another seller's id is `404`) | `POST /seller/listing-files/{id}/` | `PATCH /seller/listing-files/{id}/` |
+
+**POST (create)**
+
+| Field | Rule |
 |---|---|
-| Admin | `PUT` / `DELETE /catalog/listings/{id}/thumbnail/` and `/catalog/gigs/{id}/thumbnail/` |
-| Seller | `PUT` / `DELETE /seller/listings/{id}/thumbnail/` and `/seller/gigs/{id}/thumbnail/` |
+| `thumbnail` | optional, one picture. If the listing already has a thumbnail: `400` (use `PATCH`) |
+| `media_file` | optional, repeated once per file |
 
-- **Upload or replace:** `PUT`, `multipart/form-data`, one field `image`. JPG, PNG or WEBP, at most 10 MB, and it must be a real image
-  (a text file, a GIF or a fake PNG is `400 {"image": ["..."]}`). Do not set `Content-Type` yourself.
-  `200 {"image_path": "listing/thumbnails/<name>.png", "image_url": "/media/listing/thumbnails/<name>.png", "status": "approved"}`.
-  The previous file is deleted from storage when the new one is saved; a refused upload keeps the current file.
-- **Remove:** `DELETE` → `204`, `image_path` and `image_url` become `null` and the file is deleted. Removing when there is none is also `204`.
-- `GET` on this URL is `405`. The id must be of the right kind (a gig id on a product thumbnail endpoint is `404`).
-- Seller rules: only a seller who can operate, only their own listings (`404` otherwise).
-- **It is an edit like any other.** It is written in the info change log (`changed_fields: ["thumbnail"]`, the picture URL before and after).
-  When a **seller** changes it on a `rejected` / `changes_requested` listing (or an admin-made `draft`), the listing goes back to `pending` at the top of the admin's pending
-  list, with a status history entry by the seller. On an `approved` or `pending` listing the status stays. An admin's change never changes the status.
-- Deleting a listing or a gig (admin) removes its thumbnail file; the gallery files stay as before.
-- The thumbnail is optional: nothing requires one before approval.
-- There is no atomic "create with thumbnail": create first (JSON), then `PUT` the picture. If the upload fails the listing still exists.
+Nothing is required: an empty `POST` is allowed and changes nothing. `201` with the state below.
+
+**PATCH (update)**: every part is independent; send what you need.
+
+| Field | What it does |
+|---|---|
+| `remove_thumbnail` | `true` removes the current thumbnail (file deleted) |
+| `thumbnail` | a new picture **replaces** the old one (the old file is deleted), whether or not `remove_thumbnail` is sent |
+| `remove_media_ids` | gallery ids to delete, `4,5` or the field repeated. An id that is not this listing's is `400` |
+| `media_file` | gallery files to add |
+
+Removals and additions are independent: ids in `remove_media_ids` are removed and new `media_file`s are added in the same call. `200` with the state below.
+A request that changes nothing is `200` and writes nothing (no log, no status change).
+
+**Response** (both): `{"image_path", "image_url", "media": [{"id", "media_type", "media_path", "media_url"}], "status"}`.
+
+**Limits**
+- `thumbnail`: JPG, PNG or WEBP, at most 10 MB, a real image (a text file, a GIF or a fake PNG is `400 {"thumbnail": [...]}`).
+- `media_file`: JPG, PNG, WEBP, GIF, MP4 or PDF. An admin has no other limit. A seller: 10 MB per file, 10 files per request, 20 per listing
+  (files being removed in the same call do not count). Errors are `400 {"media_file": [...]}`.
+- The request is all or nothing: if any part is refused, nothing is saved and no file is kept.
+
+**Behaviour**
+- Files are stored under `media/listing/thumbnails/` (thumbnail) and `media/listing/<listing id>/` (gallery). Old files are deleted from storage after the change is saved.
+- Written in the info change log (`thumbnail`, `media`). **A files change never changes the status**, for a seller or an admin: a rejected listing stays rejected, an approved one stays approved. Only saving the listing itself (create / update JSON) sends a rejected / changes-requested listing back to `pending`.
+- Deleting a listing or a gig (admin) removes its thumbnail file; the gallery files stay.
+- Files are optional: nothing requires one before approval. There is no atomic "create with files": create the listing (JSON), then call the files API.
 
 ```
-PUT /api/v1/seller/gigs/681/thumbnail/        (multipart/form-data)
-image: <cover.png>
+PATCH /api/v1/seller/listing-files/681/        (multipart/form-data)
+remove_thumbnail: true
+remove_media_ids: 4,5
+media_file:       <front.jpg>
+media_file:       <box.jpg>
 ```
 
 ---
@@ -978,5 +984,5 @@ image: <cover.png>
 
 - `scripts/smoke/sku_smoke.py` (attributes, SKUs, category protection), `listing_smoke.sh`, `brand_smoke.sh`, `e2e_smoke.sh`: all pass. Run everything with `scripts/smoke/run_all.sh`.
 - `seller_listing_smoke.sh`: the seller product API, lookups, unique title, the pending list, approve / reject / fix, the info change log, Bangla fields and files removed from storage.
-- `gig_smoke.py` (the admin gig API, the thumbnail on listings and gigs, the product / gig / job separation) and `seller_gig_smoke.py` (the seller gig API and thumbnail).
+- `gig_smoke.py` (the admin gig API, the product / gig / job separation), `seller_gig_smoke.py` (the seller gig API) and `listing_files_smoke.py` (the 4 files APIs, both roles).
 - Postman: `Egoola-Listing` and `Egoola-Attribute` (admin) and `Egoola-SellerApp` → **Seller listings**, **Seller gigs** (seller) collections.
