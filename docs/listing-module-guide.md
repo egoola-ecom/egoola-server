@@ -11,7 +11,7 @@ All endpoints live under `/api/v1/catalog/` and are **Admin-only**
 
 > **Products, gigs and jobs.** `/catalog/listings/` manages **products** and (until the Job step) buyer **job requests**. A seller's service offer
 > is a **gig** and has its own endpoints, `/catalog/gigs/`: see [`listing-complete-guide.md`](listing-complete-guide.md) section 14. A gig id on `/catalog/listings/` is `404`,
-> and a service offer posted there is `400`. The listing **thumbnail** has its own endpoint too (section 9.5).
+> and a service offer posted there is `400`. The **thumbnail and gallery files** have their own APIs (section 9.5); create and update here are JSON only.
 
 Overview of the whole listing area (relations, creation walkthrough): [listing-complete-guide.md](listing-complete-guide.md).
 
@@ -27,7 +27,7 @@ Related files: `apps/catalog/models.py`, `serializers.py`, `views.py`,
 |---|---|---|
 | Brand | create, update, list, delete | New table `brands` |
 | Listing | create, retrieve, update, list, delete (soft) | One table `listings` for every product format (and job requests). Gigs: `/catalog/gigs/` |
-| Thumbnail | `PUT` / `DELETE /listings/{id}/thumbnail/` | Columns `imagePath`, `imageUrl` on `listings` |
+| Thumbnail and gallery | `POST` / `PATCH /listing-files/{id}/` | Columns `imagePath`, `imageUrl` on `listings`; gallery in `listingMedia` |
 | Listing moderation | status change through PATCH, `bulk-moderate` | Full history in `status_change_logs` |
 | Attribute, Attribute value | create, retrieve, update, list, delete | Tables `attributes`, `attributeValues` — see [attribute-sku-guide.md](attribute-sku-guide.md) |
 | Listing SKUs (price, discount, stock per option combination) | nested inside Listing (`skus`) | Tables `listingSkus`, `listingSkuVariants` — see [attribute-sku-guide.md](attribute-sku-guide.md) |
@@ -264,8 +264,6 @@ Base path: `/api/v1/catalog/listings/`
 | status | see rule 2 | |
 | note | text | latest status-change note |
 | price_tiers | list | see 5.2 |
-| media_file | files (multipart, write only) | |
-| media_delete_ids | list of ids (write only) | |
 | *(read only)* | `id`, `slug`, `brand_name`, `price`, `discounted_price` (cheapest active SKU), `media`, `status_change_logs`, `created_at`, `updated_at` | |
 
 ### 5.2 SKUs and price tiers
@@ -411,8 +409,7 @@ On `/catalog/listings/` the same body (with `catalog_type: "service"`, `posted_b
 ```
 `201`, `status: "pending"`. With `"status": "rejected"` a `note` is required.
 
-**G. Multipart (images / files)** — send `media_file` once per file. Nested
-values (`skus`, `price_tiers`) are easiest to add in a later JSON PATCH.
+**G. Images / files** — not part of this request (JSON only, multipart is `415`). Use `POST /catalog/listing-files/{id}/` after creating (section 9.5).
 
 #### Create — error cases
 
@@ -468,8 +465,8 @@ Gigs are not in this list (they are on `/catalog/gigs/`).
 | Change brand | `{"brand": 2}` | `200` |
 | Clear brand (non-brand listing) | `{"listing_type": "general", "brand": null}` | `200` |
 | Brand listing without a brand | `{"listing_type": "brand"}` on a listing with no brand | `400` |
-| Add media | multipart `media_file=@a.jpg` (repeat) | `200`, `media_type` read from the file |
-| Remove media | `{"media_delete_ids": [4, 5]}` | `200` |
+| Add media | `POST /listing-files/{id}/` multipart `media_file=@a.jpg` (repeat) | `201`, `media_type` read from the file |
+| Remove media | `PATCH /listing-files/{id}/` `remove_media_ids=4,5` | `200` |
 | Unrelated edit | `{"description": "new"}` | `200`; status, note and history unchanged |
 
 ### 5.7 Moderation (status changes)
@@ -587,7 +584,7 @@ Sellers can now create and manage their own listings (see [listing-complete-guid
 - **`requested_at`** is read only, set when a listing becomes `pending` (created as pending, or moved to `pending`).
 - **`info_change_logs`** on the detail: every content change by a seller or an admin, before and after (not stock). Status changes stay in `status_change_logs`.
 - **Filters** on `GET /listings/`: added `created_from`, `created_to`, `requested_from`, `requested_to`; `search` also matches `title_bn`. Rows have `title_bn` and `requested_at`.
-- **`media_delete_ids`** now also deletes the file from storage.
+- Removing a gallery file (`remove_media_ids` on the listing-files API) also deletes the file from storage.
 
 ### 9.3 The pending list — `GET /listings/requests/`
 
@@ -614,11 +611,11 @@ All need a verified and active seller. Details and examples: [seller-api-guide.m
 
 ### 9.5 Thumbnail and gigs (reference)
 
-- **Thumbnail:** `PUT /listings/{id}/thumbnail/` (multipart, field `image`; JPG, PNG or WEBP; 10 MB) uploads or replaces it and returns
-  `{image_path, image_url, status}`; `DELETE` removes it (`204`). Both delete the old file from storage. It is not part of create or `PATCH`
-  (`image_path` / `image_url` are read only). It is an edit: written in the info change log as `thumbnail`; a seller's change on a `rejected` /
-  `changes_requested` listing sends it back to `pending`; an admin's change never changes the status. Deleting the listing removes the thumbnail
-  file. Full rules: [`listing-complete-guide.md`](listing-complete-guide.md) section 15.
+- **Files (thumbnail and gallery):** 4 multipart APIs, for a product or a gig id: `POST` / `PATCH /catalog/listing-files/{id}/` (admin) and
+  `POST` / `PATCH /seller/listing-files/{id}/` (seller, own listings). `POST` adds (`thumbnail` optional, refused with `400` if one exists; `media_file` repeated, optional).
+  `PATCH` takes `remove_thumbnail`, `thumbnail` (a new one always replaces the old), `remove_media_ids` (`4,5`) and `media_file`, all independent. The listing / gig create and
+  update are JSON only (`415` for multipart). Response `{image_path, image_url, media, status}`. Written in the info change log `thumbnail` / `media`; it never changes the status. Old files are deleted. Full rules:
+  [`listing-complete-guide.md`](listing-complete-guide.md) section 15.
 - **Gigs** (`/catalog/gigs/`, `/seller/gigs/`): a separate API for a seller's service offer, priced by packages (one SKU per `price_type`; the buyer
   chooses the duration when ordering). Same moderation, pending list (`/catalog/gigs/requests/`), bulk moderation and change logs. See [`listing-complete-guide.md`](listing-complete-guide.md) section 14.
 - **Kind guards:** `catalog_type` and `posted_by_role` cannot change after creation; `/catalog/listings/` refuses a gig (`400`) and returns `404` for a gig
