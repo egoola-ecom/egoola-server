@@ -19,7 +19,7 @@ Postman: **Buyers** folder in `postman/Egoola.postman_collection.json`.
 |---|---|---|
 | id | int | read only |
 | name | string | **required** |
-| email | string | **required**, unique |
+| email | string | optional, unique when given (upper / lower case count as the same). Empty = no email |
 | phone | string | **required**, unique |
 | password | string | **required on create**, write only, stored hashed; optional on update. Must be at least 8 characters, not a very common password and not all digits |
 | profile_pic | image file | write only (multipart); read back as `profile_pic_path` / `profile_pic_url` |
@@ -78,7 +78,7 @@ Full
 | no `password` | `400` `{"password": ["This field is required when creating a new record."]}` |
 | weak `password` (too short, too common, all digits) | `400` `{"password": ["This password is too short. It must contain at least 8 characters."]}` |
 | a city / state / thana that does not belong to the level above | `400` `{"city": ["This city does not belong to the selected state."]}` |
-| missing `name` / `email` / `phone` | `400` per field |
+| missing `name` / `phone` / `password` | `400` per field |
 | email or phone already used | `400` on that field |
 | `status` not `active`/`suspended` | `400` |
 

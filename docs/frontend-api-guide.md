@@ -49,8 +49,7 @@ must be logged in for literally everything else in this guide.
 ## 3. Logging in
 
 There are three separate login endpoints — one per actor type. They all
-work the same way and return the same shape. **Admins and buyers log in with
-email + password; a seller logs in with phone number + password.**
+work the same way and return the same shape. **An admin logs in with email + password; a seller with phone number + password; a buyer with phone number + password, or email + password if the buyer gave an email** (see `buyer-api-guide.md`).
 
 | Actor  | Endpoint |
 |---|---|
@@ -58,7 +57,7 @@ email + password; a seller logs in with phone number + password.**
 | Seller | `POST /api/v1/auth/seller/login/` |
 | Buyer  | `POST /api/v1/auth/buyer/login/` |
 
-**Request body** (admin and buyer):
+**Request body** (admin):
 ```json
 {
   "email": "test.admin@egoola.com",

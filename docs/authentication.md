@@ -19,7 +19,7 @@ with no idea who's asking. JWT (JSON Web Token) is how the client proves
 ### Step by step
 
 **Step 1 — Login.** The client sends credentials to one of three endpoints
-(email + password for an Admin or Buyer; **phone number + password for a Seller**):
+(email + password for an Admin; **phone number + password for a Seller**; phone + password, or email + password, for a Buyer):
 
 - `POST /api/v1/auth/admin/login/`
 - `POST /api/v1/auth/seller/login/`
