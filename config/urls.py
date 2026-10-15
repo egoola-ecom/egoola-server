@@ -18,6 +18,9 @@ API_V1 = [
     # Read-only lists that need no login (sign-up form dropdowns) — see
     # apps/geography/public_views.py.
     path("public/geography/", include("apps.geography.public_urls")),
+    # Read-only catalog lists for browsing (the Buyer Panel): no login.
+    path("public/catalog/", include("apps.catalog.public_urls")),
+    path("public/sellers/", include("apps.accounts.public_urls")),
     path("accounts/", include("apps.accounts.urls")),
     # The logged-in seller's own endpoints (profile, resubmit, password).
     path("seller/", include("apps.accounts.seller_urls")),
