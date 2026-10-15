@@ -1,4 +1,7 @@
+from django.urls import path
 from rest_framework.routers import SimpleRouter
+
+from .listing_files import SellerListingFilesView
 
 from .seller_views import (
     SellerAttributeLookupViewSet,
@@ -18,4 +21,7 @@ router.register("lookups/brands", SellerBrandLookupViewSet, basename="seller-loo
 router.register("lookups/measurements", SellerMeasurementLookupViewSet, basename="seller-lookup-measurement")
 router.register("lookups/attributes", SellerAttributeLookupViewSet, basename="seller-lookup-attribute")
 
-urlpatterns = router.urls
+urlpatterns = [
+    path("listing-files/<int:listing_id>/", SellerListingFilesView.as_view(), name="seller-listing-files"),
+    *router.urls,
+]

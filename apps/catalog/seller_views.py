@@ -12,6 +12,7 @@ from django.db import transaction
 from django.db.models import Q
 from rest_framework import mixins, serializers, viewsets
 from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.parsers import JSONParser
 
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -27,11 +28,9 @@ from .serializers import (
     SellerListingListSerializer,
     SellerListingSerializer,
 )
-from .thumbnail import ThumbnailViewSetMixin
 
 
 class _SellerListingBaseViewSet(
-    ThumbnailViewSetMixin,
     AuditedViewSetMixin,
     mixins.CreateModelMixin,
     mixins.RetrieveModelMixin,
@@ -44,14 +43,14 @@ class _SellerListingBaseViewSet(
 
     Create: always `pending`, owned by the logged-in seller. Edit (PATCH / PUT):
     a `rejected` or `changes_requested` listing goes back to `pending`; an
-    `approved` or `pending` listing keeps its status. The thumbnail has its own
-    endpoint and follows the same rule. See SellerListingMixin."""
+    `approved` or `pending` listing keeps its status. Pictures and videos are not
+    sent here (JSON only): see apps.catalog.listing_files. See SellerListingMixin."""
 
     permission_classes = [IsActiveVerifiedSellerActor]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ["created_at", "updated_at", "requested_at", "title", "status", "id"]
     ordering = ["-created_at", "-id"]
-    thumbnail_resubmits = True
+    parser_classes = [JSONParser]
 
     # What the subclass decides: the rows it may touch and its serializers.
     scope = Q()
