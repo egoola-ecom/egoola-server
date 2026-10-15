@@ -87,47 +87,9 @@ says "an admin approves", the admin does it with `PATCH /accounts/sellers/{id}/`
 
 ## 2. Public lookups for the sign-up form (no login)
 
-The sign-up form runs before anyone is logged in, so its dropdowns cannot use the
-admin geography API (that one needs an admin token). Use these instead. They are
-**public, read-only** (`GET` only), and need **no token**. Even a stale or expired
-token in the browser is ignored, so these never return `401`.
-
-| Dropdown | Endpoint | Filters |
-|---|---|---|
-| Country | `GET /api/v1/public/geography/countries/` | `search` |
-| State | `GET /api/v1/public/geography/states/` | `country`, `search` |
-| City | `GET /api/v1/public/geography/cities/` | `country`, `state`, `search` |
-| Thana (optional) | `GET /api/v1/public/geography/thanas/` | `country`, `state`, `city`, `search` |
-
-Load the dropdowns one level at a time: when the seller picks a country, call
-`states/?country=<id>`; when they pick a state, call `cities/?state=<id>`; when they
-pick a city, call `thanas/?city=<id>`. An empty list is normal (the thana list is
-empty for most cities). Send the chosen `id`s in the form.
-
-```json
-GET /api/v1/public/geography/countries/
-{ "count": 3, "next": null, "previous": null,
-  "results": [ { "id": 126, "name": "Bangladesh", "slug": "bangladesh", "country_code": "645", "flag_url": null } ] }
-
-GET /api/v1/public/geography/states/?country=126
-{ "count": 2, "next": null, "previous": null,
-  "results": [ { "id": 13, "name": "Chittagong", "slug": "chittagong", "country": 126 },
-               { "id": 12, "name": "Dhaka", "slug": "dhaka", "country": 126 } ] }
-
-GET /api/v1/public/geography/cities/?state=13
-{ "count": 2, "next": null, "previous": null,
-  "results": [ { "id": 8, "name": "Feni", "slug": "feni", "country": 126, "state": 13 },
-               { "id": 9, "name": "Noakhali", "slug": "noakhali", "country": 126, "state": 13 } ] }
-```
-
-- Each list is wrapped like the other lists (`count`, `next`, `previous`, `results`) and
-  sorted by name. `limit` defaults to **500** (max 1000), so a dropdown gets the whole
-  list. You normally never need `offset`.
-- Rows have only `id`, `name`, `slug` and the parent ids (countries also have
-  `country_code` and `flag_url`). The audit columns the admin API shows are not public.
-- `POST`, `PATCH` and `DELETE` do not work here (`405` / `404`).
-- `business_type`, `employees_range` and `annual_revenue` (business profile) are free
-  text: the frontend decides which choices to offer.
+The country / state / city / thana lists are public routes, documented in [`public-api-guide.md`](public-api-guide.md) section 2 (no token, `GET` only, sorted by name,
+`limit` default 500). Load them one level at a time (`states/?country=`, `cities/?state=`, `thanas/?city=`); an empty list is normal. `business_type`, `employees_range` and
+`annual_revenue` (business profile) are free text: the frontend decides which choices to offer.
 
 ---
 
