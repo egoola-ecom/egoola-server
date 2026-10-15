@@ -662,6 +662,395 @@
           }
         }
       ]
+    },
+    {
+      "name": "Categories",
+      "description": "The one category list of the Buyer Panel. No login. Page-based paging: page, page_size.",
+      "item": [
+        {
+          "name": "Top-level categories (default)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": []
+            },
+            "description": "No login. No filter = the active categories that have no parent. Page-based paging: `page` (from 1) and `page_size` (default 20, max 100)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test('shape + only roots', () => { const b = pm.response.json(); pm.expect(b).to.have.keys('count','page','page_size','total_pages','results'); b.results.forEach(c => pm.expect(c.parent).to.eql(null)); }); const first = pm.response.json().results[0]; if (first) pm.collectionVariables.set('browse_parent_id', first.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Children of a category (parent_id)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?parent_id={{browse_parent_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "parent_id",
+                  "value": "{{browse_parent_id}}"
+                }
+              ]
+            },
+            "description": "Call the same API with a category id as `parent_id` to get its active children. Repeat for each level. `has_children` tells whether to go deeper. `404` if the parent does not exist or is inactive."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search by name (any level)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?search=a",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "a"
+                }
+              ]
+            },
+            "description": "Partial, case-insensitive, on `name` or `name_bn`. Without `parent_id` it searches every level."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search inside a parent",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?parent_id={{browse_parent_id}}&search=a",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "parent_id",
+                  "value": "{{browse_parent_id}}"
+                },
+                {
+                  "key": "search",
+                  "value": "a"
+                }
+              ]
+            },
+            "description": "With `parent_id` the search is limited to that parent's direct children."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Only services",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?type=service",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "service"
+                }
+              ]
+            },
+            "description": "`type=product` or `service`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Page 1, page_size 2",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?page=1&page_size=2",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "2"
+                }
+              ]
+            },
+            "description": "Response has `page`, `page_size`, `total_pages`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test('at most 2 rows', () => pm.expect(pm.response.json().results.length).to.be.at.most(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "page_size above the cap (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?page_size=101",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "page_size",
+                  "value": "101"
+                }
+              ]
+            },
+            "description": "`page_size` must be 1–100."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([400]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "parent_id is not a number (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?parent_id=abc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "parent_id",
+                  "value": "abc"
+                }
+              ]
+            },
+            "description": "`{\"parent_id\": [\"A valid integer is required.\"]}`"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([400]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown parent (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?parent_id=99999999",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "parent_id",
+                  "value": "99999999"
+                }
+              ]
+            },
+            "description": "`{\"detail\": \"Category not found.\"}`"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([404]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

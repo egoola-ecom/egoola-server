@@ -1,0 +1,1827 @@
+{
+  "info": {
+    "name": "Egoola-BuyerApp",
+    "description": "Everything built for buyers (web and app): sign-up and login, the public location lists, category browse, products, gigs and the seller page. Most of it needs no login. Docs: docs/buyer-api-guide.md and docs/public-api-guide.md. Import it with Egoola-Local.postman_environment.json.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "product_id",
+      "value": ""
+    },
+    {
+      "key": "gig_id",
+      "value": ""
+    },
+    {
+      "key": "seller_id",
+      "value": ""
+    },
+    {
+      "key": "buyer_phone",
+      "value": ""
+    },
+    {
+      "key": "browse_parent_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Buyer sign-up and login",
+      "description": "Only name, mobile and password are required. See docs/buyer-api-guide.md.",
+      "item": [
+        {
+          "name": "Register — only name, mobile, password",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('buyer_phone')) { pm.collectionVariables.set('buyer_phone', '+88017' + String(Date.now()).slice(-8)); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "if (pm.response.code === 201) { const b = pm.response.json(); pm.test('logged in', () => { pm.expect(b.access).to.be.a('string'); pm.expect(b.status).to.eql('active'); }); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/buyer/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "buyer",
+                "register",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Buyer\",\n  \"phone\": \"{{buyer_phone}}\",\n  \"password\": \"Buy@12345\"\n}"
+            },
+            "description": "The three required fields. The response already carries the tokens. The mobile number is generated once per run."
+          }
+        },
+        {
+          "name": "Register — same mobile again (expect 400)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('buyer_phone')) { pm.collectionVariables.set('buyer_phone', '+88017' + String(Date.now()).slice(-8)); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([400]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/buyer/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "buyer",
+                "register",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Buyer\",\n  \"phone\": \"{{buyer_phone}}\",\n  \"password\": \"Buy@12345\"\n}"
+            },
+            "description": "`buyer with this phone already exists.`"
+          }
+        },
+        {
+          "name": "Register — missing fields (expect 400)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('buyer_phone')) { pm.collectionVariables.set('buyer_phone', '+88017' + String(Date.now()).slice(-8)); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([400]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/buyer/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "buyer",
+                "register",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "description": "`name`, `phone` and `password` are required."
+          }
+        },
+        {
+          "name": "Register — bad mobile (expect 400)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('buyer_phone')) { pm.collectionVariables.set('buyer_phone', '+88017' + String(Date.now()).slice(-8)); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([400]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/buyer/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "buyer",
+                "register",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"X\",\n  \"phone\": \"abc\",\n  \"password\": \"Buy@12345\"\n}"
+            },
+            "description": "`Enter a valid mobile number (digits only, may start with +).`"
+          }
+        },
+        {
+          "name": "Register — every optional field",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('buyer_phone')) { pm.collectionVariables.set('buyer_phone', '+88017' + String(Date.now()).slice(-8)); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([201, 400]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/buyer/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "buyer",
+                "register",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Buyer Full\",\n  \"phone\": \"+88017{{$randomInt}}{{$randomInt}}\",\n  \"password\": \"Buy@12345\",\n  \"email\": \"postman.{{$timestamp}}@example.com\",\n  \"description\": \"I buy bags\",\n  \"address_line\": \"Road 1\",\n  \"country\": 126,\n  \"state\": 13,\n  \"city\": 8,\n  \"skills\": [\n    \"design\"\n  ],\n  \"interests\": [\n    \"bags\"\n  ]\n}"
+            },
+            "description": "All optional. Locations need ids that exist (126 / 13 / 8 on the local data). A profile picture needs multipart: add a `profile_pic` file in the Postman app."
+          }
+        },
+        {
+          "name": "Login with phone",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('buyer_phone')) { pm.collectionVariables.set('buyer_phone', '+88017' + String(Date.now()).slice(-8)); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test('buyer', () => pm.expect(pm.response.json().actor_type).to.eql('user'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/buyer/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "buyer",
+                "login",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{buyer_phone}}\",\n  \"password\": \"Buy@12345\"\n}"
+            },
+            "description": "Send exactly one of `phone` or `email`."
+          }
+        },
+        {
+          "name": "Login with email (a buyer who has one)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('buyer_phone')) { pm.collectionVariables.set('buyer_phone', '+88017' + String(Date.now()).slice(-8)); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/buyer/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "buyer",
+                "login",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.buyer@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+            },
+            "description": "The seeded test buyer."
+          }
+        },
+        {
+          "name": "Login — phone and email together (expect 400)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('buyer_phone')) { pm.collectionVariables.set('buyer_phone', '+88017' + String(Date.now()).slice(-8)); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([400]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/buyer/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "buyer",
+                "login",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+8801700000003\",\n  \"email\": \"a@b.com\",\n  \"password\": \"x\"\n}"
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Login — wrong password (expect 401)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('buyer_phone')) { pm.collectionVariables.set('buyer_phone', '+88017' + String(Date.now()).slice(-8)); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([401]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/buyer/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "buyer",
+                "login",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{buyer_phone}}\",\n  \"password\": \"Wrong@12345\"\n}"
+            },
+            "description": "`Invalid phone number, email or password.`"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public lookups (country, division, district, thana)",
+      "item": [
+        {
+          "name": "Countries (dropdown 1)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/geography/countries/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "geography",
+                "countries",
+                ""
+              ]
+            },
+            "description": "Public, read-only, no token. Fills the country dropdown on the sign-up form. Rows: id, name, slug, country_code, flag_url.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"has countries\", () => { const r = pm.response.json().results; pm.expect(r.length).to.be.at.least(1); pm.expect(r[0]).to.have.all.keys('id','name','slug','country_code','flag_url'); });",
+                  "pm.test(\"no audit data\", () => { pm.expect(pm.response.json().results[0]).to.not.have.property('creator_name'); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('country_id', String(pm.response.json().results[0].id)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "States of the chosen country (dropdown 2)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/geography/states/?country={{country_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "geography",
+                "states",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "country",
+                  "value": "{{country_id}}"
+                }
+              ]
+            },
+            "description": "Call again whenever the country changes. Rows: id, name, slug, country.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"every state belongs to the country\", () => { pm.response.json().results.forEach(r => pm.expect(String(r.country)).to.eql(pm.collectionVariables.get('country_id'))); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('lookup_state_id', String((pm.response.json().results[0] || {}).id)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cities of the chosen state (dropdown 3)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/geography/cities/?state={{lookup_state_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "geography",
+                "cities",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "state",
+                  "value": "{{lookup_state_id}}"
+                }
+              ]
+            },
+            "description": "Filters: `country`, `state`. Rows: id, name, slug, country, state.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"every city belongs to the state\", () => { pm.response.json().results.forEach(r => pm.expect(String(r.state)).to.eql(pm.collectionVariables.get('lookup_state_id'))); });",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('lookup_city_id', String((pm.response.json().results[0] || {}).id)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Thanas of the chosen city (dropdown 4, optional)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/geography/thanas/?city={{lookup_city_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "geography",
+                "thanas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "city",
+                  "value": "{{lookup_city_id}}"
+                }
+              ]
+            },
+            "description": "Filters: `country`, `state`, `city`. The thana is optional on the sign-up form, so an empty list is normal.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"is a list\", () => { pm.expect(pm.response.json().results).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search by name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/geography/states/?search=a",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "geography",
+                "states",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "a"
+                }
+              ]
+            },
+            "description": "`search` matches part of the name. Every list also takes `limit` (default 500, max 1000) and `offset`.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"wrapped list\", () => { pm.expect(pm.response.json()).to.have.property('count'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A stale token does not break a public read",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/geography/countries/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "geography",
+                "countries",
+                ""
+              ]
+            },
+            "description": "Public routes ignore the Authorization header, so an expired token in the browser can never cause a 401 here.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Public lists are read-only (POST -> 405)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/geography/countries/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "geography",
+                "countries",
+                ""
+              ]
+            },
+            "description": "Creating, editing and deleting geography stays on the admin API (`/api/v1/geography/`).",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nowhere\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 405', () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "description": "The one category list of the Buyer Panel. No login. Page-based paging: page, page_size.",
+      "item": [
+        {
+          "name": "Top-level categories (default)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": []
+            },
+            "description": "No login. No filter = the active categories that have no parent. Page-based paging: `page` (from 1) and `page_size` (default 20, max 100)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test('shape + only roots', () => { const b = pm.response.json(); pm.expect(b).to.have.keys('count','page','page_size','total_pages','results'); b.results.forEach(c => pm.expect(c.parent).to.eql(null)); }); const first = pm.response.json().results[0]; if (first) pm.collectionVariables.set('browse_parent_id', first.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Children of a category (parent_id)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?parent_id={{browse_parent_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "parent_id",
+                  "value": "{{browse_parent_id}}"
+                }
+              ]
+            },
+            "description": "Call the same API with a category id as `parent_id` to get its active children. Repeat for each level. `has_children` tells whether to go deeper. `404` if the parent does not exist or is inactive."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search by name (any level)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?search=a",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "a"
+                }
+              ]
+            },
+            "description": "Partial, case-insensitive, on `name` or `name_bn`. Without `parent_id` it searches every level."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search inside a parent",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?parent_id={{browse_parent_id}}&search=a",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "parent_id",
+                  "value": "{{browse_parent_id}}"
+                },
+                {
+                  "key": "search",
+                  "value": "a"
+                }
+              ]
+            },
+            "description": "With `parent_id` the search is limited to that parent's direct children."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Only services",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?type=service",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "service"
+                }
+              ]
+            },
+            "description": "`type=product` or `service`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Page 1, page_size 2",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?page=1&page_size=2",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "2"
+                }
+              ]
+            },
+            "description": "Response has `page`, `page_size`, `total_pages`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test('at most 2 rows', () => pm.expect(pm.response.json().results.length).to.be.at.most(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "page_size above the cap (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?page_size=101",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "page_size",
+                  "value": "101"
+                }
+              ]
+            },
+            "description": "`page_size` must be 1–100."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([400]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "parent_id is not a number (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?parent_id=abc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "parent_id",
+                  "value": "abc"
+                }
+              ]
+            },
+            "description": "`{\"parent_id\": [\"A valid integer is required.\"]}`"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([400]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown parent (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/categories/?parent_id=99999999",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "categories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "parent_id",
+                  "value": "99999999"
+                }
+              ]
+            },
+            "description": "`{\"detail\": \"Category not found.\"}`"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([404]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "List products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/products/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "products",
+                ""
+              ]
+            },
+            "description": "Approved listings of verified, active sellers with an active SKU. Page-based: `page`, `page_size`. Response `{count, page, page_size, total_pages, results}`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "const r = pm.response.json().results; if (r && r[0]) pm.collectionVariables.set('product_id', r[0].id); if (r && r[0] && r[0].seller) pm.collectionVariables.set('seller_id', r[0].seller.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter: category (with sub-categories) + price range + in stock",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/products/?category=18&price_min=10&price_max=100000&in_stock=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "products",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "18"
+                },
+                {
+                  "key": "price_min",
+                  "value": "10"
+                },
+                {
+                  "key": "price_max",
+                  "value": "100000"
+                },
+                {
+                  "key": "in_stock",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter: search + listing_type + ordering",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/products/?search=a&listing_type=general&ordering=price_asc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "products",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "a"
+                },
+                {
+                  "key": "listing_type",
+                  "value": "general"
+                },
+                {
+                  "key": "ordering",
+                  "value": "price_asc"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter: by seller",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/products/?seller={{seller_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "products",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "seller",
+                  "value": "{{seller_id}}"
+                }
+              ]
+            },
+            "description": "A seller page's product list."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Product detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/products/{{product_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "products",
+                "{{product_id}}",
+                ""
+              ]
+            },
+            "description": "SKUs (active only) with stock and options, tiers, media, location. `404` for a hidden listing."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bad query (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/products/?price_min=10&price_max=5",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "products",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "price_min",
+                  "value": "10"
+                },
+                {
+                  "key": "price_max",
+                  "value": "5"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([400]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A gig id on the product detail (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/products/{{gig_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "products",
+                "{{gig_id}}",
+                ""
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([404]));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Public product list and detail. No login."
+    },
+    {
+      "name": "Gigs",
+      "item": [
+        {
+          "name": "List gigs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/gigs/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "gigs",
+                ""
+              ]
+            },
+            "description": "The row shows the lowest-rate package and its `price_type`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "const r = pm.response.json().results; if (r && r[0]) pm.collectionVariables.set('gig_id', r[0].id); if (r && r[0] && r[0].seller) pm.collectionVariables.set('seller_id', r[0].seller.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter: price_type + price range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/gigs/?price_type=hourly&price_min=10&price_max=1000",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "gigs",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "price_type",
+                  "value": "hourly"
+                },
+                {
+                  "key": "price_min",
+                  "value": "10"
+                },
+                {
+                  "key": "price_max",
+                  "value": "1000"
+                }
+              ]
+            },
+            "description": "With `price_type` the price range applies to that package."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter: delivery_days_max + urgent",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/gigs/?delivery_days_max=5&urgent=true&ordering=price_asc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "gigs",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "delivery_days_max",
+                  "value": "5"
+                },
+                {
+                  "key": "urgent",
+                  "value": "true"
+                },
+                {
+                  "key": "ordering",
+                  "value": "price_asc"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gig detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/gigs/{{gig_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "gigs",
+                "{{gig_id}}",
+                ""
+              ]
+            },
+            "description": "Packages (price type, rate, description)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bad price_type (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/catalog/gigs/?price_type=yearly",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "catalog",
+                "gigs",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "price_type",
+                  "value": "yearly"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([400]));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Public gig list and detail. No login."
+    },
+    {
+      "name": "Seller page",
+      "item": [
+        {
+          "name": "Seller page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/sellers/{{seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "sellers",
+                "{{seller_id}}",
+                ""
+              ]
+            },
+            "description": "Name, photo, location, business, public contact, counts. `404` unless the seller is verified and active."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown seller (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/sellers/99999999/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "sellers",
+                "99999999",
+                ""
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([404]));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "The public seller page. No login."
+    }
+  ]
+}

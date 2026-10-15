@@ -70,6 +70,9 @@ Columns: **Overview** is plain language for everyone. **Technical guide** has wh
 | Geography management (country, state, city, thana), admin | — | [`geography-api-guide.md`](geography-api-guide.md) | `Egoola-Geography` | none of its own; `e2e_smoke.sh` checks the location rules | `countries`, `states`, `cities`, `thanas` |
 | **Public geography lists** (no login; for the sign-up form) | [`Egoola_Seller_Guide.md`](Egoola_Seller_Guide.md) §3.1 | [`seller-api-guide.md`](seller-api-guide.md) §2 | `Egoola-SellerApp` → **Public lookups** | `public_geography_smoke.sh` | same four tables |
 | Categories (one tree for products and services) | — | [`category-tree-api-guide.md`](category-tree-api-guide.md) | `Egoola-Category` | `listing_smoke.sh` (regression), `sku_smoke.py` (delete protection) | `categories` |
+| **Buyer browsing in plain words** (what a buyer sees: categories, products, gigs, the seller page, and which rules and filters apply) | [`Egoola_Buyer_Browsing_Guide.md`](Egoola_Buyer_Browsing_Guide.md) | [`public-api-guide.md`](public-api-guide.md) | `Egoola-BuyerApp` | `public_listing_smoke.py` | — |
+| **Public routes** (no login: country / state / city / thana lists, the Buyer Panel category browse list, **products and gigs** (list, detail, filters), the **seller page**; page-based paging) | — | [`public-api-guide.md`](public-api-guide.md) | `Egoola-BuyerApp`, `Egoola-BuyerApp` | `public_listing_smoke.py`, `category_browse_smoke.py`, `public_geography_smoke.sh` | `categories`, `countries`, `states`, `cities`, `thanas` |
+| **Buyer sign-up and login** (only name, mobile and password required; login by phone or email) | — | [`buyer-api-guide.md`](buyer-api-guide.md) | `Egoola-BuyerApp` → **Buyer sign-up and login** | `buyer_register_smoke.py` | `users` |
 | Measurements (units) | — | [`listing-module-guide.md`](listing-module-guide.md) (how listings use them) | `Egoola-Measurement` | `listing_smoke.sh` (regression only) | `measurements` |
 
 ### 3.4 Listings
@@ -113,6 +116,7 @@ All are in `postman/`. Import `Egoola-Local.postman_environment.json` first.
 | `Egoola.postman_collection.json` | Admin | Auth for every actor, Admins, Sellers (basic), Buyers |
 | `Egoola-Seller.postman_collection.json` | Admin | Seller management, Seller Request queue, review, approve / reject / pause / suspend, change history |
 | `Egoola-SellerApp.postman_collection.json` | **Seller-facing** | Public lookups, sign-up, seller login, own profile, documents, change password, resubmit, **product listings and the listing lookups**, **gigs**, thumbnails. (Requests named **[Admin step]** play the admin so you can see what a seller sees.) |
+| `Egoola-BuyerApp.postman_collection.json` | **Buyer-facing** | Buyer sign-up and login, the public country / division / district / thana lists, category browse, products, gigs and the seller page (mostly no login) |
 | `Egoola-Geography.postman_collection.json` | Admin | Country, state, city, thana |
 | `Egoola-Category.postman_collection.json` | Admin | Category tree |
 | `Egoola-Measurement.postman_collection.json` | Admin | Measurements |
