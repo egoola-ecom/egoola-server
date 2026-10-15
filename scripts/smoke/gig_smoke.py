@@ -295,46 +295,11 @@ check("only gigs are touched (the product id is ignored)", ([gp["id"]], [g1["id"
 check("the product stayed as it was", "approved", A("GET", f"/catalog/listings/{p1['id']}/")[1]["status"])
 check("bulk-moderate on listings ignores gigs", ([], []), (lambda x: (x["updated"], x["skipped"]))(A("POST", "/catalog/listings/bulk-moderate/", {"listing_ids": [gp["id"]], "status": "rejected", "note": "n"})[1]))
 
-print("\n=== Thumbnail (gig and product) ===")
-img = ("t.png", png(), "image/png")
-for label, base, item in [("gig", "/catalog/gigs", g1), ("product", "/catalog/listings", p1)]:
-    url = f"{base}/{item['id']}/thumbnail/"
-    check(f"{label}: no token -> 401", 401, call("PUT", url, files={"image": img})[0])
-    check(f"{label}: seller token -> 403", 403, call("PUT", url, login("seller", "0100000002", "Test@12345"), files={"image": img})[0])
-    s, r = A("PUT", url, None, {"image": img})
-    check(f"{label}: upload a thumbnail", 200, s)
-    path1, url1 = r["image_path"], r["image_url"]
-    check(f"{label}: path under listing/thumbnails/", True, bool(path1) and path1.startswith("listing/thumbnails/"))
-    check(f"{label}: file is stored", True, on_disk(path1))
-    d = A("GET", f"{base}/{item['id']}/")[1]
-    check(f"{label}: detail shows the thumbnail", (path1, url1), (d["image_path"], d["image_url"]))
-    check(f"{label}: list row shows image_url", url1, [r for r in A("GET", f"{base}/?search=Smoke%20Gig")[1]["results"] if r["id"] == item["id"]][0]["image_url"])
-    s, r = A("PUT", url, None, {"image": img})
-    path2 = r["image_path"]
-    check(f"{label}: replace", 200, s)
-    check(f"{label}: new path differs", True, path2 != path1)
-    check(f"{label}: the old file is deleted", False, on_disk(path1))
-    check(f"{label}: the new file exists", True, on_disk(path2))
-    check(f"{label}: a text file -> 400", 400, A("PUT", url, None, {"image": ("n.txt", b"hello", "text/plain")})[0])
-    check(f"{label}: a GIF -> 400", 400, A("PUT", url, None, {"image": ("a.gif", b"GIF89a", "image/gif")})[0])
-    check(f"{label}: a fake PNG -> 400", 400, A("PUT", url, None, {"image": ("f.png", b"not really", "image/png")})[0])
-    check(f"{label}: no file -> 400", 400, A("PUT", url, None, {})[0])
-    check(f"{label}: a refused upload keeps the current file", True, on_disk(path2))
-    logs = A("GET", f"{base}/{item['id']}/")[1]["info_change_logs"]
-    check(f"{label}: thumbnail changes are in the info change log", True, any("thumbnail" in log["changed_fields"] for log in logs))
-    check(f"{label}: delete the thumbnail", 204, A("DELETE", url)[0])
-    d = A("GET", f"{base}/{item['id']}/")[1]
-    check(f"{label}: fields are null", (None, None), (d["image_path"], d["image_url"]))
-    check(f"{label}: the file is removed", False, on_disk(path2))
-    check(f"{label}: delete again is fine", 204, A("DELETE", url)[0])
-check("a gig id on the product thumbnail endpoint -> 404", 404, A("PUT", f"/catalog/listings/{g1['id']}/thumbnail/", None, {"image": img})[0])
-check("a product id on the gig thumbnail endpoint -> 404", 404, A("PUT", f"/catalog/gigs/{p1['id']}/thumbnail/", None, {"image": img})[0])
-check("GET on the thumbnail endpoint is not allowed -> 405", 405, A("GET", f"/catalog/gigs/{g1['id']}/thumbnail/")[0])
-s, r = A("PUT", f"/catalog/gigs/{g2['id']}/thumbnail/", None, {"image": img})
-kept = r["image_path"]
-check("deleting a gig removes its thumbnail file", (204, False), (A("DELETE", f"/catalog/gigs/{g2['id']}/")[0], (lambda: on_disk(kept))()))
+print("\n=== Soft delete ===")
+check("deleting a gig works", 204, A("DELETE", f"/catalog/gigs/{g2['id']}/")[0])
 check("a deleted gig is a 404", 404, A("GET", f"/catalog/gigs/{g2['id']}/")[0])
 check("...and drops out of the list", 0, A("GET", "/catalog/gigs/?search=Smoke%20Gig%20Packages")[1]["count"])
+print("(thumbnail and gallery files: see listing_files_smoke.py)")
 
 print("\n=== Cleanup ===")
 cleanup()

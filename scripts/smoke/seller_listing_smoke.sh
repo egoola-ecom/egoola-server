@@ -275,26 +275,8 @@ check "an admin edit is logged with the admin's name" 200 "$(code "$(areq PATCH 
 check "...creator_type admin" "admin" "$(areq GET $AL/$L1/ | sed '$d' | py "d['info_change_logs'][0]['creator_type']")"
 check "a status change is not in the info log" True "$(areq GET $AL/$L1/ | sed '$d' | py "all('status' not in l['changed_fields'] for l in d['info_change_logs'])")"
 
-echo "=== Media: add, and delete removes the file ==="
-R=$(curl -s -w '\n%{http_code}' -X PATCH $SL/$L1/ -H "Authorization: Bearer $ST" -F "media_file=@$SCRATCH/l1.png;type=$PNG" -F "media_file=@$SCRATCH/l2.png;type=$PNG")
-check "upload two pictures" 200 "$(code "$R")"
-check "two media rows" 2 "$(body "$R" | py "len(d['media'])")"
-M1=$(body "$R" | py "d['media'][0]['id']"); MP1=$(body "$R" | py "d['media'][0]['media_path']"); MP2=$(body "$R" | py "d['media'][1]['media_path']")
-check "files are stored" "True True" "$(fx "$MP1" "$MP2")"
-check "adding media is logged" True "$(areq GET $AL/$L1/ | sed '$d' | py "'media' in d['info_change_logs'][0]['changed_fields']")"
-R=$(curl -s -w '\n%{http_code}' -X PATCH $SL/$L1/ -H "Authorization: Bearer $ST" -F "media_delete_ids=$M1")
-check "delete one picture" 200 "$(code "$R")"
-check "its file is removed from storage, the other stays" "False True" "$(fx "$MP1" "$MP2")"
-check "a text file as listing media -> 400" 400 "$(code "$(curl -s -w '\n%{http_code}' -X PATCH $SL/$L1/ -H "Authorization: Bearer $ST" -F "media_file=@$SCRATCH/note.txt;type=text/plain")")"
-check "an .html file with an image type -> 400" 400 "$(code "$(curl -s -w '\n%{http_code}' -X PATCH $SL/$L1/ -H "Authorization: Bearer $ST" -F "media_file=@$SCRATCH/l1.png;filename=x.html;type=image/png")")"
-check "an .svg file -> 400" 400 "$(code "$(curl -s -w '\n%{http_code}' -X PATCH $SL/$L1/ -H "Authorization: Bearer $ST" -F "media_file=@$SCRATCH/l1.png;filename=x.svg;type=image/svg+xml")")"
-head -c 11000000 /dev/zero > "$SCRATCH/big.png"
-check "a file over 10 MB -> 400" 400 "$(code "$(curl -s -w '\n%{http_code}' -X PATCH $SL/$L1/ -H "Authorization: Bearer $ST" -F "media_file=@$SCRATCH/big.png;type=image/png")")"
-MANYF=(); for i in 1 2 3 4 5 6 7 8 9 10 11; do MANYF+=(-F "media_file=@$SCRATCH/l1.png;type=$PNG"); done
-check "11 files in one request -> 400" 400 "$(code "$(curl -s -w '\n%{http_code}' -X PATCH $SL/$L1/ -H "Authorization: Bearer $ST" "${MANYF[@]}")")"
-printf '%%PDF-1.4\n1 0 obj\n<< >>\nendobj\ntrailer\n<< >>\n%%%%EOF\n' > "$SCRATCH/doc.pdf"
-check "a PDF is accepted" 200 "$(code "$(curl -s -w '\n%{http_code}' -X PATCH $SL/$L1/ -H "Authorization: Bearer $ST" -F "media_file=@$SCRATCH/doc.pdf;type=application/pdf")")"
-check "can't delete another listing's media" True "$(curl -s -X PATCH $SL/$L3/ -H "Authorization: Bearer $ST" -F "media_delete_ids=$M1" | py "len(d['media'])==0")"
+echo "=== Files are not part of the listing API ==="
+check "multipart on a seller listing update -> 415" 415 "$(code "$(curl -s -w '\n%{http_code}' -X PATCH $SL/$L1/ -H "Authorization: Bearer $ST" -F "title=x")")"
 
 echo "=== Details from the code review ==="
 R=$(sreq GET $SL/$L1/)

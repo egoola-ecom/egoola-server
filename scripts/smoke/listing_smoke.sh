@@ -188,28 +188,9 @@ TIERCOUNT=$(echo "$BODY" | python -c "import sys,json;print(len(json.load(sys.st
 check "listing D tiers untouched on unrelated update" "1" "$TIERCOUNT"
 
 echo
-echo "=== 13) Media upload (multipart) + delete ==="
-printf '\xff\xd8\xff\xe0test-jpeg-bytes' > "$SCRATCH/smoke_listing.jpg"
-echo "test document content" > "$SCRATCH/smoke_listing.txt"
-R=$(curl -s -w '\n%{http_code}' -X PATCH "$BASE/catalog/listings/$LISTING_A/" -H "$AUTH" \
-  -F "media_file=@$SCRATCH/smoke_listing.jpg;type=image/jpeg" \
-  -F "media_file=@$SCRATCH/smoke_listing.txt;type=text/plain")
-CODE=$(echo "$R" | tail -1); BODY=$(echo "$R" | sed '$d')
-check "media upload status code" 200 "$CODE"
-MEDIACOUNT=$(echo "$BODY" | python -c "import sys,json;print(len(json.load(sys.stdin)['media']))")
-check "media count after upload" "2" "$MEDIACOUNT"
-IMGTYPE=$(echo "$BODY" | python -c "import sys,json;d=json.load(sys.stdin)['media'];print([m['media_type'] for m in d if m['media_path'].endswith('.jpg')][0])")
-check "jpg inferred as image" "image" "$IMGTYPE"
-DOCTYPE=$(echo "$BODY" | python -c "import sys,json;d=json.load(sys.stdin)['media'];print([m['media_type'] for m in d if m['media_path'].endswith('.txt')][0])")
-check "txt inferred as document" "document" "$DOCTYPE"
-
-MEDIA_IDS=$(echo "$BODY" | python -c "import sys,json;print(','.join(str(m['id']) for m in json.load(sys.stdin)['media']))")
-R=$(curl -s -w '\n%{http_code}' -X PATCH "$BASE/catalog/listings/$LISTING_A/" -H "$AUTH" -H "Content-Type: application/json" \
-  -d "{\"media_delete_ids\":[$MEDIA_IDS]}")
-CODE=$(echo "$R" | tail -1); BODY=$(echo "$R" | sed '$d')
-check "media delete status code" 200 "$CODE"
-MEDIACOUNT=$(echo "$BODY" | python -c "import sys,json;print(len(json.load(sys.stdin)['media']))")
-check "media count after delete" "0" "$MEDIACOUNT"
+echo "=== 13) Listing update is JSON only (files: see listing_files_smoke.py) ==="
+R=$(curl -s -w '\n%{http_code}' -X PATCH "$BASE/catalog/listings/$LISTING_A/" -H "$AUTH" -F "title=Smoke multipart")
+check "multipart on a listing update -> 415" 415 "$(echo "$R" | tail -1)"
 
 echo
 echo "=== 14) Soft delete Listing B ==="

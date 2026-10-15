@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke test: the seller gig API (`/seller/gigs/`), the seller thumbnail endpoints,
-and that `/seller/listings/` stays products only.
+"""Smoke test: the seller gig API (`/seller/gigs/`), and that `/seller/listings/` stays products only.
 
 A seller's gig is always `pending`, owned by the seller, priced by SKUs (one per
 price type). Runs against a running dev server (SMOKE_BASE,
@@ -202,7 +201,6 @@ check("the product endpoint needs no catalog_type", 201, S("POST", PRODUCTS, {"c
 check("a gig id on the product endpoint -> 404", 404, S("GET", f"{PRODUCTS}{g1['id']}/")[0])
 check("a product id on the gig endpoint -> 404", 404, S("GET", f"{GIGS}{prod['id']}/")[0])
 check("PATCH a product through the gig endpoint -> 404", 404, S("PATCH", f"{GIGS}{prod['id']}/", {"description": "x"})[0])
-check("thumbnail of a product through the gig endpoint -> 404", 404, S("PUT", f"{GIGS}{prod['id']}/thumbnail/", None, {"image": img})[0])
 check("the product list has no gigs", True, all(r["catalog_type"] == "product" for r in S("GET", PRODUCTS + "?search=Smoke%20SGig")[1]["results"]))
 check("the gig list has no products", 0, S("GET", GIGS + "?search=Smoke%20SGig%20E14")[1]["count"])
 check("a seller cannot DELETE a gig -> 405", 405, S("DELETE", f"{GIGS}{g1['id']}/")[0])
@@ -243,49 +241,7 @@ check("history (oldest first): pending, approved, rejected, pending", ["pending"
 d = call("GET", f"/catalog/gigs/{g1['id']}/", T)[1]
 check("admin info log has the package change", True, any("skus" in l["changed_fields"] for l in d["info_change_logs"]))
 
-print("\n=== Thumbnail (seller) ===")
-url = f"{GIGS}{g2['id']}/thumbnail/"
-check("no token -> 401", 401, call("PUT", url, files={"image": img})[0])
-check("another seller -> 404", 404, call("PUT", url, T2, files={"image": img})[0])
-check("a not-operating seller -> 403", 403, call("PUT", url, T3, files={"image": img})[0])
-check("admin token -> 403", 403, call("PUT", url, T, files={"image": img})[0])
-s, r = S("PUT", url, None, {"image": img})
-check("upload", 200, s)
-p1 = r["image_path"]
-check("stored under listing/thumbnails/", True, p1.startswith("listing/thumbnails/") and on_disk(p1))
-check("detail and list show it", (r["image_url"], r["image_url"]), (S("GET", f"{GIGS}{g2['id']}/")[1]["image_url"], [x for x in S("GET", GIGS + "?search=Smoke%20SGig%20Packages")[1]["results"]][0]["image_url"]))
-check("the gig was pending: stays pending, no extra history", ("pending", 1), (r["status"], len(S("GET", f"{GIGS}{g2['id']}/")[1]["status_change_logs"])))
-s, r = S("PUT", url, None, {"image": img})
-check("replace deletes the old file", (200, False, True), (s, on_disk(p1), on_disk(r["image_path"])))
-p2 = r["image_path"]
-check("a text file -> 400", 400, S("PUT", url, None, {"image": ("n.txt", b"x", "text/plain")})[0])
-check("a GIF -> 400", 400, S("PUT", url, None, {"image": ("a.gif", b"GIF89a", "image/gif")})[0])
-check("a fake PNG -> 400", 400, S("PUT", url, None, {"image": ("f.png", b"nope", "image/png")})[0])
-check("a 10 MB+ picture -> 400", 400, S("PUT", url, None, {"image": ("b.png", png() + b"\0" * (10 * 1024 * 1024 + 1), "image/png")})[0])
-check("a refused upload keeps the file", True, on_disk(p2))
-
-print("\n-- thumbnail on an approved and on a rejected gig")
-s, g3 = S("POST", GIGS, gig("Smoke SGig Three", price="5", price_type="daily"))
-check("approve it", 200, call("PATCH", f"/catalog/gigs/{g3['id']}/", T, {"status": "approved"})[0])
-r = S("PUT", f"{GIGS}{g3['id']}/thumbnail/", None, {"image": img})
-check("approved gig: a new thumbnail keeps it approved", ("approved", 200), (r[1]["status"], r[0]))
-check("reject it", 200, call("PATCH", f"/catalog/gigs/{g3['id']}/", T, {"status": "rejected", "note": "bad picture"})[0])
-r = S("PUT", f"{GIGS}{g3['id']}/thumbnail/", None, {"image": img})
-check("rejected gig: a new thumbnail sends it back to pending", ("pending", 200), (r[1]["status"], r[0]))
-d = S("GET", f"{GIGS}{g3['id']}/")[1]
-check("...with a status history entry by the seller", ("pending", "seller"), (d["status_change_logs"][0]["status"], d["status_change_logs"][0]["creator_type"]))
-check("...and the admin sees it in the pending list", True, "Smoke SGig Three" in {x["title"] for x in call("GET", "/catalog/gigs/requests/?search=Smoke%20SGig", T)[1]["results"]})
-d = call("GET", f"/catalog/gigs/{g3['id']}/", T)[1]
-check("the info change log has the thumbnail", True, any("thumbnail" in l["changed_fields"] for l in d["info_change_logs"]))
-check("delete the thumbnail", (204, None), (S("DELETE", f"{GIGS}{g3['id']}/thumbnail/")[0], S("GET", f"{GIGS}{g3['id']}/")[1]["image_url"]))
-
-print("\n-- product thumbnail")
-s, r = S("PUT", f"{PRODUCTS}{prod['id']}/thumbnail/", None, {"image": img})
-check("upload on a product", 200, s)
-pp = r["image_path"]
-check("delete on a product removes the file", (204, False), (S("DELETE", f"{PRODUCTS}{prod['id']}/thumbnail/")[0], on_disk(pp)))
-check("a gig id on the product thumbnail endpoint -> 404", 404, S("PUT", f"{PRODUCTS}{g1['id']}/thumbnail/", None, {"image": img})[0])
-check("GET on the thumbnail endpoint -> 405", 405, S("GET", url)[0])
+print("(thumbnail and gallery files: see listing_files_smoke.py)")
 
 print("\n=== Cleanup ===")
 cleanup()
