@@ -20,6 +20,9 @@ accounts in [`docs/test-accounts.md`](../../docs/test-accounts.md). The guides i
 | `gig_smoke.py` | The admin gig API (`/catalog/gigs/`): packages (price type, duration, one per type, no stock or options), every rule, edit by SKU id, list and filters, the pending gig list, bulk moderation, the product / gig / job separation (404 and 400) | 115 |
 | `seller_gig_smoke.py` | The seller gig API (`/seller/gigs/`): access, always pending, packages and their rules, the same-title rule per type, the product / gig split, approve / reject / fix | 72 |
 | `listing_files_smoke.py` | The 4 listing-files APIs (`/catalog/listing-files/{id}/`, `/seller/listing-files/{id}/`, POST + PATCH) for products and gigs: add, replace, remove, gallery, limits, all-or-nothing, access, status rules, change log, JSON-only create / update, old `/thumbnail/` gone | 130 |
+| `category_browse_smoke.py` | The Buyer Panel category list (`/public/catalog/categories/`): no login, roots by default, `parent_id` children at every level, name / Bangla search (with and without a parent), `type`, active only (also under an inactive parent), page-based paging, validation (`400` / `404`) | 41 |
+| `public_listing_smoke.py` | The public product and gig lists and details (`/public/catalog/products/`, `/gigs/`) and the seller page (`/public/sellers/{id}/`): visibility (approved, live, seller verified and active, an active SKU), every filter, ordering, paging, validation, product / gig / job separation, no private fields | 103 |
+| `buyer_register_smoke.py` | Buyer sign-up (`/auth/buyer/register/`: only name, phone, password required; optional fields, mobile format, duplicates ignoring case and spaces, location rules, profile picture, tokens work, status / wallet cannot be set) and buyer login by phone or email | 55 |
 
 ```bash
 uv run manage.py runserver 8000        # in one terminal
