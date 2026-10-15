@@ -53,6 +53,10 @@ class Category(AuditedModel):
         constraints = [
             models.UniqueConstraint(fields=["type", "slug"], name="unique_category_slug_per_type")
         ]
+        indexes = [
+            # The browse query: active rows of one parent, in display order.
+            models.Index(fields=["parent", "status", "sort_order", "name"], name="categories_browse_idx"),
+        ]
 
     def __str__(self):
         return self.name
@@ -216,6 +220,11 @@ class Listing(AuditedModel):
             GinIndex(fields=["attributes"], name="listings_attributes_gin"),
             # The admin's pending list: filter on status, page by newest request.
             models.Index(fields=["status", "-requested_at"], name="listings_pending_queue_idx"),
+            # The public product / gig lists: live approved rows of one kind, newest first.
+            models.Index(
+                fields=["catalog_type", "-created_at"], name="listings_public_idx",
+                condition=models.Q(status="approved", deleted_at__isnull=True),
+            ),
         ]
         constraints = [
             # A pending listing always has a request time (the pending list pages on it).
