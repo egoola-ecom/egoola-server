@@ -66,13 +66,27 @@ class CartItemSerializer(serializers.ModelSerializer):
         return str(obj.line_subtotal) if obj.line_subtotal is not None else None
 
 
+class CartSellerSerializer(serializers.Serializer):
+    """None when this cart holds admin-owned listings (no seller)."""
+
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    profile_pic_url = serializers.CharField()
+
+
 class CartSerializer(serializers.ModelSerializer):
+    seller = serializers.SerializerMethodField()
     items = CartItemSerializer(many=True, read_only=True)
     subtotal = serializers.SerializerMethodField()
 
     class Meta:
         model = Cart
-        fields = ["id", "cart_type", "is_active", "items", "subtotal", "created_at", "updated_at"]
+        fields = ["id", "cart_type", "seller", "is_active", "items", "subtotal", "created_at", "updated_at"]
+
+    def get_seller(self, obj):
+        if not obj.seller_id:
+            return None
+        return CartSellerSerializer(obj.seller).data
 
     def get_subtotal(self, obj):
         return str(obj.subtotal)

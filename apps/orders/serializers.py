@@ -36,21 +36,34 @@ class AdminCartItemSerializer(serializers.ModelSerializer):
         return str(obj.line_subtotal) if obj.line_subtotal is not None else None
 
 
+class AdminCartSellerSerializer(serializers.Serializer):
+    """None when this cart holds admin-owned listings (no seller)."""
+
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    status = serializers.CharField()
+    verification_status = serializers.CharField()
+
+
 class AdminCartListSerializer(serializers.ModelSerializer):
-    """One row per cart: who it belongs to, what kind, whether it is still
-    open, and a quick total — the line items themselves are only on the
-    detail view."""
+    """One row per cart: who it belongs to, which seller (a cart never spans
+    sellers — see the Cart model docstring), whether it is still open, and a
+    quick total — the line items themselves are only on the detail view."""
 
     buyer = BuyerListSerializer(read_only=True)
+    seller = serializers.SerializerMethodField()
     item_count = serializers.IntegerField(read_only=True)
     subtotal = serializers.SerializerMethodField()
 
     class Meta:
         model = Cart
         fields = [
-            "id", "buyer", "cart_type", "is_active", "order", "item_count", "subtotal",
+            "id", "buyer", "seller", "cart_type", "is_active", "order", "item_count", "subtotal",
             "created_at", "updated_at",
         ]
+
+    def get_seller(self, obj):
+        return AdminCartSellerSerializer(obj.seller).data if obj.seller_id else None
 
     def get_subtotal(self, obj):
         return str(obj.subtotal)

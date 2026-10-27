@@ -1,10 +1,14 @@
 """
-The buyer's own cart (`/api/v1/buyer/cart/...`). See docs/buyer-api-guide.md.
+The buyer's own cart(s) (`/api/v1/buyer/cart/...`). See docs/buyer-api-guide.md.
 
-A buyer has at most one *active* cart per type (product / service — see
-Cart.CatalogType); which one a GET/DELETE acts on is picked with `?type=`.
-Adding an item instead picks the cart automatically, from the listing's own
-type — the buyer never states it directly, so it can never mismatch.
+A buyer has at most one *active* cart per (type, seller) — see Cart.CatalogType
+and the model docstring for why a cart never spans sellers. GET/DELETE are pure
+lookups, never creating anything: `?type=` picks which kind, and `?seller=` (if
+given) picks that seller's cart; left out, they act on whichever active cart of
+that type was touched most recently. Either returns `null`/no-ops if there is
+none. Adding an item is the only thing that ever creates a cart, picking it
+automatically from the listing's own type and seller — the buyer never states
+either directly, so neither can ever mismatch.
 """
 
 from django.db import transaction
@@ -39,28 +43,55 @@ def _cart_type(request):
     return value
 
 
-def _get_or_create_active_cart(buyer, cart_type):
+def _get_or_create_active_cart(buyer, cart_type, seller):
     return Cart.objects.get_or_create(
-        buyer=buyer, cart_type=cart_type, is_active=True,
+        buyer=buyer, cart_type=cart_type, seller=seller, is_active=True,
         defaults={"created_by": buyer.id, "creator_type": buyer.actor_type, "creator_name": buyer.name},
     )[0]
 
 
+def _touch(cart):
+    """Bumps `updated_at` on the cart itself — changing one of its items
+    doesn't otherwise touch the cart row, and "most recently touched" (see
+    `_target_cart`) needs to mean any interaction with it, not just its own
+    field changes."""
+    cart.save(update_fields=["updated_at"])
+
+
+def _target_cart(request):
+    """The one cart GET/DELETE act on: `?seller=` names it exactly (`0` = the
+    shared cart for admin-owned listings, no seller); left out, it's whichever
+    active cart of that type the buyer touched most recently. `None` if no
+    such cart exists — this never creates one."""
+    queryset = Cart.objects.filter(buyer=request.user, cart_type=_cart_type(request), is_active=True)
+    seller = request.query_params.get("seller")
+    if seller is not None:
+        if not seller.isdigit():
+            raise ValidationError({"seller": ["Must be a whole number."]})
+        seller_id = int(seller)
+        queryset = queryset.filter(seller_id=seller_id or None)
+    return queryset.order_by("-updated_at", "-id").first()
+
+
 class CartView(APIView):
-    """GET `?type=product|service` — the buyer's active cart of that type
-    (created empty on first touch). DELETE empties it; the cart row itself
-    stays active for further adds (it only closes at checkout)."""
+    """GET `?type=product|service[&seller=]` — one cart (or `null`): the named
+    seller's, or the most recently touched one of that type if `seller` is
+    left out. DELETE empties that same cart (no-op if there is none); the
+    row itself stays active either way (it only closes at checkout)."""
 
     permission_classes = [IsBuyerActor]
 
     def get(self, request):
-        cart = _get_or_create_active_cart(request.user, _cart_type(request))
-        cart = Cart.objects.prefetch_related(*ITEM_PREFETCH).get(pk=cart.pk)
+        cart = _target_cart(request)
+        if cart is None:
+            return Response(None)
+        cart = Cart.objects.select_related("seller").prefetch_related(*ITEM_PREFETCH).get(pk=cart.pk)
         return Response(CartSerializer(cart).data)
 
     def delete(self, request):
-        cart = _get_or_create_active_cart(request.user, _cart_type(request))
-        cart.items.all().delete()
+        cart = _target_cart(request)
+        if cart is not None:
+            cart.items.all().delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -81,7 +112,7 @@ class CartItemsView(APIView):
         actor = request.user
 
         with transaction.atomic():
-            cart = _get_or_create_active_cart(actor, listing.catalog_type)
+            cart = _get_or_create_active_cart(actor, listing.catalog_type, listing.seller)
             item = CartItem.objects.select_for_update().filter(cart=cart, listing_sku=sku).first()
             if item:
                 if qty is not None:
@@ -96,6 +127,7 @@ class CartItemsView(APIView):
                     created_by=actor.id, creator_type=actor.actor_type, creator_name=actor.name,
                     **variant_snapshot(sku),
                 )
+            _touch(cart)
         return Response(CartItemSerializer(item).data, status=status.HTTP_201_CREATED)
 
 
@@ -113,9 +145,12 @@ class CartItemDetailView(APIView):
         serializer = UpdateCartItemSerializer(item, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save(updated_by=actor.id, updater_type=actor.actor_type, updater_name=actor.name)
+        _touch(item.cart)
         return Response(CartItemSerializer(item).data)
 
     def delete(self, request, pk):
         item = self.get_object(request, pk)
+        cart = item.cart
         item.delete()
+        _touch(cart)
         return Response(status=status.HTTP_204_NO_CONTENT)

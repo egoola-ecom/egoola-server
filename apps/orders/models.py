@@ -20,17 +20,33 @@ from apps.core.models import AuditedModel, CatalogType
 
 
 class Cart(AuditedModel):
-    """A buyer's cart, one per (buyer, cart_type): a product cart and a service
-    (gig) cart never mix, since they checkout through different gateways
-    (Stripe vs bKash — see Order). A cart is never reused: once it becomes an
-    order (`order` is set, `is_active` turns False) it is kept as-is, items and
-    all, as the record of what that order was built from. A later add-to-cart
-    for the same buyer and type creates a fresh, active cart."""
+    """A buyer's cart, one per (buyer, cart_type, seller): a product cart and a
+    service (gig) cart never mix (different checkout gateways — Stripe vs
+    bKash), and neither ever mixes two sellers' listings. `Order.seller` is a
+    single, required field — an order is always exactly one seller — so this
+    keeps a cart in 1:1 shape with the order it will become (`order` below is
+    a OneToOneField; a cart spanning sellers could never satisfy that). A
+    buyer shopping from several sellers simply has several carts of the same
+    type at once, one per seller.
+
+    `seller` is null for an admin-owned listing (no seller) — the constraint
+    below treats every null as the same "no seller" bucket (`nulls_distinct`
+    =False), not as distinct rows, so there is still only one such cart per
+    buyer per type.
+
+    A cart is never reused: once it becomes an order (`order` is set,
+    `is_active` turns False) it is kept as-is, items and all, as the record of
+    what that order was built from. A later add-to-cart for the same buyer,
+    type and seller creates a fresh, active cart."""
 
     CatalogType = CatalogType
 
     buyer = models.ForeignKey(
         "accounts.User", on_delete=models.CASCADE, related_name="carts", db_column="buyerId"
+    )
+    seller = models.ForeignKey(
+        "accounts.Seller", on_delete=models.CASCADE, null=True, blank=True, related_name="carts",
+        db_column="sellerId",
     )
     cart_type = models.CharField(db_column="cartType", max_length=10, choices=CatalogType.choices)
     is_active = models.BooleanField(db_column="isActive", default=True)
@@ -43,13 +59,17 @@ class Cart(AuditedModel):
         db_table = "carts"
         constraints = [
             models.UniqueConstraint(
-                fields=["buyer", "cart_type"], condition=models.Q(is_active=True),
-                name="unique_active_cart_per_buyer_type",
+                fields=["buyer", "cart_type", "seller"], condition=models.Q(is_active=True),
+                nulls_distinct=False,
+                name="unique_active_cart_per_buyer_type_seller",
             ),
         ]
 
     def __str__(self):
-        return f"Cart for buyer {self.buyer_id} ({self.cart_type}, {'active' if self.is_active else 'closed'})"
+        return (
+            f"Cart for buyer {self.buyer_id}, seller {self.seller_id} "
+            f"({self.cart_type}, {'active' if self.is_active else 'closed'})"
+        )
 
     @property
     def subtotal(self):

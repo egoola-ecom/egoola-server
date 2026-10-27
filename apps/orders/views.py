@@ -29,7 +29,7 @@ class AdminCartViewSet(ReadOnlyModelViewSet):
     pagination_class = DefaultCursorPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = CartFilter
-    search_fields = ["buyer__name", "buyer__email", "buyer__phone"]
+    search_fields = ["buyer__name", "buyer__email", "buyer__phone", "seller__name", "seller__email"]
     ordering_fields = ["created_at", "updated_at", "id"]
     ordering = ["-created_at", "-id"]
 
@@ -37,7 +37,7 @@ class AdminCartViewSet(ReadOnlyModelViewSet):
         return AdminCartListSerializer if self.action == "list" else AdminCartDetailSerializer
 
     def get_queryset(self):
-        queryset = Cart.objects.select_related("buyer").annotate(item_count=Count("items"))
+        queryset = Cart.objects.select_related("buyer", "seller").annotate(item_count=Count("items"))
         if self.action == "list":
             return queryset
         items = Prefetch(
