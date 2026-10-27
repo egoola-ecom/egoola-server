@@ -10,7 +10,8 @@ class CartItemInline(admin.TabularInline):
 
 @admin.register(Cart)
 class CartAdmin(admin.ModelAdmin):
-    list_display = ("id", "buyer")
+    list_display = ("id", "buyer", "cart_type", "is_active", "order")
+    list_filter = ("cart_type", "is_active")
     inlines = [CartItemInline]
 
 

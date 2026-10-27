@@ -13,7 +13,7 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models.functions import Lower
 
-from apps.core.models import ActorType, AuditedModel
+from apps.core.models import ActorType, AuditedModel, CatalogType
 
 
 class ActiveListingManager(models.Manager):
@@ -26,9 +26,7 @@ class ActiveListingManager(models.Manager):
 
 
 class Category(AuditedModel):
-    class CatalogType(models.TextChoices):
-        PRODUCT = "product", "Product"
-        SERVICE = "service", "Service"
+    CatalogType = CatalogType
 
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
@@ -92,9 +90,7 @@ class Brand(AuditedModel):
 
 
 class Listing(AuditedModel):
-    class CatalogType(models.TextChoices):
-        PRODUCT = "product", "Product"
-        SERVICE = "service", "Service"
+    CatalogType = CatalogType
 
     class ListingType(models.TextChoices):
         GENERAL = "general", "General"

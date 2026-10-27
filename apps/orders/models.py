@@ -14,22 +14,40 @@ seller_payments.
 
 from django.db import models
 
-from apps.core.models import AuditedModel
+from apps.core.models import AuditedModel, CatalogType
 
 
 class Cart(AuditedModel):
-    """One open cart per buyer — a thin header row with no line-item data
-    of its own; converts into an Order + OrderItems at checkout."""
+    """A buyer's cart, one per (buyer, cart_type): a product cart and a service
+    (gig) cart never mix, since they checkout through different gateways
+    (Stripe vs bKash — see Order). A cart is never reused: once it becomes an
+    order (`order` is set, `is_active` turns False) it is kept as-is, items and
+    all, as the record of what that order was built from. A later add-to-cart
+    for the same buyer and type creates a fresh, active cart."""
 
-    buyer = models.OneToOneField(
-        "accounts.User", on_delete=models.CASCADE, related_name="cart", db_column="buyerId"
+    CatalogType = CatalogType
+
+    buyer = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE, related_name="carts", db_column="buyerId"
+    )
+    cart_type = models.CharField(db_column="cartType", max_length=10, choices=CatalogType.choices)
+    is_active = models.BooleanField(db_column="isActive", default=True)
+    order = models.OneToOneField(
+        "orders.Order", on_delete=models.SET_NULL, null=True, blank=True, related_name="source_cart",
+        db_column="orderId",
     )
 
     class Meta:
         db_table = "carts"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["buyer", "cart_type"], condition=models.Q(is_active=True),
+                name="unique_active_cart_per_buyer_type",
+            ),
+        ]
 
     def __str__(self):
-        return f"Cart for buyer {self.buyer_id}"
+        return f"Cart for buyer {self.buyer_id} ({self.cart_type}, {'active' if self.is_active else 'closed'})"
 
 
 class CartItem(AuditedModel):
