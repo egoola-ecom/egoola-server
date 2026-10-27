@@ -3,24 +3,12 @@ Serializers for the buyer's own cart (`/api/v1/buyer/cart/...`). See
 buyer_views.py and docs/buyer-api-guide.md.
 """
 
-from decimal import Decimal
-
 from rest_framework import serializers
 
-from apps.accounts.public_views import public_seller_listings_q
 from apps.catalog.models import Listing, ListingSku
-from apps.catalog.public_listings import GIG_SCOPE, PRODUCT_SCOPE
+from apps.catalog.public_listings import buyer_visible_listings
 
 from .models import Cart, CartItem
-
-
-def visible_listings():
-    """Listings a buyer may add to their cart: the same visibility rule as
-    public browsing (approved, seller verified and active, not a buyer's own
-    job request) — nothing a buyer can't already see in the shop."""
-    return Listing.objects.filter(
-        PRODUCT_SCOPE | GIG_SCOPE, public_seller_listings_q(), status=Listing.Status.APPROVED
-    )
 
 
 def _variant_value(sku, name_fragment):
@@ -40,13 +28,13 @@ def variant_snapshot(sku):
     }
 
 
-class _CartItemListingSerializer(serializers.ModelSerializer):
+class CartItemListingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Listing
         fields = ["id", "title", "title_bn", "slug", "image_url", "catalog_type"]
 
 
-class _CartItemSkuSerializer(serializers.ModelSerializer):
+class CartItemSkuSerializer(serializers.ModelSerializer):
     discounted_price = serializers.SerializerMethodField()
 
     class Meta:
@@ -58,11 +46,11 @@ class _CartItemSkuSerializer(serializers.ModelSerializer):
 
 
 class CartItemSerializer(serializers.ModelSerializer):
-    listing = _CartItemListingSerializer(read_only=True)
-    listing_sku = _CartItemSkuSerializer(read_only=True)
+    listing = CartItemListingSerializer(read_only=True)
+    listing_sku = CartItemSkuSerializer(read_only=True)
     unit_price = serializers.SerializerMethodField()
     line_subtotal = serializers.SerializerMethodField()
-    available = serializers.SerializerMethodField()
+    available = serializers.BooleanField(source="is_available", read_only=True)
 
     class Meta:
         model = CartItem
@@ -71,29 +59,11 @@ class CartItemSerializer(serializers.ModelSerializer):
             "unit_price", "line_subtotal", "available", "created_at",
         ]
 
-    def _units(self, obj):
-        return obj.qty if obj.qty is not None else obj.duration
-
     def get_unit_price(self, obj):
-        return str(obj.listing_sku.effective_price()) if obj.listing_sku_id else None
+        return str(obj.unit_price) if obj.unit_price is not None else None
 
     def get_line_subtotal(self, obj):
-        units = self._units(obj)
-        if not obj.listing_sku_id or units is None:
-            return None
-        return str(obj.listing_sku.effective_price() * units)
-
-    def get_available(self, obj):
-        """False once something has changed since this was added: the SKU
-        went inactive, the listing is no longer approved, or stock can no
-        longer cover the quantity. The line is kept either way — only
-        checkout (a later step) needs to decide what to do about it."""
-        sku, listing = obj.listing_sku, obj.listing
-        if not sku or not sku.is_active or listing.status != Listing.Status.APPROVED or listing.deleted_at:
-            return False
-        if obj.qty is not None and sku.stock_qty is not None:
-            return sku.stock_qty - sku.reserved_qty >= obj.qty
-        return True
+        return str(obj.line_subtotal) if obj.line_subtotal is not None else None
 
 
 class CartSerializer(serializers.ModelSerializer):
@@ -105,16 +75,11 @@ class CartSerializer(serializers.ModelSerializer):
         fields = ["id", "cart_type", "is_active", "items", "subtotal", "created_at", "updated_at"]
 
     def get_subtotal(self, obj):
-        total = Decimal("0.00")
-        for item in obj.items.all():
-            units = item.qty if item.qty is not None else item.duration
-            if item.listing_sku_id and units is not None:
-                total += item.listing_sku.effective_price() * units
-        return str(total)
+        return str(obj.subtotal)
 
 
 class AddCartItemSerializer(serializers.Serializer):
-    listing = serializers.PrimaryKeyRelatedField(queryset=visible_listings())
+    listing = serializers.PrimaryKeyRelatedField(queryset=buyer_visible_listings())
     listing_sku = serializers.PrimaryKeyRelatedField(queryset=ListingSku.objects.filter(is_active=True))
     qty = serializers.IntegerField(required=False, min_value=1)
     duration = serializers.IntegerField(required=False, min_value=1)

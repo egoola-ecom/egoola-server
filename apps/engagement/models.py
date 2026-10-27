@@ -36,8 +36,8 @@ class Review(AuditedModel):
 
 
 class Favourite(AuditedModel):
-    user = models.ForeignKey(
-        "accounts.User", on_delete=models.CASCADE, related_name="favourites", db_column="userId"
+    buyer = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE, related_name="favourites", db_column="buyerId"
     )
     listing = models.ForeignKey(
         "catalog.Listing", on_delete=models.CASCADE, related_name="favourited_by", db_column="listingId"
@@ -46,8 +46,8 @@ class Favourite(AuditedModel):
     class Meta:
         db_table = "favourites"
         constraints = [
-            models.UniqueConstraint(fields=["user", "listing"], name="unique_favourite_per_user_per_listing"),
+            models.UniqueConstraint(fields=["buyer", "listing"], name="unique_favourite_per_buyer_per_listing"),
         ]
 
     def __str__(self):
-        return f"Favourite: user {self.user_id} / listing {self.listing_id}"
+        return f"Favourite: buyer {self.buyer_id} / listing {self.listing_id}"
