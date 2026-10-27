@@ -1015,7 +1015,7 @@
       "item": [
         {
           "name": "Carts",
-          "description": "Read-only (list + detail): every buyer's cart, regardless of whether its listings are still publicly visible. See docs/cart-wishlist-admin-guide.md section 1.",
+          "description": "Read-only (list + detail): every buyer's cart. A cart never spans sellers \u2014 every row belongs to exactly one seller, or to none (admin-owned listings). See docs/cart-wishlist-admin-guide.md section 1.",
           "item": [
             {
               "name": "List carts",
@@ -1036,7 +1036,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/orders/carts/?search=&cart_type=&is_active=&has_order=&buyer=&listing=&created_from=&created_to=&ordering=-created_at",
+                  "raw": "{{base_url}}/api/v1/orders/carts/?search=&cart_type=&is_active=&has_order=&buyer=&seller=&listing=&created_from=&created_to=&ordering=-created_at",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -1072,6 +1072,11 @@
                       "key": "buyer",
                       "value": "",
                       "description": "exact buyer id"
+                    },
+                    {
+                      "key": "seller",
+                      "value": "",
+                      "description": "exact seller id; use 0 for the shared no-seller cart"
                     },
                     {
                       "key": "listing",

@@ -1843,7 +1843,7 @@
     },
     {
       "name": "Cart",
-      "description": "A buyer's own cart: one active cart per type (product/service), picked automatically by the added listing's own type. Needs a buyer token \u2014 run 'Buyer sign-up and login' first, or set {{buyer_token}} manually. Needs {{product_id}}/{{product_sku_id}} and {{gig_id}}/{{gig_sku_id}} set (see Products/Gigs folders). See docs/buyer-api-guide.md section 3.",
+      "description": "A buyer's own cart: one active cart per (type, seller) \u2014 a cart never spans sellers, since every order is exactly one seller. GET/DELETE always act on exactly one cart: name it with &seller= (0 = the shared no-seller cart), or leave it out for whichever cart of that type was touched most recently. Neither call creates a cart; with nothing there, GET returns null and DELETE is a no-op 204. Needs a buyer token \u2014 run 'Buyer sign-up and login' first, or set {{buyer_token}} manually. Needs {{product_id}}/{{product_sku_id}} and {{gig_id}}/{{gig_sku_id}} set (see Products/Gigs folders). See docs/buyer-api-guide.md section 3.",
       "item": [
         {
           "name": "Add a product to cart",
@@ -1957,7 +1957,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test('the most recently touched cart of this type, or null', () => { const b = pm.response.json(); pm.expect(b === null || typeof b === 'object').to.be.true; });"
                 ]
               }
             }
@@ -1991,6 +1992,57 @@
                 {
                   "key": "type",
                   "value": "product"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get the product cart, one seller only",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test('that seller\\'s cart, or null if they have none', () => { const b = pm.response.json(); pm.expect(b === null || typeof b === 'object').to.be.true; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/?type=product&seller={{seller_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "product"
+                },
+                {
+                  "key": "seller",
+                  "value": "{{seller_id}}"
                 }
               ]
             }
@@ -2056,7 +2108,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test('the most recently touched cart of this type, or null', () => { const b = pm.response.json(); pm.expect(b === null || typeof b === 'object').to.be.true; });"
                 ]
               }
             }
