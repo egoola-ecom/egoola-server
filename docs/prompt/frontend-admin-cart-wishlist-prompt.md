@@ -30,10 +30,16 @@ Admin Management). `{next, previous, results}` on list, no `count`.
 
 ### Carts — `GET /api/v1/orders/carts/`
 
+**A cart never spans two sellers** (an order is always exactly one seller, so a cart that mixed sellers could never
+cleanly become one order) — every cart row here belongs to exactly one seller, or to no seller at all (an
+admin-owned listing). A buyer shopping from 3 sellers has 3 separate cart rows of the same type; list them together
+with `?buyer=`, or narrow to one seller with `?buyer=&seller=`.
+
 | Query | Meaning |
 |---|---|
-| `search` | buyer's name, email or phone |
+| `search` | buyer's name/email/phone, or the seller's name/email |
 | `buyer` | exact buyer id |
+| `seller` | exact seller id — use `0` for the shared no-seller cart |
 | `cart_type` | `product` \| `service` |
 | `is_active` | `true` (open) \| `false` (closed — became an order) |
 | `has_order` | `true` \| `false` |
@@ -41,8 +47,9 @@ Admin Management). `{next, previous, results}` on list, no `count`.
 | `created_from`, `created_to` | `YYYY-MM-DD` |
 | `ordering` | `created_at` \| `updated_at` \| `id` (prefix `-` for descending) |
 
-List row: `id, buyer{id,name,email,phone,profile_pic_url,wallet_balance,status}, cart_type, is_active, order (id or
-null), item_count, subtotal, created_at, updated_at`.
+List row: `id, buyer{id,name,email,phone,profile_pic_url,wallet_balance,status}, seller{id,name,status,
+verification_status} (or null), cart_type, is_active, order (id or null), item_count, subtotal, created_at,
+updated_at`.
 
 `GET /api/v1/orders/carts/{id}/` adds `items[]` (each: `listing{id,title,title_bn,slug,image_url,catalog_type}`,
 `listing_sku{id,sku,price,discounted_price,price_type,is_active}`, `qty`, `duration`, `color`, `size`, `unit_price`,
@@ -80,10 +87,12 @@ admin view instead of the buyer-facing one.
 1. **Two API clients**: `admin-carts-api.ts` (`listCarts(filters, cursor?)`, `getCart(id)`) and
    `admin-favourites-api.ts` (`listFavourites(filters, cursor?)`, `getFavourite(id)`), both cursor-based like the
    Seller Request queue client.
-2. **Carts screen**: filter bar (search, `cart_type`, `is_active`, `has_order`, date range — `listing`/`buyer` can be
-   query-param-only, driven by navigating from elsewhere, e.g. a buyer's detail page), a list/table showing buyer,
-   type, open/closed, item count, subtotal, created date, with "load more" cursor paging.
-3. **Cart detail** (page or drawer): buyer block, cart metadata (`cart_type`, `is_active`, linked `order` id if any),
+2. **Carts screen**: filter bar (search, `cart_type`, `is_active`, `has_order`, date range — `listing`/`buyer`/`seller`
+   can be query-param-only, driven by navigating from elsewhere, e.g. a buyer's or a seller's detail page), a
+   list/table showing buyer, seller (or "no seller"), type, open/closed, item count, subtotal, created date, with
+   "load more" cursor paging.
+3. **Cart detail** (page or drawer): buyer block, seller block (or "no seller"), cart metadata (`cart_type`,
+   `is_active`, linked `order` id if any),
    then every line — listing thumbnail/title, variant (`color`/`size` or the SKU code), qty or duration, unit price,
    line subtotal, an "unavailable" badge when `available` is `false`. Show the subtotal total at the bottom.
 4. **Wishlist screen**: same filter-bar pattern (search, `catalog_type`, `listing_visible`, date range), a
