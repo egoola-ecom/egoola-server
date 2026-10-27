@@ -1,9 +1,24 @@
-# Egoola Cart Guide (in plain words)
+# Egoola Cart & Wishlist Guide (in plain words)
 
-This guide explains how a buyer's **cart** works: what it is, how it is created, how items go in and come out of it,
-and what happens to it once it turns into an order. It has no technical terms and no mention of any API — it describes
-the idea, not the code. Ordering and checkout themselves are not built yet; this guide only covers the cart that will
-feed into them.
+This guide explains how a buyer's **cart** and **wishlist** work: what each one is, how it is created, how things go
+in and come out of it, and — for the cart — what happens once it turns into an order. It has no technical terms and
+no mention of any API — it describes the idea, not the code. Ordering and checkout themselves are not built yet; this
+guide only covers the cart and the wishlist that will feed into them.
+
+The two are deliberately different ideas:
+
+| | Cart | Wishlist |
+|---|---|---|
+| **What it means** | "I intend to buy this" | "I like this, remind me later" |
+| **Holds** | A quantity or a duration, chosen on purpose | Nothing but the listing itself |
+| **Leads to** | An order, eventually | Nothing automatically — a buyer still has to add it to a cart to buy it |
+| **How many a buyer has** | Up to two at once (one for products, one for services) | One single list |
+
+Part I covers the cart. Part II covers the wishlist.
+
+---
+
+# Part I — The cart
 
 ---
 
@@ -134,11 +149,64 @@ Put simply: a cart's life looks like this —
 
 ---
 
-## 8. What this guide does not cover yet
+## 8. What the cart does not cover yet
 
 - **Checkout itself** — the step where a cart's contents actually turn into an order and a payment is taken. This is
   a future piece of work; this guide only describes the cart that will feed into it.
 - **Reserving stock** — right now, adding something to a cart only checks that enough is available at that moment; it
   does not hold or set aside stock for that buyer. True reservation happens only once an order is placed.
-- **Wishlist / favourites** — saving something to look at later, without the intent to buy it right now, is a
-  separate idea from the cart and is covered elsewhere.
+
+---
+
+# Part II — The wishlist
+
+---
+
+## 9. What a wishlist is
+
+A wishlist is a much simpler idea than a cart: it is a plain list of things a buyer likes and wants to find again
+later, with no intention attached. Saving something to the wishlist does not mean the buyer is about to buy it, does
+not reserve anything, and does not affect stock in any way. It is a bookmark, nothing more.
+
+A buyer has **one single wishlist** — unlike the cart, it is not split into a product one and a service one. A
+product and a gig can sit side by side in the same list, since there is no checkout or payment implication to keep
+them apart for.
+
+---
+
+## 10. Saving and un-saving something
+
+Saving something to the wishlist and taking it back off are both simple, reversible actions with no side effects:
+
+- **Saving** something that is already on the list changes nothing — it does not appear twice, and nothing breaks if
+  a buyer taps "save" on something they already saved.
+- **Removing** something from the list is just as forgiving — removing something that was never saved, or that has
+  already been removed, is not treated as a mistake. Either way, the buyer ends up with it off the list, which is
+  all that matters.
+
+Only things a buyer can actually see can be saved — exactly the same rule as the cart and ordinary browsing: an item
+that is not yet approved, or belongs to a seller who is not in good standing, cannot be saved.
+
+---
+
+## 11. What the wishlist shows, and what happens when things change
+
+Each saved thing shows the same card a buyer would see while browsing it normally — its title, picture, and current
+price, worked out fresh each time, exactly like the cart. There is no quantity, no duration, and no line total, since
+nothing has been committed to yet.
+
+If something saved to the wishlist later becomes unavailable — the seller is no longer in good standing, or the
+listing itself is taken down — it is **not deleted from the wishlist**. It simply stops showing up in the list for as
+long as it stays unavailable, and comes back on its own the moment it is available again. This is different from how
+the cart handles the same situation: a cart keeps an unavailable line visible but marked, because a buyer might still
+want to deal with it (remove it, wait for it to come back); a wishlist item has nothing to "deal with" while it is
+hidden, so it is simply set aside until it matters again.
+
+---
+
+## 12. The wishlist and the cart are not connected
+
+Saving something to the wishlist never adds it to the cart, and nothing is removed from the wishlist just because it
+was also added to the cart — a buyer might want both: keep an eye on something *and* be actively planning to buy it
+right now. Moving something from "I like this" to "I'm buying this" is a decision the buyer makes on purpose, not
+something that happens automatically between the two lists.

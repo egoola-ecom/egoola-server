@@ -150,11 +150,61 @@ The listing must be one a buyer can already see (same rule as browsing — appro
 
 `PATCH /buyer/cart/items/{id}/` replaces the quantity or duration (it does not add to it, unlike `POST`): `{"qty": 1}`. Sending the wrong field for that line's kind (`duration` on a product line, `qty` on a gig line) is `400`. `DELETE /buyer/cart/items/{id}/` removes it — `204`. Both are scoped to the logged-in buyer's own cart: another buyer's item id is `404`, same as if it didn't exist.
 
-## 4. Not built yet
+## 4. Wishlist (favourites) — `/api/v1/buyer/favourites/...`
+
+Needs a buyer token. Saving a listing to look at later — no quantity, no duration, no checkout implication, just a
+bookmark. Unlike the cart, **it is a plain, idempotent toggle**: saving something already saved changes nothing, and
+removing something that was never saved (or already removed) is not an error.
+
+| Route | What |
+|---|---|
+| `GET /buyer/favourites/?type=product\|service` (`type` optional) | the buyer's saved listings, newest first, with a running count |
+| `POST /buyer/favourites/` | save a listing |
+| `DELETE /buyer/favourites/{listing_id}/` | un-save, keyed by the **listing's own id** (not the favourite row's) |
+
+### Save — `POST /buyer/favourites/`
+
+```json
+{ "listing": 103 }
+```
+
+Same visibility rule as the cart and browsing — an invisible/unknown listing is `400 {"listing": [...]}`. Saving an
+already-saved listing returns the **existing** row, `200` (not `201`, and not a second row).
+
+`201`/`200`:
+
+```json
+{ "id": 1, "catalog_type": "product",
+  "listing": { "id": 103, "title": "Cotton T-Shirt", "...": "same row shape as GET /public/catalog/products/" },
+  "created_at": "..." }
+```
+
+`listing` is the exact same row shape a buyer already sees while browsing (`public-api-guide.md` sections 4–5) — a
+product gets the product shape, a gig the gig shape; `catalog_type` on the favourite itself tells you which one
+without inspecting the shape. Nothing about price is frozen here either — it is worked out live, the same as
+everywhere else.
+
+### List — `GET /buyer/favourites/?type=product`
+
+Page-based paging, same convention as every other Buyer Panel list (`public-api-guide.md` section 1):
+`{count, page, page_size, total_pages, results}`. `type` is optional — leave it out for both kinds together.
+
+**A favourite survives its listing going private** (the seller turned inactive, the listing was rejected, and so on)
+— it is not deleted, it simply drops out of this list, and comes back on its own the moment the listing is public
+again. Same behavior as the cart's `available` flag and public browsing's visibility rule, just applied by hiding the
+row entirely rather than flagging it (there is nothing to "buy later" from a hidden favourite, unlike a cart line).
+
+### Remove — `DELETE /buyer/favourites/{listing_id}/`
+
+Always `204`, whether or not it was actually saved — a toggle button on the frontend never needs to check first.
+Scoped to the logged-in buyer's own favourites (nothing to leak either way, since the response carries no detail).
+
+## 5. Not built yet
 
 - **OTP / phone and email verification.** `phone_verified_at` and `email_verified_at` stay empty for everyone; there is no code sent and no check.
 - **Forgot / reset password** and **change password** for a buyer.
 - **Rate limiting** on the public sign-up and login endpoints: put a limit in front of them before launch.
-- **The buyer's own profile API** (view and edit my profile, add documents), wishlist/favourites, and checkout (Stripe/bKash): the next Buyer Panel steps.
+- **The buyer's own profile API** (view and edit my profile, add documents) and checkout (Stripe/bKash): the next Buyer Panel steps.
 
-Tests: `scripts/smoke/buyer_register_smoke.py`, `scripts/smoke/buyer_cart_smoke.py`. Postman: `Egoola-BuyerApp` → **Buyer sign-up and login**, **Cart**.
+Tests: `scripts/smoke/buyer_register_smoke.py`, `scripts/smoke/buyer_cart_smoke.py`, `scripts/smoke/buyer_favourites_smoke.py`.
+Postman: `Egoola-BuyerApp` → **Buyer sign-up and login**, **Cart**, **Favourites**.
