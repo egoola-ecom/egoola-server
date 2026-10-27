@@ -55,3 +55,25 @@ class SellerGigFilter(_GigPriceTypeFilter, _ListingDateFilters):
     class Meta:
         model = Listing
         fields = ["status", "category"]
+
+
+class SellerJobFilter(_GigPriceTypeFilter, _ListingDateFilters):
+    """The seller's job board (`/seller/jobs/`) and "jobs I've bid on". `budget_min`/
+    `budget_max` compare against the job's cheapest active budget SKU, current
+    price (no discount window on a job's own SKU in practice, but the same
+    `effective_price()` rule applies if one is ever set)."""
+
+    budget_min = django_filters.NumberFilter(method="filter_budget_min")
+    budget_max = django_filters.NumberFilter(method="filter_budget_max")
+    delivery_days_max = django_filters.NumberFilter(field_name="delivery_days", lookup_expr="lte")
+    urgent = django_filters.BooleanFilter()
+
+    class Meta:
+        model = Listing
+        fields = ["category", "country", "state", "city", "thana"]
+
+    def filter_budget_min(self, queryset, name, value):
+        return queryset.filter(skus__is_active=True, skus__discounted_price__gte=value).distinct()
+
+    def filter_budget_max(self, queryset, name, value):
+        return queryset.filter(skus__is_active=True, skus__discounted_price__lte=value).distinct()

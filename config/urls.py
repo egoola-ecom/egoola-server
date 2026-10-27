@@ -26,6 +26,9 @@ API_V1 = [
     path("seller/", include("apps.accounts.seller_urls")),
     # The seller's own listings and the lookups for the listing form.
     path("seller/", include("apps.catalog.seller_urls")),
+    # The seller's job board (open jobs, my bids) and bidding.
+    path("seller/", include("apps.catalog.seller_job_urls")),
+    path("seller/", include("apps.bidding.seller_urls")),
     # Login (one endpoint per actor table) + token refresh — see
     # apps.authentication. Kept as its own app/urls.py rather than
     # apps.accounts, since "prove who you are" and "manage Admin/Seller/
@@ -34,9 +37,11 @@ API_V1 = [
     path("catalog/", include("apps.catalog.urls")),
     path("bidding/", include("apps.bidding.urls")),
     path("orders/", include("apps.orders.urls")),
-    # The logged-in buyer's own cart and wishlist.
+    # The logged-in buyer's own cart, wishlist, and job postings.
     path("buyer/", include("apps.orders.buyer_urls")),
     path("buyer/", include("apps.engagement.buyer_urls")),
+    path("buyer/", include("apps.catalog.buyer_job_urls")),
+    path("buyer/", include("apps.bidding.buyer_urls")),
     path("inquiries/", include("apps.inquiries.urls")),
     path("messaging/", include("apps.messaging.urls")),
     path("engagement/", include("apps.engagement.urls")),
