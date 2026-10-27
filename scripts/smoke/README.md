@@ -23,6 +23,7 @@ accounts in [`docs/test-accounts.md`](../../docs/test-accounts.md). The guides i
 | `category_browse_smoke.py` | The Buyer Panel category list (`/public/catalog/categories/`): no login, roots by default, `parent_id` children at every level, name / Bangla search (with and without a parent), `type`, active only (also under an inactive parent), page-based paging, validation (`400` / `404`) | 41 |
 | `public_listing_smoke.py` | The public product and gig lists and details (`/public/catalog/products/`, `/gigs/`) and the seller page (`/public/sellers/{id}/`): visibility (approved, live, seller verified and active, an active SKU), every filter, ordering, paging, validation, product / gig / job separation, no private fields | 103 |
 | `buyer_register_smoke.py` | Buyer sign-up (`/auth/buyer/register/`: only name, phone, password required; optional fields, mobile format, duplicates ignoring case and spaces, location rules, profile picture, tokens work, status / wallet cannot be set) and buyer login by phone or email | 55 |
+| `buyer_cart_smoke.py` | The buyer's own cart (`/buyer/cart/`, `/buyer/cart/items/`): one active cart per (buyer, type), auto-created, picked by the added listing's own type; merging the same SKU; qty vs duration rules, stock check, cross-listing SKU, unknown listing, missing/bad `?type`, auth (401/403), per-buyer scoping (404 on another buyer's item), PATCH, DELETE one line, and clearing the cart (still active, just empty) | 35 |
 
 ```bash
 uv run manage.py runserver 8000        # in one terminal
