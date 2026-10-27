@@ -35,8 +35,9 @@ One row per cart (not per item) — item details are only on the detail view.
 
 | Query | Meaning |
 |---|---|
-| `search` | the buyer's name, email or phone (contains) |
+| `search` | the buyer's name, email or phone, or the seller's name/email (contains) |
 | `buyer` | exact buyer id |
+| `seller` | exact seller id — a cart never spans sellers (see below), so this finds all of one seller's carts directly; use `0` for the shared cart of admin-owned listings, which has no seller |
 | `cart_type` | `product` \| `service` |
 | `is_active` | `true` (still open) \| `false` (closed — became an order) |
 | `has_order` | `true` \| `false` — whether `order` is set |
@@ -47,6 +48,11 @@ One row per cart (not per item) — item details are only on the detail view.
 Filters combine, e.g. `/orders/carts/?cart_type=product&is_active=true&created_from=2026-10-01`. A bad `cart_type` or
 `is_active` value is `400`.
 
+**A cart never holds more than one seller's listings** (`Cart.seller`, enforced in the schema): `Order.seller` is a
+single, required field, so a cart spanning sellers could never cleanly become the one order it is meant to become.
+A buyer shopping from three sellers simply has three separate carts of the same type, one per seller — list them all
+with `?buyer=`, or narrow to one with `?buyer=&seller=`.
+
 ```json
 {
   "next": null, "previous": null,
@@ -55,6 +61,7 @@ Filters combine, e.g. `/orders/carts/?cart_type=product&is_active=true&created_f
       "id": 13,
       "buyer": { "id": 1, "name": "Test Buyer", "email": "test.buyer@egoola.com", "phone": "+8801700000003",
                   "profile_pic_url": null, "wallet_balance": "0.00", "status": "active" },
+      "seller": { "id": 211, "name": "Rafiq Traders", "status": "active", "verification_status": "verified" },
       "cart_type": "product", "is_active": true, "order": null,
       "item_count": 1, "subtotal": "200.00",
       "created_at": "2026-10-27T17:08:16+06:00", "updated_at": "2026-10-27T17:08:16+06:00"
@@ -63,8 +70,9 @@ Filters combine, e.g. `/orders/carts/?cart_type=product&is_active=true&created_f
 }
 ```
 
-`order` is the linked order's id, or `null` while the cart is still open — there is no order detail API yet.
-`subtotal` is worked out live (current prices), the same as the buyer's own view of their cart.
+`seller` is `null` for the shared cart of admin-owned listings. `order` is the linked order's id, or `null` while the
+cart is still open — there is no order detail API yet. `subtotal` is worked out live (current prices), the same as
+the buyer's own view of their cart.
 
 ### Retrieve — `GET /orders/carts/{id}/`
 
@@ -72,7 +80,7 @@ Everything from the list row, plus `items` (full line detail) and the cart's own
 
 ```json
 {
-  "id": 13, "buyer": { "...": "as above" }, "cart_type": "product", "is_active": true, "order": null,
+  "id": 13, "buyer": { "...": "as above" }, "seller": { "...": "as above" }, "cart_type": "product", "is_active": true, "order": null,
   "item_count": 1, "subtotal": "200.00",
   "items": [
     { "id": 19,
@@ -143,7 +151,7 @@ Everything from the list row, plus the favourite's own audit columns (`created_b
 
 ## Testing
 
-`admin_cart_smoke.py` (23 checks): auth, cursor shape, every filter, item count/subtotal, detail items and audit
+`admin_cart_smoke.py` (26 checks): auth, cursor shape, every filter (including `seller` and the `0` no-seller sentinel), item count/subtotal, detail items and audit
 columns. `admin_favourites_smoke.py` (19 checks): auth, cursor shape, every filter including `listing_visible`
 reacting to a seller's standing, and detail audit columns. Run with `scripts/smoke/run_all.sh` or individually
 against the dev server (see `scripts/smoke/README.md`). Test data was removed afterwards.

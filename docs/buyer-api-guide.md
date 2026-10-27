@@ -97,17 +97,28 @@ Send **exactly one** of `phone` or `email`, with `password`:
 
 ## 3. Cart — `/api/v1/buyer/cart/...`
 
-Needs a buyer token (`Authorization: Bearer <access>`). A buyer has at most **one active cart per type** — `product` or `service` — created automatically the first time something of that type is added. Adding a listing picks the matching cart by the **listing's own type**, not something the buyer states, so the two kinds can never mix: a product checks out through Stripe, a service/gig through bKash (routes 3 and 4, not built yet).
+Needs a buyer token (`Authorization: Bearer <access>`). A buyer has at most **one active cart per (type, seller)** —
+`product` or `service`, **and** never spanning two sellers — created automatically the first time something of that
+type and seller is added. Adding a listing picks the matching cart by the **listing's own type and seller**, not
+something the buyer states, so none of it can ever mismatch: a product checks out through Stripe, a service/gig
+through bKash (routes 3 and 4, not built yet), and every order will always be exactly one seller.
 
-A cart is **never reused**. Once it becomes an order (a later step), it closes — the row and everything in it stay exactly as that order's record — and the buyer's next add of that type opens a fresh cart.
+A buyer can have several active carts of the same type at once (one per seller). **`GET`/`DELETE` act on exactly
+one of them**, never several at a time: pass `&seller=<id>` to name it (`0` for the shared no-seller cart), or leave
+it out to mean *whichever active cart of that type was touched most recently* — the one the buyer's "my cart" icon
+or page should show by default on landing. Neither call ever creates a cart; with nothing there, `GET` returns
+`null` and `DELETE` is a no-op `204`.
+
+A cart is **never reused**. Once it becomes an order (a later step), it closes — the row and everything in it stay
+exactly as that order's record — and the buyer's next add of that type and seller opens a fresh cart.
 
 | Route | What |
 |---|---|
-| `GET /buyer/cart/?type=product\|service` | the active cart of that type, with its items and a running subtotal |
+| `GET /buyer/cart/?type=product\|service[&seller=]` | that seller's cart, or the most recently touched one if `seller` is left out — `null` if none |
 | `POST /buyer/cart/items/` | add a listing + SKU |
 | `PATCH /buyer/cart/items/{id}/` | change the quantity (product) or duration (gig) of one line |
 | `DELETE /buyer/cart/items/{id}/` | remove one line |
-| `DELETE /buyer/cart/?type=product\|service` | empty the cart (it stays active) |
+| `DELETE /buyer/cart/?type=product\|service[&seller=]` | empty that same cart (same lookup as `GET`) — no-op if there is none |
 
 ### Add to cart — `POST /buyer/cart/items/`
 
@@ -139,16 +150,26 @@ The listing must be one a buyer can already see (same rule as browsing — appro
 ### The cart — `GET /buyer/cart/?type=product`
 
 ```json
-{ "id": 1, "cart_type": "product", "is_active": true,
-  "items": [ { "...": "as above" } ], "subtotal": "200.00",
+{ "id": 1, "cart_type": "product", "seller": { "id": 211, "name": "Rafiq Ahmed", "profile_pic_url": null },
+  "is_active": true, "items": [ { "...": "as above" } ], "subtotal": "200.00",
   "created_at": "...", "updated_at": "..." }
 ```
 
-`?type=` is required (`400` if missing or not `product`/`service`). A buyer who has never added anything of that type still gets a valid, empty cart (it's created on this first touch).
+`?type=` is required (`400` if missing or not `product`/`service`). `seller: null` is the shared cart for admin-owned
+listings. With no `&seller=`, this is the active cart of that type the buyer most recently did anything with (added
+to, edited, or removed a line from) — use this for a general "my cart" view. Add `&seller=<id>` (or `0`) to look up
+one specific seller's cart instead — the call you'd make from a product or gig's own page, to show whether *that*
+seller's cart already has something in it. A buyer with no cart of that type (or none with that seller) gets back
+`null`, `200` — not a `404`, and nothing is created by asking.
 
 ### Edit / remove a line
 
 `PATCH /buyer/cart/items/{id}/` replaces the quantity or duration (it does not add to it, unlike `POST`): `{"qty": 1}`. Sending the wrong field for that line's kind (`duration` on a product line, `qty` on a gig line) is `400`. `DELETE /buyer/cart/items/{id}/` removes it — `204`. Both are scoped to the logged-in buyer's own cart: another buyer's item id is `404`, same as if it didn't exist.
+
+### Clearing — `DELETE /buyer/cart/?type=product[&seller=]`
+
+Same lookup as `GET` — with `seller`, that seller's cart; without it, the most recently touched one. Empties every
+line in it; the cart row stays active — `204`, even if there was nothing to clear.
 
 ## 4. Wishlist (favourites) — `/api/v1/buyer/favourites/...`
 

@@ -12,7 +12,7 @@ The two are deliberately different ideas:
 | **What it means** | "I intend to buy this" | "I like this, remind me later" |
 | **Holds** | A quantity or a duration, chosen on purpose | Nothing but the listing itself |
 | **Leads to** | An order, eventually | Nothing automatically — a buyer still has to add it to a cart to buy it |
-| **How many a buyer has** | Up to two at once (one for products, one for services) | One single list |
+| **How many a buyer has** | One per seller they're shopping with, per kind (see Part I, section 2) | One single list |
 
 Part I covers the cart. Part II covers the wishlist.
 
@@ -32,7 +32,7 @@ A cart belongs to exactly one buyer. Nobody else can see it or touch it.
 
 ---
 
-## 2. Two kinds of cart, never mixed
+## 2. Carts never mix two kinds, or two sellers
 
 Egoola sells two very different kinds of things, and a buyer's cart keeps them apart:
 
@@ -41,25 +41,43 @@ Egoola sells two very different kinds of things, and a buyer's cart keeps them a
 | **Product cart** | Physical goods a seller sells (a shirt, a phone, a chair) | By quantity — 2 shirts, 5 phones |
 | **Service cart** | A seller's gig (a service offer, like cleaning or design work) | By duration — 3 hours, 2 days, 1 week |
 
-A buyer can have **one of each at the same time** — a product cart with three things in it, and separately a service
-cart with a cleaner they are about to hire. The two never sit in the same cart. The reason is simple: paying for a
+A buyer can have a product cart and a service cart **at the same time** — one with three things in it, and separately
+a service cart with a cleaner they are about to hire. The two never sit together. The reason is simple: paying for a
 product and paying to hire someone go through different payment paths behind the scenes, so keeping them apart from
 the very start avoids a cart that cannot cleanly checkout as one thing.
 
-A buyer never has to choose which cart something goes into — that is decided automatically by what the thing itself
-is. Adding a product always lands in the product cart; adding a gig always lands in the service cart.
+**On top of that, a cart never holds more than one seller's things either.** If a buyer adds a shirt from one shop and
+a phone from a different shop, those are two separate carts, even though both are plain products. This mirrors how
+an order works: every order is always placed with exactly one seller, so a cart that mixed sellers could never
+cleanly become a single order anyway. An item that an admin added directly (with no seller behind it at all) counts
+as its own, single, shared "no seller" bucket, separate from every real seller's cart.
+
+In practice this means a buyer shopping from three different sellers for products has **three separate product
+carts** running at once, one per seller — not three items awkwardly sharing one cart, and not three unrelated
+"baskets" with nothing in common except belonging to the same buyer.
+
+A buyer never has to choose which cart something goes into, on either count — it is decided automatically by what
+the thing itself is and who sells it. Adding a product from Seller A always lands in Seller A's product cart; adding
+a gig from Seller B always lands in Seller B's own, separate service cart.
 
 ---
 
 ## 3. How a cart comes to exist
 
 A buyer does not create a cart on purpose, and there is no empty cart waiting for them the moment they sign up.
-The very first time a buyer adds something of a given kind (say, their first product), a cart of that kind is created
-for them automatically, right then. If they later add their first gig, a separate service cart is created the same way.
+The very first time a buyer adds something of a given kind **from a given seller**, a cart for that exact
+combination is created for them automatically, right then. Adding something from a different seller — even of the
+same kind — creates another, separate cart the same way.
 
-Looking at an empty cart — one a buyer has never put anything into — behaves the same way: it simply comes back empty,
-not missing. There is never a case where a buyer "doesn't have a cart" and gets stuck; one is always ready the moment
-it is needed.
+Because a cart cannot exist until both the kind and the seller are known, there is no single "the buyer's cart" to
+show before anything has been added. Looking for one that doesn't exist yet simply shows nothing, not an error and
+not a placeholder cart waiting to be filled.
+
+When a buyer just wants to see "my cart" without naming a seller — opening the cart icon from anywhere on the site,
+say — they are shown whichever of their carts of that kind they were most recently doing something with: adding to
+it, changing a quantity, or taking something out. Looking at one *specific* seller's cart on purpose (for example,
+while on that seller's shop page or looking at one of their items) works the same way as always, named directly,
+regardless of which cart was touched most recently.
 
 ---
 
@@ -118,8 +136,9 @@ A buyer can:
 - **Change how many, or how long** — update the quantity on a product line, or the duration on a gig line. This
   replaces the old value outright (going from 3 to 5 sets it to 5 — it does not add 5 more on top).
 - **Remove one line entirely** — take one thing back out of the cart without touching anything else in it.
-- **Empty the whole cart** — clear every line out at once. The cart itself is not thrown away when this happens; it
-  is simply left empty, ready to be added to again.
+- **Empty a cart** — clear every line out of one seller's cart at once (naming the seller, or just "the one I was
+  last doing something with"). The cart row itself is not thrown away; it is simply left empty, ready to be added to
+  again.
 
 A buyer can only ever change or remove their own cart's contents — never anyone else's.
 
@@ -135,9 +154,10 @@ Instead, it is kept exactly as it was, side by side with the order it produced, 
 order was built from. A closed cart can always be looked back on later to see precisely what was in it when the
 buyer checked out.
 
-Because a closed cart is never reused, the next time that same buyer adds something of that same kind (another
-product, say), a brand-new cart is created for them, starting empty, completely separate from the one that is now
-closed and tied to a past order.
+Because a closed cart is never reused, the next time that same buyer adds something of that same kind **from that
+same seller**, a brand-new cart is created for them, starting empty, completely separate from the one that is now
+closed and tied to a past order. (Their carts with other sellers, if they have any, are untouched the whole time —
+each seller's cart closes into an order on its own, independently of the others.)
 
 Put simply: a cart's life looks like this —
 
