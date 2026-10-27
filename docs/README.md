@@ -74,6 +74,9 @@ Columns: **Overview** is plain language for everyone. **Technical guide** has wh
 | **Public routes** (no login: country / state / city / thana lists, the Buyer Panel category browse list, **products and gigs** (list, detail, filters), the **seller page**; page-based paging) | — | [`public-api-guide.md`](public-api-guide.md) | `Egoola-BuyerApp`, `Egoola-BuyerApp` | `public_listing_smoke.py`, `category_browse_smoke.py`, `public_geography_smoke.sh` | `categories`, `countries`, `states`, `cities`, `thanas` |
 | **Buyer sign-up and login** (only name, mobile and password required; login by phone or email) | — | [`buyer-api-guide.md`](buyer-api-guide.md) | `Egoola-BuyerApp` → **Buyer sign-up and login** | `buyer_register_smoke.py` | `users` |
 | **Buyer cart** (one active cart per type — product/service, picked by the listing's own type, not chosen by the buyer; add/merge, qty vs duration, PATCH, DELETE, clear) | [`Egoola_Cart_Guide.md`](Egoola_Cart_Guide.md) | [`buyer-api-guide.md`](buyer-api-guide.md) §3 | `Egoola-BuyerApp` → **Cart** | `buyer_cart_smoke.py` | `carts`, `cartItems` |
+| **Buyer wishlist (favourites)** (idempotent save/un-save, products and gigs together, survives the listing going private without being deleted) | [`Egoola_Cart_Guide.md`](Egoola_Cart_Guide.md) | [`buyer-api-guide.md`](buyer-api-guide.md) §4 | `Egoola-BuyerApp` → **Favourites** | `buyer_favourites_smoke.py` | `favourites` |
+| **Admin oversight of carts** (read-only, cursor-paged list + detail, every cart regardless of listing visibility) | — | [`cart-wishlist-admin-guide.md`](cart-wishlist-admin-guide.md) §1 | `Egoola` → **Carts & Wishlists (admin) → Carts** | `admin_cart_smoke.py` | `carts`, `cartItems` |
+| **Admin oversight of wishlists** (read-only, cursor-paged list + detail, `listing_visible` filter) | — | [`cart-wishlist-admin-guide.md`](cart-wishlist-admin-guide.md) §2 | `Egoola` → **Carts & Wishlists (admin) → Favourites** | `admin_favourites_smoke.py` | `favourites` |
 | Measurements (units) | — | [`listing-module-guide.md`](listing-module-guide.md) (how listings use them) | `Egoola-Measurement` | `listing_smoke.sh` (regression only) | `measurements` |
 
 ### 3.4 Listings
@@ -114,7 +117,7 @@ All are in `postman/`. Import `Egoola-Local.postman_environment.json` first.
 
 | Collection | Side | Covers |
 |---|---|---|
-| `Egoola.postman_collection.json` | Admin | Auth for every actor, Admins, Sellers (basic), Buyers |
+| `Egoola.postman_collection.json` | Admin | Auth for every actor, Admins, Sellers (basic), Buyers, read-only oversight of **carts and wishlists** |
 | `Egoola-Seller.postman_collection.json` | Admin | Seller management, Seller Request queue, review, approve / reject / pause / suspend, change history |
 | `Egoola-SellerApp.postman_collection.json` | **Seller-facing** | Public lookups, sign-up, seller login, own profile, documents, change password, resubmit, **product listings and the listing lookups**, **gigs**, thumbnails. (Requests named **[Admin step]** play the admin so you can see what a seller sees.) |
 | `Egoola-BuyerApp.postman_collection.json` | **Buyer-facing** | Buyer sign-up and login, the public country / division / district / thana lists, category browse, products, gigs and the seller page (mostly no login) |
