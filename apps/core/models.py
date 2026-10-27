@@ -8,6 +8,16 @@ class ActorType(models.TextChoices):
     SYSTEM = "system", "System"
 
 
+class CatalogType(models.TextChoices):
+    """Product vs. service, shared by every model that draws this same line
+    (Category, Listing, Cart, ...) so it's defined once, not re-declared
+    per model. A model still exposes it as `Model.CatalogType` (a class
+    attribute pointing at this), so existing call sites are unaffected."""
+
+    PRODUCT = "product", "Product"
+    SERVICE = "service", "Service"
+
+
 class AuditedModel(models.Model):
     """
     Shared created-by/updated-by audit trail used by every table in the
