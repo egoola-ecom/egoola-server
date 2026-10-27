@@ -13,7 +13,7 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models.functions import Lower
 
-from apps.core.models import ActorType, AuditedModel, CatalogType
+from apps.core.models import ActorType, AuditedModel, CatalogType, PriceType
 
 
 class ActiveListingManager(models.Manager):
@@ -110,8 +110,22 @@ class Listing(AuditedModel):
         APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
         CHANGES_REQUESTED = "changes_requested", "Changes Requested"
+        # Job only (catalog_type=service, posted_by_role=buyer_request). A job
+        # skips draft/pending/approved/rejected/changes_requested moderation on
+        # creation — see apps.bidding for the full state machine:
+        #   create -> OPEN_FOR_BIDDING -> (DRAFT <-> PENDING, a pause/reopen
+        #   cycle, or CANCELLED, terminal) -> an accepted bid -> IN_PROGRESS ->
+        #   COMPLETED or CANCELLED (admin only, with a reason in `note`).
+        # DRAFT and PENDING above are reused for the job's own pause/reopen
+        # cycle; APPROVED/REJECTED/CHANGES_REQUESTED are never used by a job.
+        OPEN_FOR_BIDDING = "open_for_bidding", "Open for Bidding"
+        IN_PROGRESS = "in_progress", "In Progress"
+        COMPLETED = "completed", "Completed"
+        CANCELLED = "cancelled", "Cancelled"
 
-    # A seller's save (or thumbnail change) sends a listing in one of these statuses back to the admin.
+    # A seller's save (or thumbnail change) sends a *product or gig* in one of
+    # these statuses back to the admin. A job's own status transitions are a
+    # separate state machine (see Status above) and never consult this.
     RESUBMIT_STATUSES = (Status.REJECTED, Status.CHANGES_REQUESTED, Status.DRAFT)
 
     # Both are optional (an Admin can create a listing owned by neither);
@@ -294,12 +308,7 @@ class ListingSku(AuditedModel):
     (`OrderItem.duration`). Gig SKUs have no options and no stock. Product SKUs
     leave `price_type` and the descriptions empty."""
 
-    class PriceType(models.TextChoices):
-        FIXED = "fixed", "Fixed"
-        HOURLY = "hourly", "Hourly"
-        DAILY = "daily", "Daily"
-        WEEKLY = "weekly", "Weekly"
-        MONTHLY = "monthly", "Monthly"
+    PriceType = PriceType
 
     listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name="skus", db_column="listingId")
     sku = models.CharField(max_length=100, null=True, blank=True, unique=True)

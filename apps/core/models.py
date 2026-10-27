@@ -18,6 +18,19 @@ class CatalogType(models.TextChoices):
     SERVICE = "service", "Service"
 
 
+class PriceType(models.TextChoices):
+    """What a price is a rate for — a gig's SKU and a job bid's price tier
+    both draw from this same set, so it's defined once. `fixed` is a one-off
+    price; the rest are rates per unit, with the buyer (a gig order) or the
+    bidder (a job bid) saying how many units."""
+
+    FIXED = "fixed", "Fixed"
+    HOURLY = "hourly", "Hourly"
+    DAILY = "daily", "Daily"
+    WEEKLY = "weekly", "Weekly"
+    MONTHLY = "monthly", "Monthly"
+
+
 class AuditedModel(models.Model):
     """
     Shared created-by/updated-by audit trail used by every table in the

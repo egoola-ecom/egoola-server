@@ -210,8 +210,14 @@ class Order(AuditedModel):
     discount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2)
     payable = models.DecimalField(max_digits=12, decimal_places=2)
-    commission_rate = models.DecimalField(db_column="commissionRate", max_digits=5, decimal_places=2)
-    commission_amount = models.DecimalField(db_column="commissionAmount", max_digits=12, decimal_places=2)
+    # Null until the commission mechanism itself is built (Phase 2's financial
+    # oversight API, not started yet) — an order can exist before a rate does.
+    commission_rate = models.DecimalField(
+        db_column="commissionRate", max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    commission_amount = models.DecimalField(
+        db_column="commissionAmount", max_digits=12, decimal_places=2, null=True, blank=True
+    )
 
     expected_delivery_at = models.DateTimeField(db_column="expectedDeliveryAt", null=True, blank=True)
     completed_at = models.DateTimeField(db_column="completedAt", null=True, blank=True)
