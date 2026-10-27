@@ -34,6 +34,8 @@ API_V1 = [
     path("catalog/", include("apps.catalog.urls")),
     path("bidding/", include("apps.bidding.urls")),
     path("orders/", include("apps.orders.urls")),
+    # The logged-in buyer's own cart.
+    path("buyer/", include("apps.orders.buyer_urls")),
     path("inquiries/", include("apps.inquiries.urls")),
     path("messaging/", include("apps.messaging.urls")),
     path("engagement/", include("apps.engagement.urls")),
