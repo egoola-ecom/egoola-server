@@ -1,6 +1,8 @@
 from rest_framework.routers import DefaultRouter
 
+from .views import AdminCartViewSet
+
 router = DefaultRouter()
-# ViewSets are registered here as this app's endpoints are built.
+router.register("carts", AdminCartViewSet, basename="admin-cart")
 
 urlpatterns = router.urls
