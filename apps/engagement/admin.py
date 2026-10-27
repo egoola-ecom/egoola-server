@@ -11,4 +11,4 @@ class ReviewAdmin(admin.ModelAdmin):
 
 @admin.register(Favourite)
 class FavouriteAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "listing")
+    list_display = ("id", "buyer", "listing")

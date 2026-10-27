@@ -12,6 +12,8 @@ refund_histories, transactions, commissions, commission_payments,
 seller_payments.
 """
 
+from decimal import Decimal
+
 from django.db import models
 
 from apps.core.models import AuditedModel, CatalogType
@@ -49,6 +51,17 @@ class Cart(AuditedModel):
     def __str__(self):
         return f"Cart for buyer {self.buyer_id} ({self.cart_type}, {'active' if self.is_active else 'closed'})"
 
+    @property
+    def subtotal(self):
+        """Sum of every line's `line_subtotal`, worked out live (see CartItem).
+        Call with `items` already prefetched — this iterates `self.items.all()`,
+        it does not run its own query."""
+        total = Decimal("0.00")
+        for item in self.items.all():
+            if item.line_subtotal is not None:
+                total += item.line_subtotal
+        return total
+
 
 class CartItem(AuditedModel):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items", db_column="cartId")
@@ -68,6 +81,38 @@ class CartItem(AuditedModel):
 
     class Meta:
         db_table = "cartItems"
+
+    @property
+    def units(self):
+        """How many of the unit price this line is worth: qty for a product,
+        duration for a gig — whichever one this line actually uses."""
+        return self.qty if self.qty is not None else self.duration
+
+    @property
+    def unit_price(self):
+        """The price charged right now (the discount price while one is
+        running) — never stored, so it always reflects the current sale."""
+        return self.listing_sku.effective_price() if self.listing_sku_id else None
+
+    @property
+    def line_subtotal(self):
+        units = self.units
+        if self.listing_sku_id is None or units is None:
+            return None
+        return self.unit_price * units
+
+    @property
+    def is_available(self):
+        """False once something has changed since this was added: the SKU
+        went inactive, the listing is no longer approved or was deleted, or
+        stock can no longer cover `qty`. The line is kept either way — only
+        checkout needs to decide what to do about it."""
+        sku, listing = self.listing_sku, self.listing
+        if not sku or not sku.is_active or listing.status != listing.Status.APPROVED or listing.deleted_at:
+            return False
+        if self.qty is not None and sku.stock_qty is not None:
+            return sku.stock_qty - sku.reserved_qty >= self.qty
+        return True
 
 
 class Address(AuditedModel):
