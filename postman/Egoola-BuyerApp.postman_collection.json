@@ -29,6 +29,22 @@
     {
       "key": "browse_parent_id",
       "value": ""
+    },
+    {
+      "key": "buyer_token",
+      "value": ""
+    },
+    {
+      "key": "product_sku_id",
+      "value": ""
+    },
+    {
+      "key": "gig_sku_id",
+      "value": ""
+    },
+    {
+      "key": "cart_item_id",
+      "value": ""
     }
   ],
   "item": [
@@ -37,7 +53,7 @@
       "description": "Only name, mobile and password are required. See docs/buyer-api-guide.md.",
       "item": [
         {
-          "name": "Register — only name, mobile, password",
+          "name": "Register \u2014 only name, mobile, password",
           "event": [
             {
               "listen": "prerequest",
@@ -54,7 +70,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
-                  "if (pm.response.code === 201) { const b = pm.response.json(); pm.test('logged in', () => { pm.expect(b.access).to.be.a('string'); pm.expect(b.status).to.eql('active'); }); }"
+                  "if (pm.response.code === 201) { const b = pm.response.json(); pm.test('logged in', () => { pm.expect(b.access).to.be.a('string'); pm.expect(b.status).to.eql('active'); }); }",
+                  "if (pm.response.code < 300) { const b = pm.response.json(); if (b.access) pm.collectionVariables.set('buyer_token', b.access); }"
                 ]
               }
             }
@@ -92,7 +109,7 @@
           }
         },
         {
-          "name": "Register — same mobile again (expect 400)",
+          "name": "Register \u2014 same mobile again (expect 400)",
           "event": [
             {
               "listen": "prerequest",
@@ -146,7 +163,7 @@
           }
         },
         {
-          "name": "Register — missing fields (expect 400)",
+          "name": "Register \u2014 missing fields (expect 400)",
           "event": [
             {
               "listen": "prerequest",
@@ -200,7 +217,7 @@
           }
         },
         {
-          "name": "Register — bad mobile (expect 400)",
+          "name": "Register \u2014 bad mobile (expect 400)",
           "event": [
             {
               "listen": "prerequest",
@@ -254,7 +271,7 @@
           }
         },
         {
-          "name": "Register — every optional field",
+          "name": "Register \u2014 every optional field",
           "event": [
             {
               "listen": "prerequest",
@@ -325,7 +342,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
-                  "pm.test('buyer', () => pm.expect(pm.response.json().actor_type).to.eql('user'));"
+                  "pm.test('buyer', () => pm.expect(pm.response.json().actor_type).to.eql('user'));",
+                  "if (pm.response.code < 300) { const b = pm.response.json(); if (b.access) pm.collectionVariables.set('buyer_token', b.access); }"
                 ]
               }
             }
@@ -417,7 +435,7 @@
           }
         },
         {
-          "name": "Login — phone and email together (expect 400)",
+          "name": "Login \u2014 phone and email together (expect 400)",
           "event": [
             {
               "listen": "prerequest",
@@ -471,7 +489,7 @@
           }
         },
         {
-          "name": "Login — wrong password (expect 401)",
+          "name": "Login \u2014 wrong password (expect 401)",
           "event": [
             {
               "listen": "prerequest",
@@ -1114,7 +1132,7 @@
                 }
               ]
             },
-            "description": "`page_size` must be 1–100."
+            "description": "`page_size` must be 1\u2013100."
           },
           "event": [
             {
@@ -1822,6 +1840,588 @@
         }
       ],
       "description": "The public seller page. No login."
+    },
+    {
+      "name": "Cart",
+      "description": "A buyer's own cart: one active cart per type (product/service), picked automatically by the added listing's own type. Needs a buyer token \u2014 run 'Buyer sign-up and login' first, or set {{buyer_token}} manually. Needs {{product_id}}/{{product_sku_id}} and {{gig_id}}/{{gig_sku_id}} set (see Products/Gigs folders). See docs/buyer-api-guide.md section 3.",
+      "item": [
+        {
+          "name": "Add a product to cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "if (pm.response.code === 201) { const b = pm.response.json(); pm.collectionVariables.set('cart_item_id', b.id); pm.test('qty saved', () => pm.expect(b.qty).to.eql(2)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/items/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                "items",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing\": \"{{product_id}}\",\n  \"listing_sku\": \"{{product_sku_id}}\",\n  \"qty\": 2\n}"
+            }
+          }
+        },
+        {
+          "name": "Add the same SKU again (merges, qty sums)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "if (pm.response.code === 201) { pm.test('merged, not duplicated', () => pm.expect(pm.response.json().qty).to.eql(5)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/items/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                "items",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing\": \"{{product_id}}\",\n  \"listing_sku\": \"{{product_sku_id}}\",\n  \"qty\": 3\n}"
+            }
+          }
+        },
+        {
+          "name": "Get the product cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/?type=product",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "product"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add a gig (own, separate service cart)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "if (pm.response.code === 201) { const b = pm.response.json(); pm.test('duration saved', () => pm.expect(b.duration).to.eql(3)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/items/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                "items",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing\": \"{{gig_id}}\",\n  \"listing_sku\": \"{{gig_sku_id}}\",\n  \"duration\": 3\n}"
+            }
+          }
+        },
+        {
+          "name": "Get the service cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/?type=service",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "service"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "qty on a gig (expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([400]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/items/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                "items",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing\": \"{{gig_id}}\",\n  \"listing_sku\": \"{{gig_sku_id}}\",\n  \"qty\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "duration on a product (expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([400]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/items/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                "items",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing\": \"{{product_id}}\",\n  \"listing_sku\": \"{{product_sku_id}}\",\n  \"duration\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "GET without ?type (expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([400]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "No token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([401]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/?type=product",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "product"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update a line's quantity (PATCH, replaces)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "if (pm.response.code === 200) { pm.test('replaced not added', () => pm.expect(pm.response.json().qty).to.eql(1)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/items/{{cart_item_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                "items",
+                "{{cart_item_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qty\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Remove a line (DELETE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([204]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/items/{{cart_item_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                "items",
+                "{{cart_item_id}}",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Clear the cart (DELETE, stays active)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status', () => pm.expect(pm.response.code).to.be.oneOf([204]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/?type=product",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "product"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }
