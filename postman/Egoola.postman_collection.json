@@ -1,8 +1,8 @@
 {
   "info": {
-    "name": "Egoola API — Accounts & Auth",
+    "name": "Egoola API \u2014 Accounts & Auth",
     "_postman_id": "6f1e6a6a-2b3d-4f6a-9c9a-egoola-accounts-auth",
-    "description": "Covers what's built so far: Admin/Seller/Buyer login (JWT) + token refresh, and Admin-only Admin/Seller/Buyer management.\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run any request in **Auth** first — its \"Tests\" script saves the returned `access`/`refresh` tokens into collection variables automatically.\n3. Every request under **Accounts** already sends `Authorization: Bearer {{access_token}}` — no manual copy-pasting needed.\n4. When a 401 says the token expired, run **Auth > Refresh Token** — it re-saves `access_token` the same way.\n\nAll accounts endpoints require an Admin token (401 = no/invalid token, 403 = valid token but wrong role — see docs/authentication.md in the repo).\n\nFor Country/State/City/Thana reference-data management, see the separate Egoola API — Geography collection. For the full Seller Verification workflow (verify/reject with a mandatory note, verification_logs history) and deeper Seller-only coverage (business info, media upload), see the separate Egoola API — Seller collection.",
+    "description": "Covers what's built so far: Admin/Seller/Buyer login (JWT) + token refresh, and Admin-only Admin/Seller/Buyer management.\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run any request in **Auth** first \u2014 its \"Tests\" script saves the returned `access`/`refresh` tokens into collection variables automatically.\n3. Every request under **Accounts** already sends `Authorization: Bearer {{access_token}}` \u2014 no manual copy-pasting needed.\n4. When a 401 says the token expired, run **Auth > Refresh Token** \u2014 it re-saves `access_token` the same way.\n\nAll accounts endpoints require an Admin token (401 = no/invalid token, 403 = valid token but wrong role \u2014 see docs/authentication.md in the repo).\n\nFor Country/State/City/Thana reference-data management, see the separate Egoola API \u2014 Geography collection. For the full Seller Verification workflow (verify/reject with a mandatory note, verification_logs history) and deeper Seller-only coverage (business info, media upload), see the separate Egoola API \u2014 Seller collection.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -50,6 +50,14 @@
       "key": "super_admin_token",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "cart_id",
+      "value": ""
+    },
+    {
+      "key": "favourite_id",
+      "value": ""
     }
   ],
   "item": [
@@ -87,7 +95,7 @@
                 ""
               ]
             },
-            "description": "Public endpoint — no token needed to call this. Returns access + refresh JWTs carrying actor_type=admin."
+            "description": "Public endpoint \u2014 no token needed to call this. Returns access + refresh JWTs carrying actor_type=admin."
           },
           "event": [
             {
@@ -139,7 +147,7 @@
                 ""
               ]
             },
-            "description": "Public endpoint. Logs in an Admin whose type is super_admin. Admin Management (the **Admins** folder) is super-admin only — a plain admin token from \"Admin Login\" gets 403 there. Saves the token as `super_admin_token`, which the Admins folder uses."
+            "description": "Public endpoint. Logs in an Admin whose type is super_admin. Admin Management (the **Admins** folder) is super-admin only \u2014 a plain admin token from \"Admin Login\" gets 403 there. Saves the token as `super_admin_token`, which the Admins folder uses."
           },
           "event": [
             {
@@ -188,7 +196,7 @@
                 ""
               ]
             },
-            "description": "Public endpoint. A seller logs in with **phone number + password** (admins and buyers use email). Returns a token carrying actor_type=seller — will get 403 on every Accounts endpoint below (those are Admin-only), which is expected until Seller self-service routes exist."
+            "description": "Public endpoint. A seller logs in with **phone number + password** (admins and buyers use email). Returns a token carrying actor_type=seller \u2014 will get 403 on every Accounts endpoint below (those are Admin-only), which is expected until Seller self-service routes exist."
           },
           "event": [
             {
@@ -198,7 +206,7 @@
                   "if (pm.response.code === 200) {",
                   "    const body = pm.response.json();",
                   "    pm.collectionVariables.set('seller_token', body.access);",
-                  "    console.log('Saved seller access token as seller_token (not used by Accounts requests below — those need an admin token).');",
+                  "    console.log('Saved seller access token as seller_token (not used by Accounts requests below \u2014 those need an admin token).');",
                   "}",
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));"
                 ],
@@ -248,7 +256,7 @@
                   "if (pm.response.code === 200) {",
                   "    const body = pm.response.json();",
                   "    pm.collectionVariables.set('buyer_token', body.access);",
-                  "    console.log('Saved buyer access token as buyer_token (not used by Accounts requests below — those need an admin token).');",
+                  "    console.log('Saved buyer access token as buyer_token (not used by Accounts requests below \u2014 those need an admin token).');",
                   "}",
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));"
                 ],
@@ -288,7 +296,7 @@
                 ""
               ]
             },
-            "description": "Exchanges the saved refresh token (14-day life) for a new access token (1-hour life) — the actor_type/actor_id claims carry over automatically. Run this instead of logging in again once the access token expires."
+            "description": "Exchanges the saved refresh token (14-day life) for a new access token (1-hour life) \u2014 the actor_type/actor_id claims carry over automatically. Run this instead of logging in again once the access token expires."
           },
           "event": [
             {
@@ -349,7 +357,7 @@
                     }
                   ]
                 },
-                "description": "Admin-only. Returns the list-view fields (no media, no full geography — see AdminListSerializer)."
+                "description": "Admin-only. Returns the list-view fields (no media, no full geography \u2014 see AdminListSerializer)."
               },
               "event": [
                 {
@@ -423,7 +431,7 @@
                     ""
                   ]
                 },
-                "description": "Full detail view — includes media[] and geography fields, unlike the list view."
+                "description": "Full detail view \u2014 includes media[] and geography fields, unlike the list view."
               },
               "event": [
                 {
@@ -439,7 +447,7 @@
               ]
             },
             {
-              "name": "Update Admin (full — PUT)",
+              "name": "Update Admin (full \u2014 PUT)",
               "request": {
                 "method": "PUT",
                 "header": [
@@ -466,7 +474,7 @@
                     ""
                   ]
                 },
-                "description": "PUT replaces the whole record — `password` can be left out on update (only re-hashed if you send a new one)."
+                "description": "PUT replaces the whole record \u2014 `password` can be left out on update (only re-hashed if you send a new one)."
               },
               "event": [
                 {
@@ -481,7 +489,7 @@
               ]
             },
             {
-              "name": "Update Admin (partial — PATCH)",
+              "name": "Update Admin (partial \u2014 PATCH)",
               "request": {
                 "method": "PATCH",
                 "header": [
@@ -508,7 +516,7 @@
                     ""
                   ]
                 },
-                "description": "Preferred for small edits — only send the field(s) you're changing."
+                "description": "Preferred for small edits \u2014 only send the field(s) you're changing."
               },
               "event": [
                 {
@@ -644,7 +652,7 @@
                     ""
                   ]
                 },
-                "description": "`info` is the seller's business profile (1:1) — created/updated in the same call. `verification_status`/`verification_note` are now writable (see the dedicated Egoola API — Seller collection for the full verification workflow, including the mandatory rejection note and the verification_logs history); wallet/bonus fields stay read-only from the client, managed by the (future) wallet flow instead."
+                "description": "`info` is the seller's business profile (1:1) \u2014 created/updated in the same call. `verification_status`/`verification_note` are now writable (see the dedicated Egoola API \u2014 Seller collection for the full verification workflow, including the mandatory rejection note and the verification_logs history); wallet/bonus fields stay read-only from the client, managed by the (future) wallet flow instead."
               },
               "event": [
                 {
@@ -692,7 +700,7 @@
               ]
             },
             {
-              "name": "Update Seller (partial — PATCH)",
+              "name": "Update Seller (partial \u2014 PATCH)",
               "request": {
                 "method": "PATCH",
                 "header": [
@@ -837,7 +845,7 @@
                     }
                   ]
                 },
-                "description": "Admin-only. Light rows (no media). Filters: search, status, country, state, city, thana, email_verified, phone_verified, created_from, created_to — combine freely. Paginated with limit/offset. Full detail (media, address, skills) is on Retrieve Buyer. See docs/buyer-management-guide.md."
+                "description": "Admin-only. Light rows (no media). Filters: search, status, country, state, city, thana, email_verified, phone_verified, created_from, created_to \u2014 combine freely. Paginated with limit/offset. Full detail (media, address, skills) is on Retrieve Buyer. See docs/buyer-management-guide.md."
               },
               "event": [
                 {
@@ -879,7 +887,7 @@
                     ""
                   ]
                 },
-                "description": "Note: the model/table is called `User` in code (see apps/accounts/models.py docstring) — this is the Buyer, not Django's own auth user."
+                "description": "Note: the model/table is called `User` in code (see apps/accounts/models.py docstring) \u2014 this is the Buyer, not Django's own auth user."
               },
               "event": [
                 {
@@ -926,7 +934,7 @@
               ]
             },
             {
-              "name": "Update Buyer (partial — PATCH)",
+              "name": "Update Buyer (partial \u2014 PATCH)",
               "request": {
                 "method": "PATCH",
                 "header": [
@@ -996,6 +1004,221 @@
                   }
                 }
               ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Carts & Wishlists (admin)",
+      "description": "Admin, read-only oversight of buyers' carts and wishlists \u2014 no create/update/delete here, buyers manage their own through the buyer-facing API (see Egoola-BuyerApp). Needs an Admin token (super-admin or plain admin, both work). See docs/cart-wishlist-admin-guide.md.",
+      "item": [
+        {
+          "name": "Carts",
+          "description": "Read-only (list + detail): every buyer's cart, regardless of whether its listings are still publicly visible. See docs/cart-wishlist-admin-guide.md section 1.",
+          "item": [
+            {
+              "name": "List carts",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('cursor shape', () => pm.expect(pm.response.json()).to.have.all.keys('next','previous','results'));",
+                      "const results = pm.response.json().results; if (results && results.length) { pm.collectionVariables.set('cart_id', results[0].id); }"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/orders/carts/?search=&cart_type=&is_active=&has_order=&buyer=&listing=&created_from=&created_to=&ordering=-created_at",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "orders",
+                    "carts",
+                    ""
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "matches the buyer's name, email or phone"
+                    },
+                    {
+                      "key": "cart_type",
+                      "value": "",
+                      "description": "product | service"
+                    },
+                    {
+                      "key": "is_active",
+                      "value": "",
+                      "description": "true | false \u2014 open vs. closed"
+                    },
+                    {
+                      "key": "has_order",
+                      "value": "",
+                      "description": "true | false \u2014 already checked out"
+                    },
+                    {
+                      "key": "buyer",
+                      "value": "",
+                      "description": "exact buyer id"
+                    },
+                    {
+                      "key": "listing",
+                      "value": "",
+                      "description": "only carts holding this listing id"
+                    },
+                    {
+                      "key": "created_from",
+                      "value": "",
+                      "description": "YYYY-MM-DD"
+                    },
+                    {
+                      "key": "created_to",
+                      "value": "",
+                      "description": "YYYY-MM-DD"
+                    },
+                    {
+                      "key": "ordering",
+                      "value": "-created_at",
+                      "description": "created_at | updated_at | id (prefix - for descending)"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Retrieve a cart (detail, with items)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/orders/carts/{{cart_id}}/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "orders",
+                    "carts",
+                    "{{cart_id}}",
+                    ""
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Favourites",
+          "description": "Read-only (list + detail): every buyer's saved listing, regardless of whether it is still publicly visible \u2014 see `listing_visible`. See docs/cart-wishlist-admin-guide.md section 2.",
+          "item": [
+            {
+              "name": "List favourites",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('cursor shape', () => pm.expect(pm.response.json()).to.have.all.keys('next','previous','results'));",
+                      "const results = pm.response.json().results; if (results && results.length) { pm.collectionVariables.set('favourite_id', results[0].id); }"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/engagement/favourites/?search=&buyer=&listing=&catalog_type=&listing_visible=&created_from=&created_to=&ordering=-created_at",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "engagement",
+                    "favourites",
+                    ""
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "matches the buyer's name/email/phone or the listing's title"
+                    },
+                    {
+                      "key": "buyer",
+                      "value": "",
+                      "description": "exact buyer id"
+                    },
+                    {
+                      "key": "listing",
+                      "value": "",
+                      "description": "exact listing id"
+                    },
+                    {
+                      "key": "catalog_type",
+                      "value": "",
+                      "description": "product | service (of the saved listing)"
+                    },
+                    {
+                      "key": "listing_visible",
+                      "value": "",
+                      "description": "true | false \u2014 currently passes the buyer-facing visibility rule"
+                    },
+                    {
+                      "key": "created_from",
+                      "value": "",
+                      "description": "YYYY-MM-DD"
+                    },
+                    {
+                      "key": "created_to",
+                      "value": "",
+                      "description": "YYYY-MM-DD"
+                    },
+                    {
+                      "key": "ordering",
+                      "value": "-created_at",
+                      "description": "created_at | id (prefix - for descending)"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Retrieve a favourite (detail)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/engagement/favourites/{{favourite_id}}/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "engagement",
+                    "favourites",
+                    "{{favourite_id}}",
+                    ""
+                  ]
+                }
+              }
             }
           ]
         }
