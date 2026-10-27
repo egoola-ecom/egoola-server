@@ -95,11 +95,66 @@ Send **exactly one** of `phone` or `email`, with `password`:
 
 `email` is `null` for a buyer who has none. Tokens, refresh and error shapes: `frontend-api-guide.md` sections 3 and 4.
 
-## 3. Not built yet
+## 3. Cart — `/api/v1/buyer/cart/...`
+
+Needs a buyer token (`Authorization: Bearer <access>`). A buyer has at most **one active cart per type** — `product` or `service` — created automatically the first time something of that type is added. Adding a listing picks the matching cart by the **listing's own type**, not something the buyer states, so the two kinds can never mix: a product checks out through Stripe, a service/gig through bKash (routes 3 and 4, not built yet).
+
+A cart is **never reused**. Once it becomes an order (a later step), it closes — the row and everything in it stay exactly as that order's record — and the buyer's next add of that type opens a fresh cart.
+
+| Route | What |
+|---|---|
+| `GET /buyer/cart/?type=product\|service` | the active cart of that type, with its items and a running subtotal |
+| `POST /buyer/cart/items/` | add a listing + SKU |
+| `PATCH /buyer/cart/items/{id}/` | change the quantity (product) or duration (gig) of one line |
+| `DELETE /buyer/cart/items/{id}/` | remove one line |
+| `DELETE /buyer/cart/?type=product\|service` | empty the cart (it stays active) |
+
+### Add to cart — `POST /buyer/cart/items/`
+
+```json
+{ "listing": 103, "listing_sku": 113, "qty": 2 }
+```
+
+| Field | Product | Gig |
+|---|---|---|
+| `listing`, `listing_sku` | required — the exact SKU, not just the listing | same |
+| `qty` | required, at least 1 | not accepted |
+| `duration` | not accepted | required, at least 1 (hours/days/weeks/months, matching the SKU's `price_type`) |
+
+The listing must be one a buyer can already see (same rule as browsing — approved, seller verified and active); anything else is `400 {"listing": ["Invalid pk \"...\" - object does not exist."]}`, same as an unknown id. A `listing_sku` that belongs to a different listing is `400 {"listing_sku": ["Does not belong to this listing."]}`. For a product, stock is checked (`stock_qty - reserved_qty` against `qty`) — no stock is reserved yet, this only blocks adding more than is available right now.
+
+**Adding the same SKU again merges into the existing line** instead of creating a second one — `qty` (or `duration`) adds up. `201`:
+
+```json
+{ "id": 1, "listing": { "id": 103, "title": "Cotton T-Shirt", "title_bn": "...", "slug": "cotton-t-shirt",
+  "image_url": null, "catalog_type": "product" },
+  "listing_sku": { "id": 113, "sku": "TEE-001", "price": "100.00", "discounted_price": "100.00",
+  "price_type": null, "is_active": true },
+  "qty": 2, "duration": null, "color": null, "size": null,
+  "unit_price": "100.00", "line_subtotal": "200.00", "available": true, "created_at": "..." }
+```
+
+`unit_price` / `line_subtotal` are worked out live (the discounted price while a discount runs) — never stored, since nothing is final until checkout. `available` turns `false` if the SKU has since gone inactive, the listing is no longer approved, or stock can no longer cover `qty`; the line is kept either way, only flagged.
+
+### The cart — `GET /buyer/cart/?type=product`
+
+```json
+{ "id": 1, "cart_type": "product", "is_active": true,
+  "items": [ { "...": "as above" } ], "subtotal": "200.00",
+  "created_at": "...", "updated_at": "..." }
+```
+
+`?type=` is required (`400` if missing or not `product`/`service`). A buyer who has never added anything of that type still gets a valid, empty cart (it's created on this first touch).
+
+### Edit / remove a line
+
+`PATCH /buyer/cart/items/{id}/` replaces the quantity or duration (it does not add to it, unlike `POST`): `{"qty": 1}`. Sending the wrong field for that line's kind (`duration` on a product line, `qty` on a gig line) is `400`. `DELETE /buyer/cart/items/{id}/` removes it — `204`. Both are scoped to the logged-in buyer's own cart: another buyer's item id is `404`, same as if it didn't exist.
+
+## 4. Not built yet
 
 - **OTP / phone and email verification.** `phone_verified_at` and `email_verified_at` stay empty for everyone; there is no code sent and no check.
 - **Forgot / reset password** and **change password** for a buyer.
 - **Rate limiting** on the public sign-up and login endpoints: put a limit in front of them before launch.
-- **The buyer's own profile API** (view and edit my profile, add documents): the next Buyer Panel steps.
+- **The buyer's own profile API** (view and edit my profile, add documents), wishlist/favourites, and checkout (Stripe/bKash): the next Buyer Panel steps.
 
-Tests: `scripts/smoke/buyer_register_smoke.py`. Postman: `Egoola-BuyerApp` → **Buyer sign-up and login**.
+Tests: `scripts/smoke/buyer_register_smoke.py`, `scripts/smoke/buyer_cart_smoke.py`. Postman: `Egoola-BuyerApp` → **Buyer sign-up and login**, **Cart**.
