@@ -64,8 +64,14 @@ def shell(code):
 def cleanup():
     shell(
         "from apps.accounts.models import Seller, User\n"
+        "from apps.orders.models import Order, OrderItem\n"
+        "from apps.bidding.models import Bid\n"
         "from apps.catalog.models import Listing\n"
-        "Listing.all_objects.filter(title__istartswith='Smoke SJob').delete()\n"
+        "jobs = Listing.all_objects.filter(title__istartswith='Smoke SJob')\n"
+        "OrderItem.objects.filter(order__listing__in=jobs).delete()\n"
+        "Order.objects.filter(listing__in=jobs).delete()\n"
+        "Bid.objects.filter(listing__in=jobs).delete()\n"
+        "jobs.delete()\n"
         "User.objects.filter(phone__startswith='+8801700099').delete()\n"
         "Seller.objects.filter(phone__startswith='+8801700098').delete()\n"
     )
@@ -150,6 +156,7 @@ s, detail2 = S("GET", f"/seller/jobs/{JOB_ID}/")
 check("detail now lists my bid", [BID_ID], [b["id"] for b in detail2["my_bids"]])
 s, mine2 = S("GET", "/seller/jobs/mine/")
 check("mine now shows the job", [JOB_ID], [r["id"] for r in mine2["results"]])
+check("mine?won=true is empty — bid is still pending, not won yet", 0, len(S("GET", "/seller/jobs/mine/?won=true")[1]["results"]))
 s, other_board = S_OTHER("GET", "/seller/jobs/")
 check("another seller sees total bid_count but my_bid_count 0", (1, 0), (other_board["results"][0]["bid_count"], other_board["results"][0]["my_bid_count"]))
 
@@ -192,6 +199,14 @@ check("no longer on the open board", 0, len(S_OTHER("GET", "/seller/jobs/")[1]["
 check("bidding on it now -> 400", 400, S_OTHER("POST", f"/seller/jobs/{JOB_ID}/bids/", {"price_tiers": [{"price_type": "fixed", "price": "1"}]})[0])
 check("a seller who already bid can still see it by id -> 200", 200, S("GET", f"/seller/jobs/{JOB_ID}/")[0])
 check("a seller who never bid gets 404 once it's not open", 404, S_OTHER("GET", f"/seller/jobs/{JOB_ID}/")[0])
+
+print("\n=== mine?won=true — only jobs this seller actually got ===")
+s, job2 = B("POST", "/buyer/jobs/", {"category": SERVICE_CATEGORY, "title": "Smoke SJob Two", "description": "d", "skus": [{"price_type": "fixed", "price": "2000"}]})
+JOB2_ID = job2["id"]
+s, bid3 = S("POST", f"/seller/jobs/{JOB2_ID}/bids/", {"price_tiers": [{"price_type": "fixed", "price": "1900"}]})
+check("accept it -> 200", 200, B("POST", f"/buyer/jobs/{JOB2_ID}/bids/{bid3['id']}/accept/")[0])
+s, won = S("GET", "/seller/jobs/mine/?won=true")
+check("won=true shows only the job this seller was hired for", [JOB2_ID], [r["id"] for r in won["results"]])
 
 cleanup()
 print("\n=== Cleanup ===")
