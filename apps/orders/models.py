@@ -15,8 +15,9 @@ seller_payments.
 from decimal import Decimal
 
 from django.db import models
+from django.utils.text import slugify
 
-from apps.core.models import AuditedModel, CatalogType
+from apps.core.models import ActorType, AuditedModel, CatalogType
 
 
 class Cart(AuditedModel):
@@ -43,6 +44,14 @@ class Cart(AuditedModel):
 
     buyer = models.ForeignKey(
         "accounts.User", on_delete=models.CASCADE, related_name="carts", db_column="buyerId"
+    )
+    # Always "user" for now — `buyer` above is strictly a User row. Carried as
+    # a flag (not acted on yet) so a seller buying from another seller's shop
+    # can reuse this same cart shape later without another migration.
+    buyer_type = models.CharField(
+        db_column="buyerType", max_length=10,
+        choices=[(ActorType.USER, ActorType.USER.label), (ActorType.SELLER, ActorType.SELLER.label)],
+        default=ActorType.USER,
     )
     seller = models.ForeignKey(
         "accounts.Seller", on_delete=models.CASCADE, null=True, blank=True, related_name="carts",
@@ -174,7 +183,9 @@ class Order(AuditedModel):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
         ACCEPTED = "accepted", "Accepted"
+        REJECTED = "rejected", "Rejected"
         IN_PROGRESS = "in_progress", "In Progress"
+        SHIPPED = "shipped", "Shipped"
         DELIVERED = "delivered", "Delivered"
         COMPLETED = "completed", "Completed"
         CANCELLED = "cancelled", "Cancelled"
@@ -222,7 +233,24 @@ class Order(AuditedModel):
     expected_delivery_at = models.DateTimeField(db_column="expectedDeliveryAt", null=True, blank=True)
     completed_at = models.DateTimeField(db_column="completedAt", null=True, blank=True)
     cancelled_reason = models.TextField(db_column="cancelledReason", null=True, blank=True)
+    # Required when a seller rejects a product order (buyer-visible); distinct
+    # from cancelled_reason — a reject was judged, a cancel is the buyer's own call.
+    rejected_reason = models.TextField(db_column="rejectedReason", null=True, blank=True)
     confirmation_secret = models.CharField(db_column="confirmationSecret", max_length=64, null=True, blank=True)
+
+    # Denormalized from the Payment row checkout creates for this order (see
+    # services.py) so a list/detail never needs to join into `payments` just
+    # to show where the money stands. Kept in sync every time that Payment's
+    # own status changes — never written anywhere else.
+    payment = models.ForeignKey(
+        "Payment", on_delete=models.SET_NULL, null=True, blank=True, related_name="+", db_column="paymentId"
+    )
+    payment_status = models.CharField(db_column="paymentStatus", max_length=15, null=True, blank=True)
+    payment_gateway = models.ForeignKey(
+        "PaymentGateway", on_delete=models.PROTECT, null=True, blank=True, related_name="orders",
+        db_column="paymentGatewayId",
+    )
+    gateway_slug = models.CharField(db_column="gatewaySlug", max_length=120, null=True, blank=True)
 
     class Meta:
         db_table = "orders"
@@ -262,6 +290,35 @@ class OrderItem(AuditedModel):
         db_table = "orderItems"
 
 
+def _generate_gateway_slug(name):
+    base = slugify(name) or "gateway"
+    slug = base
+    suffix = 1
+    while PaymentGateway.objects.filter(slug=slug).exists():
+        suffix += 1
+        slug = f"{base}-{suffix}"
+    return slug
+
+
+class PaymentGateway(AuditedModel):
+    """A way a buyer can pay — admin-managed, checkout picks one by id.
+    Only Cash on Delivery is seeded for now; card/mobile-banking gateways
+    are added here later without a code change on the checkout side."""
+
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=120, unique=True)
+    icon_path = models.CharField(db_column="iconPath", max_length=255, null=True, blank=True)
+    icon_url = models.URLField(db_column="iconUrl", max_length=500, null=True, blank=True)
+    is_active = models.BooleanField(db_column="isActive", default=True)
+
+    class Meta:
+        db_table = "paymentGateways"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Payment(AuditedModel):
     """Every money movement against an order, or a standalone seller
     withdrawal, in one auditable ledger filtered by `purpose` — replaces
@@ -283,10 +340,12 @@ class Payment(AuditedModel):
         DEBIT = "debit", "Debit"
 
     class Status(models.TextChoices):
-        PENDING = "pending", "Pending"
-        COMPLETED = "completed", "Completed"
+        DUE = "due", "Due"
+        INITIATED = "initiated", "Initiated"
+        PAID = "paid", "Paid"
         FAILED = "failed", "Failed"
-        REFUNDED = "refunded", "Refunded"
+        CANCELLED = "cancelled", "Cancelled"
+        PARTIALLY_PAID = "partially_paid", "Partially Paid"
 
     order = models.ForeignKey(
         Order, on_delete=models.SET_NULL, null=True, blank=True, related_name="payments", db_column="orderId"
@@ -296,16 +355,39 @@ class Payment(AuditedModel):
     # as a plain id + type pair rather than two nullable FKs.
     user_id = models.BigIntegerField(db_column="userId")
     user_type = models.CharField(db_column="userType", max_length=10, choices=UserType.choices)
+    # Denormalized alongside user_id/user_type — always the order's seller
+    # when this payment is against an order; null for a payment that isn't
+    # (a standalone payout/commission entry has no single "other side").
+    seller = models.ForeignKey(
+        "accounts.Seller", on_delete=models.PROTECT, null=True, blank=True, related_name="payments",
+        db_column="sellerId",
+    )
     purpose = models.CharField(max_length=20, choices=Purpose.choices)
     direction = models.CharField(max_length=10, choices=Direction.choices)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    # What's actually been collected/settled through the gateway so far (a
+    # bKash-style gateway reports this independently of `amount`, and it's
+    # how a partially_paid payment is tracked). Unused for cash on delivery.
+    store_amount = models.DecimalField(
+        db_column="storeAmount", max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    # Snapshot of the gateway's name at payment time (survives the gateway
+    # being renamed or deactivated later); `payment_gateway` is the live FK,
+    # null for a payment that isn't a buyer checkout payment (a payout, say).
     method = models.CharField(max_length=50)
+    payment_gateway = models.ForeignKey(
+        PaymentGateway, on_delete=models.PROTECT, null=True, blank=True, related_name="payments",
+        db_column="paymentGatewayId",
+    )
+    # Snapshot of the gateway's slug at payment time, same reasoning as `method`.
+    gateway_slug = models.CharField(db_column="gatewaySlug", max_length=120, null=True, blank=True)
     gateway_txn_id = models.CharField(db_column="gatewayTxnId", max_length=100, null=True, blank=True)
     payout_account_number = models.CharField(
         db_column="payoutAccountNumber", max_length=100, null=True, blank=True
     )
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
-    meta = models.JSONField(null=True, blank=True)
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.DUE)
+    meta_data = models.JSONField(db_column="metaData", null=True, blank=True)
+    notes = models.TextField(null=True, blank=True)
 
     class Meta:
         db_table = "payments"
@@ -316,3 +398,76 @@ class Payment(AuditedModel):
 
     def __str__(self):
         return f"{self.purpose} {self.amount} ({self.status})"
+
+
+class PaymentStatusChangeHistory(models.Model):
+    """Append-only history of every status change on a Payment — who
+    changed it, from what, to what. Written once when the payment is
+    created (previous_status null) and again on every status move; never
+    updated or deleted afterwards, so this isn't an AuditedModel."""
+
+    order = models.ForeignKey(
+        Order, on_delete=models.CASCADE, related_name="payment_status_histories", db_column="orderId"
+    )
+    user = models.ForeignKey(
+        "accounts.User", on_delete=models.PROTECT, related_name="payment_status_histories", db_column="userId"
+    )
+    seller = models.ForeignKey(
+        "accounts.Seller", on_delete=models.PROTECT, related_name="payment_status_histories",
+        db_column="sellerId",
+    )
+    payment = models.ForeignKey(
+        Payment, on_delete=models.CASCADE, related_name="status_histories", db_column="paymentId"
+    )
+    previous_status = models.CharField(
+        db_column="previousStatus", max_length=15, choices=Payment.Status.choices, null=True, blank=True
+    )
+    current_status = models.CharField(db_column="currentStatus", max_length=15, choices=Payment.Status.choices)
+
+    created_by = models.BigIntegerField(db_column="createdBy", null=True, blank=True)
+    creator_type = models.CharField(
+        db_column="creatorType", max_length=10, choices=ActorType.choices, default=ActorType.SYSTEM
+    )
+    creator_name = models.CharField(db_column="creatorName", max_length=255, null=True, blank=True)
+    created_at = models.DateTimeField(db_column="createdAt", auto_now_add=True)
+
+    class Meta:
+        db_table = "paymentStatusChangeHistories"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Payment #{self.payment_id}: {self.previous_status} -> {self.current_status}"
+
+
+class OrderStatusChangeHistory(models.Model):
+    """Append-only history of every status change on an Order — who changed
+    it, from what, to what, and why (a reject/cancel reason, at the time of
+    that specific move — Order.rejected_reason/cancelled_reason only ever
+    hold the latest one). Never updated or deleted, so not an AuditedModel."""
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="status_histories", db_column="orderId")
+    user = models.ForeignKey(
+        "accounts.User", on_delete=models.PROTECT, related_name="order_status_histories", db_column="userId"
+    )
+    seller = models.ForeignKey(
+        "accounts.Seller", on_delete=models.PROTECT, related_name="order_status_histories", db_column="sellerId"
+    )
+    previous_status = models.CharField(
+        db_column="previousStatus", max_length=15, choices=Order.Status.choices, null=True, blank=True
+    )
+    current_status = models.CharField(db_column="currentStatus", max_length=15, choices=Order.Status.choices)
+    reason = models.TextField(null=True, blank=True)
+
+    created_by = models.BigIntegerField(db_column="createdBy", null=True, blank=True)
+    creator_type = models.CharField(
+        db_column="creatorType", max_length=10, choices=ActorType.choices, default=ActorType.SYSTEM
+    )
+    creator_name = models.CharField(db_column="creatorName", max_length=255, null=True, blank=True)
+    created_at = models.DateTimeField(db_column="createdAt", auto_now_add=True)
+
+    class Meta:
+        db_table = "orderStatusChangeHistories"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Order #{self.order_id}: {self.previous_status} -> {self.current_status}"
