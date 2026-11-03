@@ -14,9 +14,9 @@ from rest_framework.generics import ListCreateAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.public_views import public_seller_listings_q
 from apps.authentication.permissions import IsBuyerActor
 from apps.catalog.models import Listing, ListingSku
+from apps.catalog.public_listings import buyer_visible_listings
 from apps.core.pagination import BuyerPagePagination
 
 from .buyer_serializers import AddFavouriteSerializer, FavouriteSerializer
@@ -47,9 +47,8 @@ class FavouriteListCreateView(ListCreateAPIView):
             raise ValidationError({"type": [f"Must be one of {', '.join(Listing.CatalogType.values)}."]})
 
         queryset = Favourite.objects.filter(
-            buyer=self.request.user,
-            listing__status=Listing.Status.APPROVED,
-        ).filter(public_seller_listings_q(prefix="listing__seller"))
+            buyer=self.request.user, listing__in=buyer_visible_listings(),
+        )
         if catalog_type:
             queryset = queryset.filter(listing__catalog_type=catalog_type)
         return queryset.select_related(

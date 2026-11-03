@@ -39,11 +39,12 @@ ORDERINGS = {
 def buyer_visible_listings():
     """Listings a buyer may act on — add to cart, favourite — not just browse:
     the same visibility rule as the public lists above (approved, seller
-    verified and active, never a buyer's own job request). Shared so every
-    buyer-facing feature enforces this one rule the same way."""
+    verified and active, at least one active SKU, never a buyer's own job
+    request). Shared so every buyer-facing feature enforces this one rule the
+    same way."""
     return Listing.objects.filter(
-        PRODUCT_SCOPE | GIG_SCOPE, public_seller_listings_q(), status=Listing.Status.APPROVED
-    )
+        PRODUCT_SCOPE | GIG_SCOPE, public_seller_listings_q(), status=Listing.Status.APPROVED,
+    ).filter(Exists(_active_skus()))
 
 
 # --------------------------------------------------------------------- query string
