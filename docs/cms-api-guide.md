@@ -21,6 +21,32 @@ banners, the logo, public settings) belong to the later browsing phase.
 
 ---
 
+## Table of contents
+
+- [1. Banners — `/banners/`](#1-banners-banners)
+  - [Fields](#fields)
+  - [Create — `POST /banners/` (multipart)](#create-post-banners-multipart)
+  - [Retrieve — `GET /banners/{id}/` · Unknown id → `404`](#retrieve-get-bannersid-unknown-id-404)
+  - [Update — `PATCH /banners/{id}/`](#update-patch-bannersid)
+  - [List — `GET /banners/`](#list-get-banners)
+  - [Delete — `DELETE /banners/{id}/` → `204`, the image file is removed too.](#delete-delete-bannersid-204-the-image-file-is-removed-too)
+- [2. Email Templates — `/email-templates/`](#2-email-templates-email-templates)
+  - [Create — `POST /email-templates/`](#create-post-email-templates)
+  - [Update — `PATCH` (or `PUT`) `/email-templates/{id}/`](#update-patch-or-put-email-templatesid)
+  - [List — `GET /email-templates/` — `search` (key or subject), `is_active`.](#list-get-email-templates-search-key-or-subject-is_active)
+  - [Retrieve — `GET /email-templates/{id}/` · Delete — `DELETE …` → `204`.](#retrieve-get-email-templatesid-delete-delete-204)
+- [3. Site Settings — `/settings/`](#3-site-settings-settings)
+  - [Create — `POST /settings/`](#create-post-settings)
+  - [Retrieve — `GET /settings/{key}/` · unknown key → `404`](#retrieve-get-settingskey-unknown-key-404)
+  - [Update — `PATCH /settings/{key}/`](#update-patch-settingskey)
+  - [List — `GET /settings/?search=commission` (key contains)](#list-get-settingssearchcommission-key-contains)
+  - [Delete — `DELETE /settings/{key}/` → `204`](#delete-delete-settingskey-204)
+- [4. Site Logo — `/site-logo/`](#4-site-logo-site-logo)
+- [Notes](#notes)
+- [Testing](#testing)
+
+---
+
 ## 1. Banners — `/banners/`
 
 One table for every placement (`hero`, `sidebar`, `category`).

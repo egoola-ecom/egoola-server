@@ -27,6 +27,18 @@ Postman: `Egoola` → **Carts & Wishlists (admin)**.
 
 ---
 
+## Table of contents
+
+- [1. Carts — `/api/v1/orders/carts/`](#1-carts-apiv1orderscarts)
+  - [List — `GET /orders/carts/`](#list-get-orderscarts)
+  - [Retrieve — `GET /orders/carts/{id}/`](#retrieve-get-orderscartsid)
+- [2. Wishlists (favourites) — `/api/v1/engagement/favourites/`](#2-wishlists-favourites-apiv1engagementfavourites)
+  - [List — `GET /engagement/favourites/`](#list-get-engagementfavourites)
+  - [Retrieve — `GET /engagement/favourites/{id}/`](#retrieve-get-engagementfavouritesid)
+- [Testing](#testing)
+
+---
+
 ## 1. Carts — `/api/v1/orders/carts/`
 
 ### List — `GET /orders/carts/`

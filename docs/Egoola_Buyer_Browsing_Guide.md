@@ -9,6 +9,21 @@ For the technical details (addresses, fields, examples), see [`public-api-guide.
 
 ---
 
+## Table of contents
+
+- [1. The big picture](#1-the-big-picture)
+- [2. What the buyer is allowed to see](#2-what-the-buyer-is-allowed-to-see)
+- [3. Categories](#3-categories)
+- [4. Products](#4-products)
+- [5. Gigs](#5-gigs)
+- [6. The seller page](#6-the-seller-page)
+- [7. How lists are paged](#7-how-lists-are-paged)
+- [8. What a buyer will never see](#8-what-a-buyer-will-never-see)
+- [9. What is not part of this yet](#9-what-is-not-part-of-this-yet)
+- [10. Quick summary](#10-quick-summary)
+
+---
+
 ## 1. The big picture
 
 A buyer does not need to log in to look around. Anyone can open the shop and browse. The buyer moves through four kinds of pages:

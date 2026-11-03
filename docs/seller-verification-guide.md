@@ -10,6 +10,28 @@ same bearer token as everything else on that resource.
   [`seller-api-guide.md`](seller-api-guide.md), with their own collection `Egoola-SellerApp.postman_collection.json`.
 - Basic list/create/update shapes: [`frontend-api-guide.md`](frontend-api-guide.md) §8.
 
+---
+
+## Table of contents
+
+- [What's new](#whats-new)
+- [Default verification_status on create](#default-verification_status-on-create)
+- [Approving a self-registered seller](#approving-a-self-registered-seller)
+  - [Pausing an approved seller](#pausing-an-approved-seller)
+  - [When does a seller leave the Seller Request queue?](#when-does-a-seller-leave-the-seller-request-queue)
+  - [Rejected sellers fix and resubmit](#rejected-sellers-fix-and-resubmit)
+- [Changing verification_status later](#changing-verification_status-later)
+- [How `verification_note` behaves](#how-verification_note-behaves)
+- [`verification_logs` — the change history](#verification_logs-the-change-history)
+- [The seller list and its filters](#the-seller-list-and-its-filters)
+- [The Seller Request queue (cursor pagination)](#the-seller-request-queue-cursor-pagination)
+- [Reviewing a request](#reviewing-a-request)
+- [Profile change log (`profile_change_logs`)](#profile-change-log-profile_change_logs)
+- [Deleting a seller](#deleting-a-seller)
+- [Full walkthrough](#full-walkthrough)
+
+---
+
 ## What's new
 
 | Field | Where | Behavior |

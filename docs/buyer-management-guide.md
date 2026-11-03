@@ -13,6 +13,20 @@ Header: `Authorization: Bearer <admin access token>`.
 
 Postman: **Buyers** folder in `postman/Egoola.postman_collection.json`.
 
+---
+
+## Table of contents
+
+- [Fields](#fields)
+- [1. Create — `POST /buyers/`](#1-create-post-buyers)
+- [2. Update — `PATCH /buyers/{id}/` (or `PUT`)](#2-update-patch-buyersid-or-put)
+- [3. Retrieve — `GET /buyers/{id}/`](#3-retrieve-get-buyersid)
+- [4. List — `GET /buyers/`](#4-list-get-buyers)
+- [5. Delete — `DELETE /buyers/{id}/`](#5-delete-delete-buyersid)
+- [Testing](#testing)
+
+---
+
 ## Fields
 
 | Field | Type | Notes |

@@ -25,6 +25,19 @@ Also in this repo:
 
 ---
 
+## Table of contents
+
+- [1. Base URL and auth](#1-base-url-and-auth)
+- [2. Rules shared by all four resources](#2-rules-shared-by-all-four-resources)
+- [3. The four resources](#3-the-four-resources)
+  - [3.1 Country](#31-country)
+  - [3.2 State](#32-state)
+  - [3.3 City](#33-city)
+  - [3.4 Thana](#34-thana)
+- [4. What's deliberately not here yet](#4-whats-deliberately-not-here-yet)
+
+---
+
 ## 1. Base URL and auth
 
 ```

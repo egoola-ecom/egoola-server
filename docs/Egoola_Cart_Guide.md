@@ -22,6 +22,23 @@ Part I covers the cart. Part II covers the wishlist.
 
 ---
 
+## Table of contents
+
+- [1. What a cart is](#1-what-a-cart-is)
+- [2. Carts never mix two kinds, or two sellers](#2-carts-never-mix-two-kinds-or-two-sellers)
+- [3. How a cart comes to exist](#3-how-a-cart-comes-to-exist)
+- [4. Adding something to the cart](#4-adding-something-to-the-cart)
+- [5. What a line in the cart shows](#5-what-a-line-in-the-cart-shows)
+- [6. Changing or removing something already in the cart](#6-changing-or-removing-something-already-in-the-cart)
+- [7. What happens to a cart once an order is placed from it](#7-what-happens-to-a-cart-once-an-order-is-placed-from-it)
+- [8. What the cart does not cover yet](#8-what-the-cart-does-not-cover-yet)
+- [9. What a wishlist is](#9-what-a-wishlist-is)
+- [10. Saving and un-saving something](#10-saving-and-un-saving-something)
+- [11. What the wishlist shows, and what happens when things change](#11-what-the-wishlist-shows-and-what-happens-when-things-change)
+- [12. The wishlist and the cart are not connected](#12-the-wishlist-and-the-cart-are-not-connected)
+
+---
+
 ## 1. What a cart is
 
 A cart is a holding area. Before a buyer commits to buying anything, they can drop things into their cart, look at

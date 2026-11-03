@@ -4,6 +4,20 @@ Every route in this guide is **public**: no token, `GET` only, and a stale or ex
 (web, app, browsing, search) and the sign-up forms. A seller or an admin screen may use them too (for example the seller sign-up form and the listing form use the same
 location and category lists), but nothing here is built for them specifically. **Every public route is documented here and only here**: when a new public route is added, add it to this file.
 
+---
+
+## Table of contents
+
+- [1. Conventions](#1-conventions)
+- [2. Geography: country, state (division), city (district), thana](#2-geography-country-state-division-city-district-thana)
+- [3. Categories: `GET /api/v1/public/catalog/categories/`](#3-categories-get-apiv1publiccatalogcategories)
+- [4. Products: `GET /api/v1/public/catalog/products/` and `/products/{id}/`](#4-products-get-apiv1publiccatalogproducts-and-productsid)
+- [5. Gigs: `GET /api/v1/public/catalog/gigs/` and `/gigs/{id}/`](#5-gigs-get-apiv1publiccataloggigs-and-gigsid)
+- [6. Seller page: `GET /api/v1/public/sellers/{id}/`](#6-seller-page-get-apiv1publicsellersid)
+- [7. Adding a public route](#7-adding-a-public-route)
+
+---
+
 ## 1. Conventions
 
 - Base URL `/api/v1/`. Public routes live under `/api/v1/public/...`.

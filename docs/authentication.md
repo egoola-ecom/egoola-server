@@ -7,6 +7,27 @@ the real thing alongside this.
 
 ---
 
+## Table of contents
+
+- [1. How JWT login works here](#1-how-jwt-login-works-here)
+  - [The problem it solves](#the-problem-it-solves)
+  - [Step by step](#step-by-step)
+  - [Why not just use Django's built-in login?](#why-not-just-use-djangos-built-in-login)
+- [2. How role-based access works here](#2-how-role-based-access-works-here)
+  - [The idea in one sentence](#the-idea-in-one-sentence)
+  - [The two checks](#the-two-checks)
+  - [Where the role check lives](#where-the-role-check-lives)
+  - [The two failure codes, and why they're different](#the-two-failure-codes-and-why-theyre-different)
+  - [What's actually protected today](#whats-actually-protected-today)
+- [3. How public routes work here](#3-how-public-routes-work-here)
+  - [The default is "locked," not "open"](#the-default-is-locked-not-open)
+  - [How a route opts out](#how-a-route-opts-out)
+  - [A second kind of "public": open, but aware of who's logged in](#a-second-kind-of-public-open-but-aware-of-whos-logged-in)
+  - [A third kind: public to read, protected to change](#a-third-kind-public-to-read-protected-to-change)
+- [Quick reference](#quick-reference)
+
+---
+
 ## 1. How JWT login works here
 
 ### The problem it solves

@@ -11,6 +11,42 @@ has its own document for that.
 
 ---
 
+## Table of contents
+
+- [1. The people in this guide](#1-the-people-in-this-guide)
+- [2. The most important idea: two separate settings](#2-the-most-important-idea-two-separate-settings)
+  - [Setting 1: the verification result ("Is this seller approved?")](#setting-1-the-verification-result-is-this-seller-approved)
+  - [Setting 2: the account switch ("Can this seller work right now?")](#setting-2-the-account-switch-can-this-seller-work-right-now)
+  - [Putting the two together](#putting-the-two-together)
+- [3. Registration flow](#3-registration-flow)
+  - [3.1 The seller joins by themselves (the normal way)](#31-the-seller-joins-by-themselves-the-normal-way)
+  - [3.2 An admin creates the seller](#32-an-admin-creates-the-seller)
+  - [3.3 What admins see: the Seller Request list](#33-what-admins-see-the-seller-request-list)
+- [4. Verification flow](#4-verification-flow)
+  - [4.1 Admin steps](#41-admin-steps)
+  - [4.2 What the seller sees](#42-what-the-seller-sees)
+  - [4.3 When a seller is approved](#43-when-a-seller-is-approved)
+  - [4.4 When a seller is rejected: fix and send again](#44-when-a-seller-is-rejected-fix-and-send-again)
+  - [4.5 The whole verification flow in one picture](#45-the-whole-verification-flow-in-one-picture)
+- [5. Login flow](#5-login-flow)
+  - [5.1 How a seller logs in](#51-how-a-seller-logs-in)
+  - [5.2 Who can log in](#52-who-can-log-in)
+  - [5.3 Staying logged in](#53-staying-logged-in)
+  - [5.4 When an admin changes something while the seller is logged in](#54-when-an-admin-changes-something-while-the-seller-is-logged-in)
+  - [5.5 Forgotten password](#55-forgotten-password)
+  - [5.6 Who else logs in](#56-who-else-logs-in)
+- [6. Seller actions flow](#6-seller-actions-flow)
+  - [6.1 What a seller can do (their own profile)](#61-what-a-seller-can-do-their-own-profile)
+  - [6.2 What an admin can do with sellers](#62-what-an-admin-can-do-with-sellers)
+  - [6.3 The profile change history (admins only)](#63-the-profile-change-history-admins-only)
+  - [6.4 What happens to files](#64-what-happens-to-files)
+- [7. Quick rules (one page)](#7-quick-rules-one-page)
+- [8. Questions we often get (for support and operations)](#8-questions-we-often-get-for-support-and-operations)
+- [9. Not available yet](#9-not-available-yet)
+- [10. Words used in this guide](#10-words-used-in-this-guide)
+
+---
+
 ## 1. The people in this guide
 
 | Who | What they do |

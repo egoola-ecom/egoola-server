@@ -15,6 +15,32 @@ are in its **Listing SKUs** folder). Listings in general: [listing-module-guide.
 
 ---
 
+## Table of contents
+
+- [1. The idea in plain words](#1-the-idea-in-plain-words)
+- [2. Attributes — `/api/v1/catalog/attributes/`](#2-attributes-apiv1catalogattributes)
+  - [Fields](#fields)
+  - [Endpoints](#endpoints)
+  - [Create](#create)
+- [3. Attribute values — `/api/v1/catalog/attribute-values/`](#3-attribute-values-apiv1catalogattribute-values)
+  - [Fields](#fields-1)
+  - [Endpoints](#endpoints-1)
+- [4. Listing SKUs](#4-listing-skus)
+  - [SKU fields](#sku-fields)
+  - [4.1 Create a listing with SKUs](#41-create-a-listing-with-skus)
+  - [The shortcut for a listing with no options](#the-shortcut-for-a-listing-with-no-options)
+  - [4.2 Update SKUs — merge by id, never delete](#42-update-skus-merge-by-id-never-delete)
+  - [4.3 The rules (and the `400` you get when you break one)](#43-the-rules-and-the-400-you-get-when-you-break-one)
+  - [4.4 Price tiers and SKUs](#44-price-tiers-and-skus)
+  - [4.5 Search](#45-search)
+- [5. Notes for the frontend](#5-notes-for-the-frontend)
+- [6. What changed in the database](#6-what-changed-in-the-database)
+- [7. Testing](#7-testing)
+- [8. Gig SKUs (packages)](#8-gig-skus-packages)
+- [9. What changed in the database for gigs](#9-what-changed-in-the-database-for-gigs)
+
+---
+
 ## 1. The idea in plain words
 
 | Word | Meaning | Example |

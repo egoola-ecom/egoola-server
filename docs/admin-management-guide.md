@@ -2,6 +2,23 @@
 
 Create, update, list and view other admins. Base path: `/api/v1/accounts/admins/`.
 
+---
+
+## Table of contents
+
+- [Roles](#roles)
+- [Safety rules](#safety-rules)
+- [Fields](#fields)
+- [Create — `POST /admins/`](#create-post-admins)
+- [Update — `PATCH /admins/{id}/` (or `PUT`)](#update-patch-adminsid-or-put)
+- [Retrieve — `GET /admins/{id}/`](#retrieve-get-adminsid)
+- [List — `GET /admins/`](#list-get-admins)
+- [Delete — `DELETE /admins/{id}/`](#delete-delete-adminsid)
+- [Testing](#testing)
+- [Dev accounts](#dev-accounts)
+
+---
+
 ## Roles
 
 There are two admin roles: **`super_admin`** and **`admin`**.

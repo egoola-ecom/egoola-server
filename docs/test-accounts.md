@@ -5,6 +5,18 @@ are not for staging or production. Last verified: 2026-10-08.
 
 Password for every account below: **`Test@12345`**
 
+---
+
+## Table of contents
+
+- [Accounts](#accounts)
+- [Logging in](#logging-in)
+- [Reference ids used in tests (dev database)](#reference-ids-used-in-tests-dev-database)
+- [Re-creating the accounts](#re-creating-the-accounts)
+- [Rules for test data](#rules-for-test-data)
+
+---
+
 ## Accounts
 
 | Role | Login (email, or phone for a seller) | Type / state | Use it for |

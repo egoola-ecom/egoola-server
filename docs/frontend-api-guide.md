@@ -23,6 +23,40 @@ Also in this repo:
 
 ---
 
+## Table of contents
+
+- [1. Base URL](#1-base-url)
+- [2. The one rule that matters: everything needs a token, unless it's login](#2-the-one-rule-that-matters-everything-needs-a-token-unless-its-login)
+- [3. Logging in](#3-logging-in)
+  - [Sending the token on every other request](#sending-the-token-on-every-other-request)
+  - [The access token expires in 1 hour](#the-access-token-expires-in-1-hour)
+- [4. Errors — the three shapes you'll see](#4-errors-the-three-shapes-youll-see)
+- [5. Pagination — every list endpoint works the same way](#5-pagination-every-list-endpoint-works-the-same-way)
+- [6. Searching and filtering](#6-searching-and-filtering)
+- [7. Admin Management](#7-admin-management)
+  - [List — `GET /api/v1/accounts/admins/`](#list-get-apiv1accountsadmins)
+  - [Retrieve — `GET /api/v1/accounts/admins/{id}/`](#retrieve-get-apiv1accountsadminsid)
+  - [Create — `POST /api/v1/accounts/admins/`](#create-post-apiv1accountsadmins)
+  - [Update — `PUT` (full) or `PATCH` (partial) `/api/v1/accounts/admins/{id}/`](#update-put-full-or-patch-partial-apiv1accountsadminsid)
+  - [Delete — `DELETE /api/v1/accounts/admins/{id}/`](#delete-delete-apiv1accountsadminsid)
+- [8. Seller Management](#8-seller-management)
+  - [List — trimmed shape:](#list-trimmed-shape)
+  - [Retrieve — full shape, real example:](#retrieve-full-shape-real-example)
+  - [Create — `POST /api/v1/accounts/sellers/`](#create-post-apiv1accountssellers)
+  - [Update / Delete](#update-delete)
+  - [8.1 Seller sign-up (public) — `POST /api/v1/auth/seller/register/`](#81-seller-sign-up-public-post-apiv1authsellerregister)
+  - [8.2 Seller Request queue — `GET /api/v1/accounts/sellers/requests/`](#82-seller-request-queue-get-apiv1accountssellersrequests)
+- [9. Buyer Management](#9-buyer-management)
+  - [List — trimmed shape:](#list-trimmed-shape-1)
+  - [Create — `POST /api/v1/accounts/buyers/`](#create-post-apiv1accountsbuyers)
+  - [Update / Delete](#update-delete-1)
+- [10. Uploading files (profile picture + documents)](#10-uploading-files-profile-picture-documents)
+  - [Profile picture](#profile-picture)
+  - [Other documents (NID, certificates, gallery images, etc.)](#other-documents-nid-certificates-gallery-images-etc)
+- [11. What's deliberately not here yet](#11-whats-deliberately-not-here-yet)
+
+---
+
 ## 1. Base URL
 
 ```

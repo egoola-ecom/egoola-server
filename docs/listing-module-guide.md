@@ -21,6 +21,42 @@ Related files: `apps/catalog/models.py`, `serializers.py`, `views.py`,
 
 ---
 
+## Table of contents
+
+- [1. What is in this module](#1-what-is-in-this-module)
+- [2. Database](#2-database)
+  - [2.1 `brands` (new)](#21-brands-new)
+  - [2.2 `listings` — what changed](#22-listings-what-changed)
+  - [2.3 `listingPriceTiers` — what changed](#23-listingpricetiers-what-changed)
+  - [2.4 `listingStatusChangeLogs`](#24-listingstatuschangelogs)
+- [3. Business rules](#3-business-rules)
+- [4. Brand API](#4-brand-api)
+  - [4.1 Create — `POST /brands/`](#41-create-post-brands)
+  - [4.2 Update — `PATCH /brands/{id}/`](#42-update-patch-brandsid)
+  - [4.3 List — `GET /brands/`](#43-list-get-brands)
+  - [4.4 Delete — `DELETE /brands/{id}/`](#44-delete-delete-brandsid)
+- [5. Listing API](#5-listing-api)
+  - [5.1 Fields](#51-fields)
+  - [5.2 SKUs and price tiers](#52-skus-and-price-tiers)
+  - [5.3 Create — `POST /listings/`](#53-create-post-listings)
+  - [5.4 Retrieve — `GET /listings/{id}/`](#54-retrieve-get-listingsid)
+  - [5.5 List — `GET /listings/`](#55-list-get-listings)
+  - [5.6 Update — `PATCH /listings/{id}/`](#56-update-patch-listingsid)
+  - [5.7 Moderation (status changes)](#57-moderation-status-changes)
+  - [5.8 Bulk moderation — `POST /listings/bulk-moderate/`](#58-bulk-moderation-post-listingsbulk-moderate)
+  - [5.9 Delete — `DELETE /listings/{id}/`](#59-delete-delete-listingsid)
+- [6. Admin actions used by every request](#6-admin-actions-used-by-every-request)
+- [7. Testing summary](#7-testing-summary)
+- [8. Notes for the front-end team](#8-notes-for-the-front-end-team)
+- [9. Added for seller listings (reference)](#9-added-for-seller-listings-reference)
+  - [9.1 Database changes (`listings` and a new log table)](#91-database-changes-listings-and-a-new-log-table)
+  - [9.2 Behaviour that changed on the admin endpoints](#92-behaviour-that-changed-on-the-admin-endpoints)
+  - [9.3 The pending list — `GET /listings/requests/`](#93-the-pending-list-get-listingsrequests)
+  - [9.4 Seller endpoints in one table](#94-seller-endpoints-in-one-table)
+  - [9.5 Thumbnail and gigs (reference)](#95-thumbnail-and-gigs-reference)
+
+---
+
 ## 1. What is in this module
 
 | Resource | Endpoints | Notes |
