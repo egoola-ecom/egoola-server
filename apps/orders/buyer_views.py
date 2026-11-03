@@ -24,6 +24,7 @@ from .buyer_serializers import (
     AddCartItemSerializer,
     CartItemSerializer,
     CartSerializer,
+    CartSummarySerializer,
     UpdateCartItemSerializer,
     variant_snapshot,
 )
@@ -93,6 +94,22 @@ class CartView(APIView):
         if cart is not None:
             cart.items.all().delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CartSummaryView(APIView):
+    """GET — one row per active cart (`cart_type`, `seller`, `item_count`,
+    `subtotal`, `updated_at`), plus a grand `item_count` across every cart.
+    For a header badge and an "all carts" view — this never creates a cart,
+    it only ever lists what already exists."""
+
+    permission_classes = [IsBuyerActor]
+
+    def get(self, request):
+        carts = Cart.objects.filter(buyer=request.user, is_active=True).select_related(
+            "seller"
+        ).prefetch_related("items__listing_sku").order_by("-updated_at", "-id")
+        rows = CartSummarySerializer(carts, many=True).data
+        return Response({"item_count": sum(row["item_count"] for row in rows), "carts": rows})
 
 
 class CartItemsView(APIView):

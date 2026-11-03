@@ -92,6 +92,34 @@ class CartSerializer(serializers.ModelSerializer):
         return str(obj.subtotal)
 
 
+class CartSummarySerializer(serializers.ModelSerializer):
+    """One row per active cart, for a header badge / "all carts" dropdown —
+    no items, just the counts a list screen needs. `item_count` is the
+    number of lines (not units: duration isn't a count, so a product cart's
+    qty total and a service cart's duration total can't be added together
+    meaningfully — line count is the one thing that's comparable across
+    both kinds)."""
+
+    seller = serializers.SerializerMethodField()
+    item_count = serializers.SerializerMethodField()
+    subtotal = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Cart
+        fields = ["id", "cart_type", "seller", "item_count", "subtotal", "updated_at"]
+
+    def get_seller(self, obj):
+        if not obj.seller_id:
+            return None
+        return CartSellerSerializer(obj.seller).data
+
+    def get_item_count(self, obj):
+        return len(obj.items.all())
+
+    def get_subtotal(self, obj):
+        return str(obj.subtotal)
+
+
 class AddCartItemSerializer(serializers.Serializer):
     listing = serializers.PrimaryKeyRelatedField(queryset=buyer_visible_listings())
     listing_sku = serializers.PrimaryKeyRelatedField(queryset=ListingSku.objects.filter(is_active=True))
