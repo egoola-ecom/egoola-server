@@ -150,6 +150,46 @@
       "key": "gig_title",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "sjob_buyer_phone",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sjob_buyer_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sjob_job_title",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sjob_job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sjob_job2_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sjob_bid_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sjob_bid2_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sjob_tier_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {
@@ -5486,6 +5526,1019 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Seller jobs & bidding (needs an approved, active seller)",
+      "item": [
+        {
+          "name": "[Buyer step] Register a demo buyer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/buyer/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "buyer",
+                "register",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman SJob Buyer\",\n  \"phone\": \"{{sjob_buyer_phone}}\",\n  \"password\": \"Buy@12345\"\n}"
+            },
+            "description": "A job is a buyer's request for work — created directly by the buyer, no admin needed. This buyer plays that role so this folder can exercise the full board-to-bid-to-hire cycle on its own."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('sjob_buyer_phone')) { pm.collectionVariables.set('sjob_buyer_phone', '+88019' + String(Date.now()).slice(-8)); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('sjob_buyer_token', pm.response.json().access); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Buyer step] Post a job for this seller to bid on",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sjob_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/jobs/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "jobs",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"{{lk_service_category_id}}\",\n  \"title\": \"{{sjob_job_title}}\",\n  \"description\": \"Need help moving furniture this weekend.\",\n  \"skus\": [\n    {\n      \"price_type\": \"fixed\",\n      \"price\": \"1500\"\n    }\n  ]\n}"
+            },
+            "description": "A job skips moderation entirely — it's `open_for_bidding` from the moment it's created. `{{lk_service_category_id}}` comes from the lookup in **Seller listings** above; run this collection in order."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('sjob_job_title')) { pm.collectionVariables.set('sjob_job_title', 'Postman SJob ' + Date.now()); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.test('open_for_bidding, no moderation', () => pm.expect(j.status).to.eql('open_for_bidding'));",
+                  "pm.collectionVariables.set('sjob_job_id', j.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Job board — the open job shows up",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/jobs/?category=&country=&state=&city=&thana=&price_type=&budget_min=&budget_max=&delivery_days_max=&urgent=&created_from=&created_to=&requested_from=&requested_to=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "jobs",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": "a category id"
+                },
+                {
+                  "key": "country",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "state",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "city",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "thana",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "price_type",
+                  "value": "",
+                  "description": "an active budget tier priced this way"
+                },
+                {
+                  "key": "budget_min",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "budget_max",
+                  "value": "",
+                  "description": "against the cheapest active budget tier"
+                },
+                {
+                  "key": "delivery_days_max",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "urgent",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "created_from",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "created_to",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "requested_from",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "requested_to",
+                  "value": "",
+                  "description": ""
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Open jobs only (`status=open_for_bidding`), cursor-paginated. Needs a seller who can operate (verified **and** active) — reuses `{{own_token}}` from **After approval** above."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('cursor shape', () => pm.expect(pm.response.json()).to.have.all.keys('next','previous','results'));",
+                  "const ids = pm.response.json().results.map(r => r.id);",
+                  "pm.test('the job is on the open board', () => pm.expect(ids).to.include(pm.collectionVariables.get('sjob_job_id')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Job detail — nobody's bid yet",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/jobs/{{sjob_job_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "jobs",
+                "{{sjob_job_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('my_bids is empty so far', () => pm.expect(pm.response.json().my_bids).to.eql([]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Place a bid — no price_tiers (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/jobs/{{sjob_job_id}}/bids/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "jobs",
+                "{{sjob_job_id}}",
+                "bids",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"I can help\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Place a bid",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/jobs/{{sjob_job_id}}/bids/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "jobs",
+                "{{sjob_job_id}}",
+                "bids",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"I can help this weekend\",\n  \"price_tiers\": [\n    {\n      \"price_type\": \"fixed\",\n      \"price\": \"1300\"\n    }\n  ]\n}"
+            },
+            "description": "A bid needs at least one price tier. It always starts `pending` — acceptance/rejection are the buyer's/admin's call, never the seller's."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201, starts pending', () => { pm.response.to.have.status(201); pm.expect(pm.response.json().status).to.eql('pending'); });",
+                  "const b = pm.response.json();",
+                  "pm.collectionVariables.set('sjob_bid_id', b.id);",
+                  "pm.collectionVariables.set('sjob_tier_id', b.price_tiers[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A second live bid on the same job (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/jobs/{{sjob_job_id}}/bids/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "jobs",
+                "{{sjob_job_id}}",
+                "bids",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price_tiers\": [\n    {\n      \"price_type\": \"hourly\",\n      \"price\": \"100\"\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('already live', () => pm.expect(JSON.stringify(pm.response.json())).to.include('already have a live bid'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Buyer step] Post a second job, then pause it",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sjob_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/jobs/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "jobs",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"{{lk_service_category_id}}\",\n  \"title\": \"{{sjob_job_title}} Two\",\n  \"description\": \"A second job, paused right after creation so bidding on it is refused.\",\n  \"skus\": [\n    {\n      \"price\": \"500\"\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('sjob_job2_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Buyer step] Pause the second job (draft)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sjob_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/jobs/{{sjob_job2_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "jobs",
+                "{{sjob_job2_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"draft\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, now draft', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('draft'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bid on a job that isn't open (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/jobs/{{sjob_job2_id}}/bids/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "jobs",
+                "{{sjob_job2_id}}",
+                "bids",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price_tiers\": [\n    {\n      \"price\": \"1\"\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My bids — filter by status=pending",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/bids/?status=pending&listing=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "bids",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "description": ""
+                },
+                {
+                  "key": "listing",
+                  "value": "",
+                  "description": "a job id"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const ids = pm.response.json().results.map(r => r.id);",
+                  "pm.test('the bid is there, job embedded', () => pm.expect(ids).to.include(pm.collectionVariables.get('sjob_bid_id')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit a pending bid — price-tier reconcile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/bids/{{sjob_bid_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "bids",
+                "{{sjob_bid_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price_tiers\": [\n    {\n      \"id\": \"{{sjob_tier_id}}\",\n      \"price\": \"1400\"\n    },\n    {\n      \"price_type\": \"hourly\",\n      \"price\": \"300\"\n    }\n  ]\n}"
+            },
+            "description": "Same contract as a listing's SKUs: an item with an `id` updates that tier, one without adds a tier, a tier not mentioned is left alone."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, now two tiers', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().price_tiers.length).to.eql(2); });",
+                  "const b = pm.response.json(); const t = b.price_tiers.find(t => t.id === pm.collectionVariables.get('sjob_tier_id'));",
+                  "pm.test('existing tier updated in place', () => pm.expect(t.price).to.eql('1400.00'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel the bid",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/bids/{{sjob_bid_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "bids",
+                "{{sjob_bid_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"cancelled\"\n}"
+            },
+            "description": "The only status move a seller can make directly. Acceptance and rejection are the buyer's/admin's call."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, cancelled', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('cancelled'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Editing a cancelled bid (expect 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/bids/{{sjob_bid_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "bids",
+                "{{sjob_bid_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"nope\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Re-bid after cancelling — a new historical row",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/jobs/{{sjob_job_id}}/bids/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "jobs",
+                "{{sjob_job_id}}",
+                "bids",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price_tiers\": [\n    {\n      \"price_type\": \"fixed\",\n      \"price\": \"1450\"\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201 — not a reuse of the cancelled one', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('sjob_bid2_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Jobs I've bid on — /seller/jobs/mine/",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/jobs/mine/?won=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "jobs",
+                "mine",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "won",
+                  "value": "",
+                  "description": "true -> only jobs I actually got"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const ids = pm.response.json().results.map(r => r.id);",
+                  "pm.test('shows the job', () => pm.expect(ids).to.include(pm.collectionVariables.get('sjob_job_id')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Buyer step] Accept the re-bid",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sjob_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/jobs/{{sjob_job_id}}/bids/{{sjob_bid2_id}}/accept/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "jobs",
+                "{{sjob_job_id}}",
+                "bids",
+                "{{sjob_bid2_id}}",
+                "accept",
+                ""
+              ]
+            },
+            "description": "Hires this seller: an Order is created directly (no cart), and the job moves to `in_progress`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, accepted', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().bid.status).to.eql('accepted'); });",
+                  "pm.test('an Order was created, in_progress', () => pm.expect(pm.response.json().order.status).to.eql('in_progress'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Jobs I actually got — mine?won=true",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/jobs/mine/?won=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "jobs",
+                "mine",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "won",
+                  "value": "true",
+                  "description": ""
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{own_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const ids = pm.response.json().results.map(r => r.id);",
+                  "pm.test('only the won job shows up', () => pm.expect(ids).to.include(pm.collectionVariables.get('sjob_job_id')));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "The job board and bidding, from the seller's side. A job is a buyer's request for work, hired through bidding instead of bought outright — see `docs/job-bidding-guide.md`. Needs `{{own_token}}` already approved and active (run **After approval** above first)."
     },
     {
       "name": "After review — reject, resubmit, suspend, clean up",
