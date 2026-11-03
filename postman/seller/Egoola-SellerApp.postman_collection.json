@@ -2,7 +2,7 @@
   "info": {
     "name": "Egoola API — Seller App (seller-facing APIs)",
     "_postman_id": "6b2f4a90-3c1d-4e57-8a42-egoola-sellerapp",
-    "description": "The APIs built for sellers: public location lookups, sign-up with KYC documents, seller login, the seller's own profile (/seller/me), resubmit after a rejection, change password, **product listings and gigs** (and their thumbnails). Read docs/seller-api-guide.md (sections 6, 6b, 6.8) and docs/listing-complete-guide.md (sections 14, 15) alongside it.\n\nRun top to bottom. Requests named **[Admin step]** are NOT seller APIs: they play the admin (approve, reject, suspend, clean up) so you can see what a seller experiences after each decision. The admin APIs themselves are in Egoola-Seller.postman_collection.json.\n\nRequests with file rows need a real JPG / PNG / WEBP / PDF chosen in the Postman app (file paths cannot be shared in a collection).",
+    "description": "The APIs built for sellers: public location lookups, sign-up with KYC documents, seller login, the seller's own profile (/seller/me), resubmit after a rejection, change password, **product listings and gigs** (and their thumbnails). Read docs/seller/seller-api-guide.md (sections 6, 6b, 6.8) and docs/listing-complete-guide.md (sections 14, 15) alongside it.\n\nRun top to bottom. Requests named **[Admin step]** are NOT seller APIs: they play the admin (approve, reject, suspend, clean up) so you can see what a seller experiences after each decision. The admin APIs themselves are in Egoola-Seller.postman_collection.json.\n\nRequests with file rows need a real JPG / PNG / WEBP / PDF chosen in the Postman app (file paths cannot be shared in a collection).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -188,6 +188,71 @@
     },
     {
       "key": "sjob_tier_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sord_admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sord_seller_phone",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sord_seller_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sord_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sord_listing_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sord_sku_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sord_buyer_phone",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sord_buyer_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sord_address_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sord_cart_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sord_order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sord_order2_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sord_thana_id",
       "value": "",
       "type": "string"
     }
@@ -7031,6 +7096,1183 @@
               }
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "Orders (needs an approved, active seller)",
+      "description": "Accept, reject, in_progress, shipped, delivered — one step at a time. Delivered also flips the payment from due to paid. Seeds its own demo seller/product/buyer/order first. See docs/seller/seller-order-api-guide.md.",
+      "item": [
+        {
+          "name": "[Setup] Admin login",
+          "description": "This folder seeds its own demo seller, product, buyer and order so it can run on its own, independent of the other folders in this collection.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('sord_admin_token', pm.response.json().access);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/admin/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "admin",
+                "login",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+            }
+          }
+        },
+        {
+          "name": "[Setup] Create a verified, active seller",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('sord_seller_id', pm.response.json().id);",
+                  "pm.collectionVariables.set('sord_seller_phone', pm.response.json().phone);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman SOrd Seller\",\n  \"email\": \"postman.sord.seller.{{$timestamp}}@example.com\",\n  \"phone\": \"+88016{{$timestamp}}\",\n  \"password\": \"Sell@12345\"\n}"
+            }
+          }
+        },
+        {
+          "name": "[Setup] Seller login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('sord_token', pm.response.json().access);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/seller/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "seller",
+                "login",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{sord_seller_phone}}\",\n  \"password\": \"Sell@12345\"\n}"
+            }
+          }
+        },
+        {
+          "name": "[Setup] Create an approved product for this seller",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('sord_listing_id', pm.response.json().id);",
+                  "pm.collectionVariables.set('sord_sku_id', pm.response.json().skus[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": 18,\n  \"catalog_type\": \"product\",\n  \"listing_type\": \"general\",\n  \"status\": \"approved\",\n  \"title\": \"Postman SOrd Product {{$timestamp}}\",\n  \"description\": \"d\",\n  \"seller\": \"{{sord_seller_id}}\",\n  \"price\": \"80\",\n  \"stock_qty\": 50\n}"
+            }
+          }
+        },
+        {
+          "name": "[Setup] Create a thana (country 126 / state 13 / city 8 have no seeded thana)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('sord_thana_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/geography/thanas/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "geography",
+                "thanas",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Thana {{$timestamp}}\",\n  \"country\": 126,\n  \"state\": 13,\n  \"city\": 8\n}"
+            }
+          }
+        },
+        {
+          "name": "[Buyer step] Register a demo buyer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('sord_buyer_token', pm.response.json().access);",
+                  "pm.collectionVariables.set('sord_buyer_phone', pm.response.json().phone || '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/buyer/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "buyer",
+                "register",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman SOrd Buyer\",\n  \"phone\": \"+88017{{$timestamp}}\",\n  \"password\": \"Buy@12345\"\n}"
+            }
+          }
+        },
+        {
+          "name": "[Buyer step] Save an address",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('sord_address_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/addresses/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "addresses",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman SOrd Addr\",\n  \"phone\": \"+8801711110003\",\n  \"country\": 126,\n  \"state\": 13,\n  \"city\": 8,\n  \"thana\": \"{{sord_thana_id}}\",\n  \"address_line1\": \"House 7\"\n}"
+            }
+          }
+        },
+        {
+          "name": "[Buyer step] Add to cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/items/?type=product",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                "items",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "product"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing\": \"{{sord_listing_id}}\",\n  \"listing_sku\": \"{{sord_sku_id}}\",\n  \"qty\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "[Buyer step] Find the cart id and checkout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const carts = pm.response.json().carts; const mine = carts.find(c => c.seller && String(c.seller.id) === String(pm.collectionVariables.get('sord_seller_id'))); if (mine) pm.collectionVariables.set('sord_cart_id', mine.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/summary/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                "summary",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Find the active payment gateway",
+          "description": "No auth needed. Never hardcode a gateway id -- the DB assigns it. See docs/admin/admin-payment-gateway-api-guide.md.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const gateways = pm.response.json();",
+                  "const cod = gateways.find((g) => g.slug === 'cash-on-delivery');",
+                  "pm.test('cash-on-delivery is active', () => pm.expect(cod).to.not.be.undefined);",
+                  "pm.collectionVariables.set('sord_gateway_id', cod.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/orders/payment-gateways/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "orders",
+                "payment-gateways",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Buyer step] Checkout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('sord_order_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/orders/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "orders",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cart\": \"{{sord_cart_id}}\",\n  \"address\": \"{{sord_address_id}}\",\n  \"payment_gateway\": \"{{sord_gateway_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Orders placed with me (cursor-paginated)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('cursor shape', () => pm.expect(pm.response.json()).to.have.all.keys('next','previous','results'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/orders/?status=pending",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "orders",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Retrieve an order (detail: buyer, items, address, payment + both histories)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('payment and histories nested', () => { const b = pm.response.json(); pm.expect(b.payment).to.not.be.null; pm.expect(b.status_histories).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/orders/{{sord_order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "orders",
+                "{{sord_order_id}}",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Accept it",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status is accepted', () => pm.expect(pm.response.json().status).to.eql('accepted'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/orders/{{sord_order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "orders",
+                "{{sord_order_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"accepted\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Skipping straight to delivered -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/orders/{{sord_order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "orders",
+                "{{sord_order_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"delivered\"\n}"
+            }
+          }
+        },
+        {
+          "name": "In progress",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/orders/{{sord_order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "orders",
+                "{{sord_order_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"in_progress\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Shipped",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/orders/{{sord_order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "orders",
+                "{{sord_order_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"shipped\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delivered (payment auto-flips due -> paid)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('payment is paid', () => pm.expect(pm.response.json().payment.status).to.eql('paid'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/orders/{{sord_order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "orders",
+                "{{sord_order_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"delivered\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Add to cart again (the first cart is closed for good)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/items/?type=product",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                "items",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "product"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing\": \"{{sord_listing_id}}\",\n  \"listing_sku\": \"{{sord_sku_id}}\",\n  \"qty\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Find the new cart id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const carts = pm.response.json().carts; const mine = carts.find(c => c.seller && String(c.seller.id) === String(pm.collectionVariables.get('sord_seller_id'))); if (mine) pm.collectionVariables.set('sord_cart_id', mine.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/summary/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                "summary",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Find the active payment gateway",
+          "description": "No auth needed. Never hardcode a gateway id -- the DB assigns it. See docs/admin/admin-payment-gateway-api-guide.md.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const gateways = pm.response.json();",
+                  "const cod = gateways.find((g) => g.slug === 'cash-on-delivery');",
+                  "pm.test('cash-on-delivery is active', () => pm.expect(cod).to.not.be.undefined);",
+                  "pm.collectionVariables.set('sord_gateway_id', cod.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/orders/payment-gateways/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "orders",
+                "payment-gateways",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "A second order to test reject",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('sord_order2_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/orders/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "orders",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cart\": \"{{sord_cart_id}}\",\n  \"address\": \"{{sord_address_id}}\",\n  \"payment_gateway\": \"{{sord_gateway_id}}\"\n}"
+            },
+            "description": "Add another line to the same (now-closed) cart's successor first if this 400s — see the buyer Cart folder for how a new cart starts after one closes."
+          }
+        },
+        {
+          "name": "Reject without a reason -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/orders/{{sord_order2_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "orders",
+                "{{sord_order2_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"rejected\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reject with a reason",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('rejected_reason recorded', () => pm.expect(pm.response.json().rejected_reason).to.eql('Out of stock'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sord_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/orders/{{sord_order2_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "orders",
+                "{{sord_order2_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"rejected\",\n  \"reason\": \"Out of stock\"\n}"
+            }
+          }
         }
       ]
     }
