@@ -15,7 +15,7 @@ class _ListingDateFilters(django_filters.FilterSet):
 
 
 class ListingFilter(_ListingDateFilters):
-    """Admin listing list and pending list (products, and for now job requests)."""
+    """Admin product list and pending list."""
 
     class Meta:
         model = Listing

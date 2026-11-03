@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
+from .admin_job_views import AdminJobViewSet
 from .listing_files import AdminListingFilesView
 
 from .views import (
@@ -21,6 +22,7 @@ router.register("attributes", AttributeViewSet, basename="attribute")
 router.register("attribute-values", AttributeValueViewSet, basename="attribute-value")
 router.register("listings", ListingViewSet, basename="listing")
 router.register("gigs", GigViewSet, basename="gig")
+router.register("jobs", AdminJobViewSet, basename="admin-job")
 
 urlpatterns = [
     path("listing-files/<int:listing_id>/", AdminListingFilesView.as_view(), name="listing-files"),

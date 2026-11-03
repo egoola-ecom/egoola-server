@@ -8,8 +8,9 @@ All three are rows of the one `listings` table, but each has its own API:
 - **gig**: `catalog_type = service`, `posted_by_role = seller_offer`. A seller's
   service offer. `/catalog/gigs/` (admin) and `/seller/gigs/` (seller).
 - **job**: `catalog_type = service`, `posted_by_role = buyer_request`. A buyer's
-  request for work. Until the Job step is built, an admin manages these through
-  `/catalog/listings/`.
+  request for work, bid on by sellers (see `apps.bidding`). `/catalog/jobs/`
+  (admin) and `/buyer/jobs/` (buyer) — not visible on `/catalog/listings/` or
+  `/catalog/gigs/` (404 there).
 
 A gig is priced on its SKUs: one SKU per price type (hourly, daily, weekly,
 monthly, fixed). The buyer chooses the duration when ordering (it is on the order item). A product is priced on SKUs that carry

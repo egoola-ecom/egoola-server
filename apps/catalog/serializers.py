@@ -725,22 +725,25 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
                 raise serializers.ValidationError({"posted_by_role": "A product cannot be a buyer_request."})
             kind = kinds.PRODUCT
         elif role == Listing.PostedByRole.BUYER_REQUEST:
-            kind = kinds.JOB
+            raise serializers.ValidationError({
+                "posted_by_role": "A buyer's job request has its own endpoint: /catalog/jobs/ (admin) "
+                                   "or /buyer/jobs/ (buyer)."
+            })
         else:
             kind = kinds.GIG
         if self.scope is None and kind == kinds.GIG:
             raise serializers.ValidationError(
                 {"catalog_type": "A seller's service offer is a gig: use the gig endpoints (/catalog/gigs/). "
-                                 "This endpoint handles products and buyer requests."}
+                                 "This endpoint handles products only."}
             )
         self._kind = kind
 
         # Fields of another kind are refused (an empty value is fine).
         errors = {}
         if kind == kinds.PRODUCT:
-            forbidden, message = kinds.SERVICE_ONLY_FIELDS, "Only for gigs and job requests."
+            forbidden, message = kinds.SERVICE_ONLY_FIELDS, "Only for gigs."
         else:
-            forbidden, message = kinds.PRODUCT_ONLY_FIELDS, f"Not available for a {'gig' if kind == kinds.GIG else 'job request'}."
+            forbidden, message = kinds.PRODUCT_ONLY_FIELDS, "Not available for a gig."
         for field in forbidden:
             if field in attrs and not _is_empty(attrs[field]):
                 errors[field] = message

@@ -452,12 +452,11 @@ class _AdminListingViewSet(AuditedViewSetMixin, viewsets.ModelViewSet):
 
 
 class ListingViewSet(_AdminListingViewSet):
-    """Admin products (`/catalog/listings/`). Until the Job step is built it also
-    manages a buyer's job requests (a service with `posted_by_role = buyer_request`).
-    A seller's service offer is a gig and lives on `/catalog/gigs/`: it is not
-    visible here (404)."""
+    """Admin products (`/catalog/listings/`). A seller's service offer is a gig
+    (`/catalog/gigs/`) and a buyer's job request is a job (`/catalog/jobs/`):
+    neither is visible here (404)."""
 
-    scope = Q(catalog_type=Listing.CatalogType.PRODUCT) | Q(posted_by_role=Listing.PostedByRole.BUYER_REQUEST)
+    scope = Q(catalog_type=Listing.CatalogType.PRODUCT)
     filterset_class = ListingFilter
     search_fields = ["title", "title_bn", "brand__name", "model", "skus__sku"]
 
