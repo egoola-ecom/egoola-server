@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Egoola-BuyerApp",
-    "description": "Everything built for buyers (web and app): sign-up and login, the public location lists, category browse, products, gigs and the seller page. Most of it needs no login. Docs: docs/buyer-api-guide.md and docs/public-api-guide.md. Import it with Egoola-Local.postman_environment.json.",
+    "description": "Everything built for buyers (web and app): sign-up and login, the public location lists, category browse, products, gigs and the seller page. Most of it needs no login. Docs: docs/buyer/buyer-api-guide.md and docs/public-api-guide.md. Import it with Egoola-Local.postman_environment.json.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -85,15 +85,70 @@
       "key": "jobs_tier_hourly_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "address_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orders_admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orders_seller_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orders_listing_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orders_sku_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orders_cart_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orders_address_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orders_order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "addr_setup_admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "addr_thana_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orders_thana_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
     {
       "name": "Buyer sign-up and login",
-      "description": "Only name, mobile and password are required. See docs/buyer-api-guide.md.",
+      "description": "Only name, mobile and password are required. See docs/buyer/buyer-api-guide.md.",
       "item": [
         {
-          "name": "Register \u2014 only name, mobile, password",
+          "name": "Register — only name, mobile, password",
           "event": [
             {
               "listen": "prerequest",
@@ -149,7 +204,7 @@
           }
         },
         {
-          "name": "Register \u2014 same mobile again (expect 400)",
+          "name": "Register — same mobile again (expect 400)",
           "event": [
             {
               "listen": "prerequest",
@@ -203,7 +258,7 @@
           }
         },
         {
-          "name": "Register \u2014 missing fields (expect 400)",
+          "name": "Register — missing fields (expect 400)",
           "event": [
             {
               "listen": "prerequest",
@@ -257,7 +312,7 @@
           }
         },
         {
-          "name": "Register \u2014 bad mobile (expect 400)",
+          "name": "Register — bad mobile (expect 400)",
           "event": [
             {
               "listen": "prerequest",
@@ -311,7 +366,7 @@
           }
         },
         {
-          "name": "Register \u2014 every optional field",
+          "name": "Register — every optional field",
           "event": [
             {
               "listen": "prerequest",
@@ -475,7 +530,7 @@
           }
         },
         {
-          "name": "Login \u2014 phone and email together (expect 400)",
+          "name": "Login — phone and email together (expect 400)",
           "event": [
             {
               "listen": "prerequest",
@@ -529,7 +584,7 @@
           }
         },
         {
-          "name": "Login \u2014 wrong password (expect 401)",
+          "name": "Login — wrong password (expect 401)",
           "event": [
             {
               "listen": "prerequest",
@@ -1172,7 +1227,7 @@
                 }
               ]
             },
-            "description": "`page_size` must be 1\u2013100."
+            "description": "`page_size` must be 1–100."
           },
           "event": [
             {
@@ -1883,7 +1938,7 @@
     },
     {
       "name": "Cart",
-      "description": "A buyer's own cart: one active cart per (type, seller) \u2014 a cart never spans sellers, since every order is exactly one seller. GET/DELETE always act on exactly one cart: name it with &seller= (0 = the shared no-seller cart), or leave it out for whichever cart of that type was touched most recently. Neither call creates a cart; with nothing there, GET returns null and DELETE is a no-op 204. Needs a buyer token \u2014 run 'Buyer sign-up and login' first, or set {{buyer_token}} manually. Needs {{product_id}}/{{product_sku_id}} and {{gig_id}}/{{gig_sku_id}} set (see Products/Gigs folders). See docs/buyer-api-guide.md section 3.",
+      "description": "A buyer's own cart: one active cart per (type, seller) — a cart never spans sellers, since every order is exactly one seller. GET/DELETE always act on exactly one cart: name it with &seller= (0 = the shared no-seller cart), or leave it out for whichever cart of that type was touched most recently. Neither call creates a cart; with nothing there, GET returns null and DELETE is a no-op 204. Needs a buyer token — run 'Buyer sign-up and login' first, or set {{buyer_token}} manually. Needs {{product_id}}/{{product_sku_id}} and {{gig_id}}/{{gig_sku_id}} set (see Products/Gigs folders). See docs/buyer/buyer-api-guide.md section 3.",
       "item": [
         {
           "name": "Get cart summary (every active cart)",
@@ -2561,7 +2616,7 @@
     },
     {
       "name": "Favourites",
-      "description": "The buyer's wishlist: save/un-save a listing, list (optionally by type). A plain idempotent toggle, unlike the cart. Needs a buyer token (run 'Buyer sign-up and login' first) and {{product_id}}/{{gig_id}} set. See docs/buyer-api-guide.md section 4.",
+      "description": "The buyer's wishlist: save/un-save a listing, list (optionally by type). A plain idempotent toggle, unlike the cart. Needs a buyer token (run 'Buyer sign-up and login' first) and {{product_id}}/{{gig_id}} set. See docs/buyer/buyer-api-guide.md section 4.",
       "item": [
         {
           "name": "Save a listing",
@@ -2970,7 +3025,7 @@
       ]
     },
     {
-      "name": "Jobs \u2014 post work and hire",
+      "name": "Jobs — post work and hire",
       "item": [
         {
           "name": "[Seller step] Admin login (to create a demo seller)",
@@ -3003,7 +3058,7 @@
               "mode": "raw",
               "raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
             },
-            "description": "This folder (Jobs) is the one place in this buyer-facing collection that needs an admin token \u2014 only to create a seller who can actually place a bid (a seller's own public sign-up starts unverified/inactive and can't bid)."
+            "description": "This folder (Jobs) is the one place in this buyer-facing collection that needs an admin token — only to create a seller who can actually place a bid (a seller's own public sign-up starts unverified/inactive and can't bid)."
           },
           "event": [
             {
@@ -3159,7 +3214,7 @@
               "mode": "raw",
               "raw": "{\n  \"category\": 29,\n  \"title\": \"{{jobs_job_title}}\",\n  \"description\": \"Need someone to move a sofa and a wardrobe.\",\n  \"skus\": [\n    {\n      \"price\": \"1500\"\n    }\n  ]\n}"
             },
-            "description": "A job is a request for work that sellers **bid** on, not something bought outright. `category: 29` is the reference service category (Cleaning) \u2014 see `docs/test-accounts.md`. It needs at least one budget option (`skus`); there's no bare `price` shortcut like a product has."
+            "description": "A job is a request for work that sellers **bid** on, not something bought outright. `category: 29` is the reference service category (Cleaning) — see `docs/test-accounts.md`. It needs at least one budget option (`skus`); there's no bare `price` shortcut like a product has."
           },
           "event": [
             {
@@ -3280,7 +3335,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 400 \u2014 a job needs a service category', () => pm.response.to.have.status(400));"
+                  "pm.test('Status is 400 — a job needs a service category', () => pm.response.to.have.status(400));"
                 ]
               }
             }
@@ -3422,7 +3477,7 @@
           ]
         },
         {
-          "name": "Edit \u2014 add a second budget tier",
+          "name": "Edit — add a second budget tier",
           "request": {
             "method": "PATCH",
             "header": [
@@ -3525,7 +3580,7 @@
           ]
         },
         {
-          "name": "Reopen, step 1 \u2014 draft to pending",
+          "name": "Reopen, step 1 — draft to pending",
           "request": {
             "method": "PATCH",
             "header": [
@@ -3577,7 +3632,7 @@
           ]
         },
         {
-          "name": "Reopen, step 2 \u2014 pending to open_for_bidding",
+          "name": "Reopen, step 2 — pending to open_for_bidding",
           "request": {
             "method": "PATCH",
             "header": [
@@ -3712,7 +3767,7 @@
                 ""
               ]
             },
-            "description": "Every bid ever placed on this job, any status \u2014 so the buyer sees the full history, not just what's currently live."
+            "description": "Every bid ever placed on this job, any status — so the buyer sees the full history, not just what's currently live."
           },
           "event": [
             {
@@ -3729,7 +3784,7 @@
           ]
         },
         {
-          "name": "Accept without price_tier_id \u2014 two tiers (expect 400)",
+          "name": "Accept without price_tier_id — two tiers (expect 400)",
           "request": {
             "method": "POST",
             "header": [],
@@ -3767,14 +3822,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 400 \u2014 must say which tier', () => pm.response.to.have.status(400));"
+                  "pm.test('Status is 400 — must say which tier', () => pm.response.to.have.status(400));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Accept \u2014 hire this seller",
+          "name": "Accept — hire this seller",
           "request": {
             "method": "POST",
             "header": [
@@ -3814,7 +3869,7 @@
               "mode": "raw",
               "raw": "{\n  \"price_tier_id\": \"{{jobs_tier_hourly_id}}\"\n}"
             },
-            "description": "Hires this bidder \u2014 no cart involved, the Order is created right here. Every other pending bid on the job would be auto-rejected (none left to show here); the job moves to `in_progress`."
+            "description": "Hires this bidder — no cart involved, the Order is created right here. Every other pending bid on the job would be auto-rejected (none left to show here); the job moves to `in_progress`."
           },
           "event": [
             {
@@ -3885,6 +3940,963 @@
         }
       ],
       "description": "A job is a buyer's request for work, hired through bidding instead of bought outright. Full reference: `docs/job-bidding-guide.md` and `listing-complete-guide.md` section 16. Run **Buyer sign-up and login** above first (uses `{{buyer_token}}`)."
+    },
+    {
+      "name": "Addresses",
+      "description": "The buyer's own saved delivery addresses — full CRUD, no pagination. Checkout (see Orders, below) snapshots one of these onto the order; editing/deleting here never changes a past order. See docs/buyer/buyer-address-api-guide.md.",
+      "item": [
+        {
+          "name": "[Setup] Admin login (to seed a thana for the address)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('addr_setup_admin_token', pm.response.json().access);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/admin/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "admin",
+                "login",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+            }
+          }
+        },
+        {
+          "name": "[Setup] Create a thana (country 126 / state 13 / city 8 have no seeded thana)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('addr_thana_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{addr_setup_admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/geography/thanas/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "geography",
+                "thanas",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Thana {{$timestamp}}\",\n  \"country\": 126,\n  \"state\": 13,\n  \"city\": 8\n}"
+            }
+          }
+        },
+        {
+          "name": "Create an address",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('address_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/addresses/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "addresses",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Home\",\n  \"phone\": \"+8801711110001\",\n  \"country\": 126,\n  \"state\": 13,\n  \"city\": 8,\n  \"thana\": \"{{addr_thana_id}}\",\n  \"address_line1\": \"House 1, Road 2\",\n  \"address_line2\": \"Flat 3A\",\n  \"zip\": \"1200\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List my addresses",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/addresses/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "addresses",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update an address (partial)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/addresses/{{address_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "addresses",
+                "{{address_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"address_line1\": \"House 9, Road 9\"\n}"
+            }
+          }
+        },
+        {
+          "name": "No token -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/addresses/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "addresses",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete an address",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/addresses/{{address_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "addresses",
+                "{{address_id}}",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "description": "Checkout (cart + address + payment gateway, one call) through cancel. Seeds its own demo seller/product via an admin token — see the [Seller step] requests. See docs/buyer/buyer-order-api-guide.md.",
+      "item": [
+        {
+          "name": "[Seller step] Admin login (to create a demo seller)",
+          "description": "This folder is the other place in this buyer-facing collection that needs an admin token — only to create a verified, active seller and an approved product to check out.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { pm.collectionVariables.set('orders_admin_token', pm.response.json().access); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/admin/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "admin",
+                "login",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+            }
+          }
+        },
+        {
+          "name": "[Seller step] Create a seller",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('orders_seller_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{orders_admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Order Seller\",\n  \"email\": \"postman.order.seller.{{$timestamp}}@example.com\",\n  \"phone\": \"+88014{{$timestamp}}\",\n  \"password\": \"Sell@12345\"\n}"
+            }
+          }
+        },
+        {
+          "name": "[Seller step] Create an approved product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('orders_listing_id', pm.response.json().id);",
+                  "pm.collectionVariables.set('orders_sku_id', pm.response.json().skus[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{orders_admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": 18,\n  \"catalog_type\": \"product\",\n  \"listing_type\": \"general\",\n  \"status\": \"approved\",\n  \"title\": \"Postman Order Product {{$timestamp}}\",\n  \"description\": \"d\",\n  \"seller\": \"{{orders_seller_id}}\",\n  \"price\": \"120\",\n  \"stock_qty\": 50\n}"
+            }
+          }
+        },
+        {
+          "name": "[Setup] Create a thana (country 126 / state 13 / city 8 have no seeded thana)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('orders_thana_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{orders_admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/geography/thanas/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "geography",
+                "thanas",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Thana {{$timestamp}}\",\n  \"country\": 126,\n  \"state\": 13,\n  \"city\": 8\n}"
+            }
+          }
+        },
+        {
+          "name": "Add it to my cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/items/?type=product",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                "items",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "product"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing\": \"{{orders_listing_id}}\",\n  \"listing_sku\": \"{{orders_sku_id}}\",\n  \"qty\": 2\n}"
+            }
+          }
+        },
+        {
+          "name": "Find the cart id (cart summary)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const carts = pm.response.json().carts; const mine = carts.find(c => c.seller && String(c.seller.id) === String(pm.collectionVariables.get('orders_seller_id'))); if (mine) pm.collectionVariables.set('orders_cart_id', mine.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/summary/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                "summary",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Save a delivery address for this order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('orders_address_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/addresses/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "addresses",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Order Delivery\",\n  \"phone\": \"+8801711110002\",\n  \"country\": 126,\n  \"state\": 13,\n  \"city\": 8,\n  \"thana\": \"{{orders_thana_id}}\",\n  \"address_line1\": \"House 5\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Find the active payment gateway",
+          "description": "No auth needed. Never hardcode a gateway id -- the DB assigns it. See docs/admin/admin-payment-gateway-api-guide.md.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const gateways = pm.response.json();",
+                  "const cod = gateways.find((g) => g.slug === 'cash-on-delivery');",
+                  "pm.test('cash-on-delivery is active', () => pm.expect(cod).to.not.be.undefined);",
+                  "pm.collectionVariables.set('orders_gateway_id', cod.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/orders/payment-gateways/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "orders",
+                "payment-gateways",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Checkout",
+          "description": "One request: cart + address + payment gateway (looked up by slug, see the preceding step) -> Order + OrderItems + Payment, together. See docs/buyer/buyer-order-api-guide.md.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('status is pending, payment_status is due', () => { const b = pm.response.json(); pm.expect(b.status).to.eql('pending'); pm.expect(b.payment_status).to.eql('due'); });",
+                  "pm.collectionVariables.set('orders_order_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/orders/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "orders",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cart\": \"{{orders_cart_id}}\",\n  \"address\": \"{{orders_address_id}}\",\n  \"payment_gateway\": \"{{orders_gateway_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List my orders (page-paginated)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('page shape', () => pm.expect(pm.response.json()).to.have.all.keys('count','page','page_size','total_pages','results'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/orders/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "orders",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Retrieve an order (detail: items, address, payment + both histories)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('payment and histories nested', () => { const b = pm.response.json(); pm.expect(b.payment).to.not.be.null; pm.expect(b.status_histories).to.be.an('array'); pm.expect(b.payment.status_histories).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/orders/{{orders_order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "orders",
+                "{{orders_order_id}}",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cancel it",
+          "description": "The general PATCH every actor uses — a buyer may currently only send {\"status\": \"cancelled\"}, any time before the seller has shipped it. The old dedicated POST .../cancel/ action is gone (404 now).",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status is cancelled', () => pm.expect(pm.response.json().status).to.eql('cancelled'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/orders/{{orders_order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "orders",
+                "{{orders_order_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"cancelled\",\n  \"reason\": \"Changed my mind\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Cancelling again -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/orders/{{orders_order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "orders",
+                "{{orders_order_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"cancelled\"\n}"
+            }
+          }
+        }
+      ]
     }
   ]
 }
