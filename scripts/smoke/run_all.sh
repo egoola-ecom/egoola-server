@@ -5,7 +5,7 @@
 #           SMOKE_BASE=http://host:port scripts/smoke/run_all.sh
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 status=0
-for suite in e2e admin buyer listing brand sku cms seller_onboarding seller_self public_geography seller_listing gig seller_gig listing_files category_browse public_listing buyer_register buyer_cart buyer_favourites admin_cart admin_favourites buyer_job seller_job bid_accept admin_job_bid; do
+for suite in e2e admin buyer listing brand sku cms seller_onboarding seller_self public_geography seller_listing gig seller_gig listing_files category_browse public_listing buyer_register buyer_cart buyer_favourites admin_cart admin_favourites buyer_job seller_job bid_accept admin_job_bid admin_payment_gateway buyer_address buyer_order seller_order admin_order; do
   echo "######## $suite"
   if [ -f "$here/${suite}_smoke.py" ]; then
     out="$(PYTHONIOENCODING=utf-8 python "$here/${suite}_smoke.py" 2>&1)"
