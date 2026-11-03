@@ -1,8 +1,8 @@
 {
   "info": {
-    "name": "Egoola API \u2014 Accounts & Auth",
+    "name": "Egoola API — Accounts & Auth",
     "_postman_id": "6f1e6a6a-2b3d-4f6a-9c9a-egoola-accounts-auth",
-    "description": "Covers what's built so far: Admin/Seller/Buyer login (JWT) + token refresh, and Admin-only Admin/Seller/Buyer management.\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run any request in **Auth** first \u2014 its \"Tests\" script saves the returned `access`/`refresh` tokens into collection variables automatically.\n3. Every request under **Accounts** already sends `Authorization: Bearer {{access_token}}` \u2014 no manual copy-pasting needed.\n4. When a 401 says the token expired, run **Auth > Refresh Token** \u2014 it re-saves `access_token` the same way.\n\nAll accounts endpoints require an Admin token (401 = no/invalid token, 403 = valid token but wrong role \u2014 see docs/authentication.md in the repo).\n\nFor Country/State/City/Thana reference-data management, see the separate Egoola API \u2014 Geography collection. For the full Seller Verification workflow (verify/reject with a mandatory note, verification_logs history) and deeper Seller-only coverage (business info, media upload), see the separate Egoola API \u2014 Seller collection.",
+    "description": "Covers what's built so far: Admin/Seller/Buyer login (JWT) + token refresh, and Admin-only Admin/Seller/Buyer management.\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run any request in **Auth** first — its \"Tests\" script saves the returned `access`/`refresh` tokens into collection variables automatically.\n3. Every request under **Accounts** already sends `Authorization: Bearer {{access_token}}` — no manual copy-pasting needed.\n4. When a 401 says the token expired, run **Auth > Refresh Token** — it re-saves `access_token` the same way.\n\nAll accounts endpoints require an Admin token (401 = no/invalid token, 403 = valid token but wrong role — see docs/authentication.md in the repo).\n\nFor Country/State/City/Thana reference-data management, see the separate Egoola API — Geography collection. For the full Seller Verification workflow (verify/reject with a mandatory note, verification_logs history) and deeper Seller-only coverage (business info, media upload), see the separate Egoola API — Seller collection.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -58,6 +58,46 @@
     {
       "key": "favourite_id",
       "value": ""
+    },
+    {
+      "key": "bid_buyer_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bid_buyer_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bid_job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bid_seller_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bid_seller2_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bid_bid1_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bid_bid2_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bid_tier1_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -95,7 +135,7 @@
                 ""
               ]
             },
-            "description": "Public endpoint \u2014 no token needed to call this. Returns access + refresh JWTs carrying actor_type=admin."
+            "description": "Public endpoint — no token needed to call this. Returns access + refresh JWTs carrying actor_type=admin."
           },
           "event": [
             {
@@ -147,7 +187,7 @@
                 ""
               ]
             },
-            "description": "Public endpoint. Logs in an Admin whose type is super_admin. Admin Management (the **Admins** folder) is super-admin only \u2014 a plain admin token from \"Admin Login\" gets 403 there. Saves the token as `super_admin_token`, which the Admins folder uses."
+            "description": "Public endpoint. Logs in an Admin whose type is super_admin. Admin Management (the **Admins** folder) is super-admin only — a plain admin token from \"Admin Login\" gets 403 there. Saves the token as `super_admin_token`, which the Admins folder uses."
           },
           "event": [
             {
@@ -196,7 +236,7 @@
                 ""
               ]
             },
-            "description": "Public endpoint. A seller logs in with **phone number + password** (admins and buyers use email). Returns a token carrying actor_type=seller \u2014 will get 403 on every Accounts endpoint below (those are Admin-only), which is expected until Seller self-service routes exist."
+            "description": "Public endpoint. A seller logs in with **phone number + password** (admins and buyers use email). Returns a token carrying actor_type=seller — will get 403 on every Accounts endpoint below (those are Admin-only), which is expected until Seller self-service routes exist."
           },
           "event": [
             {
@@ -206,7 +246,7 @@
                   "if (pm.response.code === 200) {",
                   "    const body = pm.response.json();",
                   "    pm.collectionVariables.set('seller_token', body.access);",
-                  "    console.log('Saved seller access token as seller_token (not used by Accounts requests below \u2014 those need an admin token).');",
+                  "    console.log('Saved seller access token as seller_token (not used by Accounts requests below — those need an admin token).');",
                   "}",
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));"
                 ],
@@ -256,7 +296,7 @@
                   "if (pm.response.code === 200) {",
                   "    const body = pm.response.json();",
                   "    pm.collectionVariables.set('buyer_token', body.access);",
-                  "    console.log('Saved buyer access token as buyer_token (not used by Accounts requests below \u2014 those need an admin token).');",
+                  "    console.log('Saved buyer access token as buyer_token (not used by Accounts requests below — those need an admin token).');",
                   "}",
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));"
                 ],
@@ -296,7 +336,7 @@
                 ""
               ]
             },
-            "description": "Exchanges the saved refresh token (14-day life) for a new access token (1-hour life) \u2014 the actor_type/actor_id claims carry over automatically. Run this instead of logging in again once the access token expires."
+            "description": "Exchanges the saved refresh token (14-day life) for a new access token (1-hour life) — the actor_type/actor_id claims carry over automatically. Run this instead of logging in again once the access token expires."
           },
           "event": [
             {
@@ -357,7 +397,7 @@
                     }
                   ]
                 },
-                "description": "Admin-only. Returns the list-view fields (no media, no full geography \u2014 see AdminListSerializer)."
+                "description": "Admin-only. Returns the list-view fields (no media, no full geography — see AdminListSerializer)."
               },
               "event": [
                 {
@@ -431,7 +471,7 @@
                     ""
                   ]
                 },
-                "description": "Full detail view \u2014 includes media[] and geography fields, unlike the list view."
+                "description": "Full detail view — includes media[] and geography fields, unlike the list view."
               },
               "event": [
                 {
@@ -447,7 +487,7 @@
               ]
             },
             {
-              "name": "Update Admin (full \u2014 PUT)",
+              "name": "Update Admin (full — PUT)",
               "request": {
                 "method": "PUT",
                 "header": [
@@ -474,7 +514,7 @@
                     ""
                   ]
                 },
-                "description": "PUT replaces the whole record \u2014 `password` can be left out on update (only re-hashed if you send a new one)."
+                "description": "PUT replaces the whole record — `password` can be left out on update (only re-hashed if you send a new one)."
               },
               "event": [
                 {
@@ -489,7 +529,7 @@
               ]
             },
             {
-              "name": "Update Admin (partial \u2014 PATCH)",
+              "name": "Update Admin (partial — PATCH)",
               "request": {
                 "method": "PATCH",
                 "header": [
@@ -516,7 +556,7 @@
                     ""
                   ]
                 },
-                "description": "Preferred for small edits \u2014 only send the field(s) you're changing."
+                "description": "Preferred for small edits — only send the field(s) you're changing."
               },
               "event": [
                 {
@@ -652,7 +692,7 @@
                     ""
                   ]
                 },
-                "description": "`info` is the seller's business profile (1:1) \u2014 created/updated in the same call. `verification_status`/`verification_note` are now writable (see the dedicated Egoola API \u2014 Seller collection for the full verification workflow, including the mandatory rejection note and the verification_logs history); wallet/bonus fields stay read-only from the client, managed by the (future) wallet flow instead."
+                "description": "`info` is the seller's business profile (1:1) — created/updated in the same call. `verification_status`/`verification_note` are now writable (see the dedicated Egoola API — Seller collection for the full verification workflow, including the mandatory rejection note and the verification_logs history); wallet/bonus fields stay read-only from the client, managed by the (future) wallet flow instead."
               },
               "event": [
                 {
@@ -700,7 +740,7 @@
               ]
             },
             {
-              "name": "Update Seller (partial \u2014 PATCH)",
+              "name": "Update Seller (partial — PATCH)",
               "request": {
                 "method": "PATCH",
                 "header": [
@@ -845,7 +885,7 @@
                     }
                   ]
                 },
-                "description": "Admin-only. Light rows (no media). Filters: search, status, country, state, city, thana, email_verified, phone_verified, created_from, created_to \u2014 combine freely. Paginated with limit/offset. Full detail (media, address, skills) is on Retrieve Buyer. See docs/buyer-management-guide.md."
+                "description": "Admin-only. Light rows (no media). Filters: search, status, country, state, city, thana, email_verified, phone_verified, created_from, created_to — combine freely. Paginated with limit/offset. Full detail (media, address, skills) is on Retrieve Buyer. See docs/buyer-management-guide.md."
               },
               "event": [
                 {
@@ -887,7 +927,7 @@
                     ""
                   ]
                 },
-                "description": "Note: the model/table is called `User` in code (see apps/accounts/models.py docstring) \u2014 this is the Buyer, not Django's own auth user."
+                "description": "Note: the model/table is called `User` in code (see apps/accounts/models.py docstring) — this is the Buyer, not Django's own auth user."
               },
               "event": [
                 {
@@ -934,7 +974,7 @@
               ]
             },
             {
-              "name": "Update Buyer (partial \u2014 PATCH)",
+              "name": "Update Buyer (partial — PATCH)",
               "request": {
                 "method": "PATCH",
                 "header": [
@@ -1011,11 +1051,11 @@
     },
     {
       "name": "Carts & Wishlists (admin)",
-      "description": "Admin, read-only oversight of buyers' carts and wishlists \u2014 no create/update/delete here, buyers manage their own through the buyer-facing API (see Egoola-BuyerApp). Needs an Admin token (super-admin or plain admin, both work). See docs/cart-wishlist-admin-guide.md.",
+      "description": "Admin, read-only oversight of buyers' carts and wishlists — no create/update/delete here, buyers manage their own through the buyer-facing API (see Egoola-BuyerApp). Needs an Admin token (super-admin or plain admin, both work). See docs/cart-wishlist-admin-guide.md.",
       "item": [
         {
           "name": "Carts",
-          "description": "Read-only (list + detail): every buyer's cart. A cart never spans sellers \u2014 every row belongs to exactly one seller, or to none (admin-owned listings). See docs/cart-wishlist-admin-guide.md section 1.",
+          "description": "Read-only (list + detail): every buyer's cart. A cart never spans sellers — every row belongs to exactly one seller, or to none (admin-owned listings). See docs/cart-wishlist-admin-guide.md section 1.",
           "item": [
             {
               "name": "List carts",
@@ -1061,12 +1101,12 @@
                     {
                       "key": "is_active",
                       "value": "",
-                      "description": "true | false \u2014 open vs. closed"
+                      "description": "true | false — open vs. closed"
                     },
                     {
                       "key": "has_order",
                       "value": "",
-                      "description": "true | false \u2014 already checked out"
+                      "description": "true | false — already checked out"
                     },
                     {
                       "key": "buyer",
@@ -1127,7 +1167,7 @@
         },
         {
           "name": "Favourites",
-          "description": "Read-only (list + detail): every buyer's saved listing, regardless of whether it is still publicly visible \u2014 see `listing_visible`. See docs/cart-wishlist-admin-guide.md section 2.",
+          "description": "Read-only (list + detail): every buyer's saved listing, regardless of whether it is still publicly visible — see `listing_visible`. See docs/cart-wishlist-admin-guide.md section 2.",
           "item": [
             {
               "name": "List favourites",
@@ -1183,7 +1223,7 @@
                     {
                       "key": "listing_visible",
                       "value": "",
-                      "description": "true | false \u2014 currently passes the buyer-facing visibility rule"
+                      "description": "true | false — currently passes the buyer-facing visibility rule"
                     },
                     {
                       "key": "created_from",
@@ -1228,6 +1268,655 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Bidding",
+      "item": [
+        {
+          "name": "[Buyer step] Register a demo buyer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/buyer/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "buyer",
+                "register",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Bidding Buyer\",\n  \"phone\": \"+88014{{$timestamp}}\",\n  \"password\": \"Buy@12345\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('bid_buyer_id', pm.response.json().id); pm.collectionVariables.set('bid_buyer_token', pm.response.json().access); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Buyer step] Post a job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bid_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/jobs/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "jobs",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": 29,\n  \"title\": \"Postman Bidding Job {{$timestamp}}\",\n  \"description\": \"Need a website fixed.\",\n  \"skus\": [\n    {\n      \"price\": \"3000\"\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('bid_job_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create a seller to bid",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Bidding Seller One\",\n  \"email\": \"postman.bidding.s1.{{$timestamp}}@example.com\",\n  \"phone\": \"+88013{{$timestamp}}\",\n  \"password\": \"Sell@12345\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('bid_seller_id', pm.response.json().id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create a rival seller",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Bidding Seller Two\",\n  \"email\": \"postman.bidding.s2.{{$timestamp}}@example.com\",\n  \"phone\": \"+88012{{$timestamp}}\",\n  \"password\": \"Sell@12345\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('bid_seller2_id', pm.response.json().id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create a bid on the seller's behalf",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bidding/bids/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bidding",
+                "bids",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing\": \"{{bid_job_id}}\",\n  \"bidder\": \"{{bid_seller_id}}\",\n  \"price_tiers\": [\n    {\n      \"price\": \"2500\"\n    }\n  ]\n}"
+            },
+            "description": "\"Admin can do everything\": place a bid for any seller. `listing` (the job) and `bidder` (the seller) are both required."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201, pending', () => { pm.response.to.have.status(201); pm.expect(pm.response.json().status).to.eql('pending'); });",
+                  "const b = pm.response.json(); pm.collectionVariables.set('bid_bid1_id', b.id); pm.collectionVariables.set('bid_tier1_id', b.price_tiers[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create the rival's bid",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bidding/bids/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bidding",
+                "bids",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing\": \"{{bid_job_id}}\",\n  \"bidder\": \"{{bid_seller2_id}}\",\n  \"price_tiers\": [\n    {\n      \"price\": \"2800\"\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('bid_bid2_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List bids — filter by listing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bidding/bids/?status=&listing={{bid_job_id}}&bidder=&ordering=-created_at",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bidding",
+                "bids",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "listing",
+                  "value": "{{bid_job_id}}",
+                  "description": ""
+                },
+                {
+                  "key": "bidder",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "ordering",
+                  "value": "-created_at",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, cursor shape', () => { pm.response.to.have.status(200); pm.expect(pm.response.json()).to.have.all.keys('next','previous','results'); });",
+                  "pm.test('both bids show', () => pm.expect(pm.response.json().results.length).to.eql(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List bids — filter by bidder",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bidding/bids/?bidder={{bid_seller_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bidding",
+                "bids",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "bidder",
+                  "value": "{{bid_seller_id}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, only this seller\\'s bid', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().results.length).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve a bid",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bidding/bids/{{bid_bid1_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bidding",
+                "bids",
+                "{{bid_bid1_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, job and bidder briefs', () => { pm.response.to.have.status(200); const b = pm.response.json(); pm.expect(b.job).to.have.property('buyer'); pm.expect(b.bidder).to.have.property('phone'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit a pending bid — price-tier reconcile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bidding/bids/{{bid_bid1_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bidding",
+                "bids",
+                "{{bid_bid1_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price_tiers\": [\n    {\n      \"id\": \"{{bid_tier1_id}}\",\n      \"price\": \"2600\"\n    },\n    {\n      \"price_type\": \"hourly\",\n      \"price\": \"200\"\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, now two tiers', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().price_tiers.length).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Accept on the buyer's behalf",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bidding/bids/{{bid_bid1_id}}/accept/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bidding",
+                "bids",
+                "{{bid_bid1_id}}",
+                "accept",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price_tier_id\": \"{{bid_tier1_id}}\"\n}"
+            },
+            "description": "Same effect as the buyer's own `/buyer/jobs/{id}/bids/{id}/accept/`: an Order is created directly, and the job moves to `in_progress`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, accepted', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().bid.status).to.eql('accepted'); });",
+                  "pm.test('an Order was created, in_progress', () => pm.expect(pm.response.json().order.status).to.eql('in_progress'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirm the rival bid was auto-rejected",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bidding/bids/{{bid_bid2_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bidding",
+                "bids",
+                "{{bid_bid2_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, rejected', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('rejected'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject the accepted bid — no reason (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bidding/bids/{{bid_bid1_id}}/reject/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bidding",
+                "bids",
+                "{{bid_bid1_id}}",
+                "reject",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject the accepted bid — undo the hire",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bidding/bids/{{bid_bid1_id}}/reject/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bidding",
+                "bids",
+                "{{bid_bid1_id}}",
+                "reject",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Seller backed out at the last minute.\"\n}"
+            },
+            "description": "Undoes an already-accepted hire **without** cancelling the job itself (that's the separate admin-only job move — see the **Jobs** folder in `Egoola-Listing.postman_collection.json`). This bid -> `rejected` (it *was* judged, the other way); the job reopens; the Order behind it is cancelled."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, rejected', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('rejected'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirm the job reopened to open_for_bidding",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/jobs/{{bid_job_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "jobs",
+                "{{bid_job_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, open again', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('open_for_bidding'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirm the earlier auto-rejected bid is untouched",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bidding/bids/{{bid_bid2_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bidding",
+                "bids",
+                "{{bid_bid2_id}}",
+                ""
+              ]
+            },
+            "description": "The sellers may place a fresh bid if they want back in; nothing about an earlier loss is restored by someone else's hire falling through."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, still rejected (not restored)', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('rejected'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Admin oversight of every bid, plus \"do everything\": create a bid on any seller's behalf, accept one on the buyer's behalf, or undo an already-accepted hire. A job itself (create on a buyer's behalf, the admin-only `in_progress -> cancelled` move) is the **Jobs** folder in `Egoola-Listing.postman_collection.json`. Full reference: `docs/job-bidding-guide.md`. Order oversight (a job's hire creates one directly, no cart) isn't browsable via API yet — the next step."
     }
   ]
 }
