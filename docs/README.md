@@ -11,6 +11,26 @@ Paths: guides are in this folder (`egoola-server/docs/`). Postman collections ar
 
 ---
 
+## Table of contents
+
+- [1. Start here, by role](#1-start-here-by-role)
+- [2. Set up once (Postman)](#2-set-up-once-postman)
+- [3. Features: where each one is documented](#3-features-where-each-one-is-documented)
+  - [3.1 Accounts and login](#31-accounts-and-login)
+  - [3.2 Sellers](#32-sellers)
+  - [3.3 Reference data](#33-reference-data)
+  - [3.4 Jobs & Bidding](#34-jobs-bidding)
+  - [3.5 Listings](#35-listings)
+  - [3.6 Content](#36-content)
+  - [3.7 Not built yet (no document, no API)](#37-not-built-yet-no-document-no-api)
+- [4. Postman collections: what each one covers](#4-postman-collections-what-each-one-covers)
+- [5. Smoke tests: what each script checks](#5-smoke-tests-what-each-script-checks)
+- [6. Other documents](#6-other-documents)
+- [7. Rules every form needs to respect](#7-rules-every-form-needs-to-respect)
+- [8. Which file do I update? (for people who maintain the docs)](#8-which-file-do-i-update-for-people-who-maintain-the-docs)
+
+---
+
 ## 1. Start here, by role
 
 | You are | Read first |
@@ -79,7 +99,15 @@ Columns: **Overview** is plain language for everyone. **Technical guide** has wh
 | **Admin oversight of wishlists** (read-only, cursor-paged list + detail, `listing_visible` filter) | — | [`cart-wishlist-admin-guide.md`](cart-wishlist-admin-guide.md) §2 | `Egoola` → **Carts & Wishlists (admin) → Favourites** | `admin_favourites_smoke.py` | `favourites` |
 | Measurements (units) | — | [`listing-module-guide.md`](listing-module-guide.md) (how listings use them) | `Egoola-Measurement` | `listing_smoke.sh` (regression only) | `measurements` |
 
-### 3.4 Listings
+### 3.4 Jobs & Bidding
+
+| Feature | Overview | Technical guide | Postman | Smoke test | Database |
+|---|---|---|---|---|---|
+| **A buyer's job request**: post, edit, pause/reopen/cancel, mandatory budget, browse bids, accept a bid (creates an Order directly, no cart) | [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md) §13 | [`buyer-api-guide.md`](buyer-api-guide.md) §5, [`listing-complete-guide.md`](listing-complete-guide.md) §16 | `Egoola-BuyerApp` → **Jobs** | `buyer_job_smoke.py`, `bid_accept_smoke.py` | `listings`, `bids`, `bidPriceTiers`, `orders`, `orderItems` |
+| **Seller job board and bidding**: browse open jobs, jobs I've bid on (and `?won=true`), place/edit/cancel a bid (price-tier reconcile like a gig's packages) | [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md) §13 | [`seller-api-guide.md`](seller-api-guide.md) §6c, [`listing-complete-guide.md`](listing-complete-guide.md) §16 | `Egoola-SellerApp` → **Seller jobs & bidding** | `seller_job_smoke.py` | `bids`, `bidPriceTiers` |
+| **Admin job + bid panel**: create/edit a job on any buyer's behalf, create/edit a bid on any seller's behalf, accept on the buyer's behalf, undo an already-accepted hire, the admin-only `in_progress → cancelled` move | [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md) §13 | [`job-admin-guide.md`](job-admin-guide.md) | `Egoola-Listing` → **Jobs**, `Egoola` → **Bidding** | `admin_job_bid_smoke.py` | `listings`, `bids`, `bidPriceTiers`, `orders` |
+
+### 3.5 Listings
 
 | Feature | Overview | Technical guide | Postman | Smoke test | Database |
 |---|---|---|---|---|---|
@@ -93,18 +121,22 @@ Columns: **Overview** is plain language for everyone. **Technical guide** has wh
 | Brands | — | [`listing-module-guide.md`](listing-module-guide.md) | `Egoola-Listing` | `brand_smoke.sh` | `brands` |
 | Attributes, attribute values and listing SKUs (sizes, colours, own price / discount / stock; section 8 = gig SKUs) | — | [`attribute-sku-guide.md`](attribute-sku-guide.md) | `Egoola-Attribute` | `sku_smoke.py` | `attributes`, `attributeValues`, `listingSkus`, `listingSkuVariants` |
 
-### 3.5 Content
+### 3.6 Content
 
 | Feature | Overview | Technical guide | Postman | Smoke test | Database |
 |---|---|---|---|---|---|
 | CMS: banners, email templates, site settings, site logo | — | [`cms-api-guide.md`](cms-api-guide.md) | `Egoola-CMS` | `cms_smoke.sh` | `banners`, `emailTemplates`, `settings` |
 
-### 3.6 Not built yet (no document, no API)
+### 3.7 Not built yet (no document, no API)
 
 - Admin dashboard data (counts, charts, recent activity).
-- Financial oversight: withdrawal requests, refunds, commission settings.
-- Hire requests on a gig (accept, decline, deliver), the job board and bidding, seller orders, wallet and withdrawals (Phase 3, next rows). Gigs themselves (create, manage, price, thumbnail) are built.
-- Everything for buyers beyond account management (browsing, cart, checkout, orders, messages, reviews: Phase 4).
+- Financial oversight: withdrawal requests, refunds, commission settings (a job's Order carries `commission_rate`
+  / `commission_amount` as `null` until this exists).
+- Hire requests on a gig (accept, decline, deliver — a direct gig hire, not the job/bidding flow below), seller
+  orders, wallet and withdrawals (Phase 3, next rows). Gigs themselves (create, manage, price, thumbnail) are built.
+- Payment collection (bKash) against any Order, including a job's.
+- Checkout for products/gigs (cart → Order); a job's Order is created directly on bid acceptance instead (built — see §3.4).
+- Deliverables, messaging between buyer and seller, reviews/ratings.
 - Email / phone code checks (OTP), notifications to sellers, forgot password.
 
 Status of each: `egoola-document/Egoola_Phase_Tracker.md`.
@@ -117,14 +149,14 @@ All are in `postman/`. Import `Egoola-Local.postman_environment.json` first.
 
 | Collection | Side | Covers |
 |---|---|---|
-| `Egoola.postman_collection.json` | Admin | Auth for every actor, Admins, Sellers (basic), Buyers, read-only oversight of **carts and wishlists** |
+| `Egoola.postman_collection.json` | Admin | Auth for every actor, Admins, Sellers (basic), Buyers, read-only oversight of **carts and wishlists**, **Bidding** (create/edit a bid on a seller's behalf, accept, `reject` to undo a hire) |
 | `Egoola-Seller.postman_collection.json` | Admin | Seller management, Seller Request queue, review, approve / reject / pause / suspend, change history |
-| `Egoola-SellerApp.postman_collection.json` | **Seller-facing** | Public lookups, sign-up, seller login, own profile, documents, change password, resubmit, **product listings and the listing lookups**, **gigs**, thumbnails. (Requests named **[Admin step]** play the admin so you can see what a seller sees.) |
-| `Egoola-BuyerApp.postman_collection.json` | **Buyer-facing** | Buyer sign-up and login, the public country / division / district / thana lists, category browse, products, gigs and the seller page (mostly no login) |
+| `Egoola-SellerApp.postman_collection.json` | **Seller-facing** | Public lookups, sign-up, seller login, own profile, documents, change password, resubmit, **product listings and the listing lookups**, **gigs**, thumbnails, **Seller jobs & bidding** (board, my bids, place/edit/cancel). (Requests named **[Admin step]** / **[Buyer step]** play another actor so you can see what a seller sees.) |
+| `Egoola-BuyerApp.postman_collection.json` | **Buyer-facing** | Buyer sign-up and login, the public country / division / district / thana lists, category browse, products, gigs and the seller page (mostly no login), **Jobs** (post, edit, bids, accept — hire a seller). (Requests named **[Seller step]** play another actor.) |
 | `Egoola-Geography.postman_collection.json` | Admin | Country, state, city, thana |
 | `Egoola-Category.postman_collection.json` | Admin | Category tree |
 | `Egoola-Measurement.postman_collection.json` | Admin | Measurements |
-| `Egoola-Listing.postman_collection.json` | Admin | Listings (products and jobs: Bangla fields, pending list, status and info history), brands, moderation, **Gigs** (create, update, list, details, delete, pending list, bulk moderation), **Listing files** |
+| `Egoola-Listing.postman_collection.json` | Admin | Listings (products: Bangla fields, pending list, status and info history), brands, moderation, **Gigs** (create, update, list, details, delete, pending list, bulk moderation), **Jobs** (create on a buyer's behalf, the admin-only `in_progress → cancelled`), **Listing files** |
 | `Egoola-Attribute.postman_collection.json` | Admin | Attributes, values, listing SKUs |
 | `Egoola-CMS.postman_collection.json` | Admin | Banners, email templates, settings, site logo |
 | `openapi.json` | — | **Old snapshot. Do not use.** |
@@ -152,6 +184,10 @@ Start the server, then run `scripts/smoke/run_all.sh` for everything, or one scr
 | `seller_self_smoke.sh` | The seller's own API, phone login, profile change log, files removed from storage |
 | `public_geography_smoke.sh` | Public location lists |
 | `seller_listing_smoke.sh` | The seller product API and lookups, the same-title rule, the pending list, approve / reject / fix, the info change log, Bangla fields, file limits, files removed from storage |
+| `buyer_job_smoke.py` | A buyer's own job postings: mandatory budget, the full status state machine, the bids-on-my-job list, per-buyer scoping |
+| `seller_job_smoke.py` | The seller job board and bidding: browse, bid, price-tier reconcile, cancel and re-bid, a closed job leaving the board |
+| `bid_accept_smoke.py` | Accepting a bid and its cascades: Order created, rivals auto-rejected, job → `in_progress`, completing and cancelling carry the bid and Order with them |
+| `admin_job_bid_smoke.py` | The admin job + bid panel: create on behalf of a buyer/seller, accept, undo a hire (`reject`), the admin-only `in_progress → cancelled` move |
 
 Web screen tests (frontend repo): `egoola-web/docs/admin-smoke-tests.md`.
 
@@ -166,6 +202,12 @@ Web screen tests (frontend repo): `egoola-web/docs/admin-smoke-tests.md`.
 | Frontend brief: Listings / Gigs panels, packages, thumbnail | [`frontend-gigs-thumbnail-prompt.md`](prompt/frontend-gigs-thumbnail-prompt.md) | The complete prompt to hand to the web session for the gig change (Task H) |
 | Frontend brief: listing files (thumbnail and gallery, 4 APIs; breaking change) | [`frontend-listing-files-prompt.md`](prompt/frontend-listing-files-prompt.md) | The complete prompt to hand to the web session for the files change |
 | Seller App brief: every shipped seller feature for the Flutter app (sign-up, login, status gate, profile, products, gigs, files) | [`seller-app-flutter-build-auth-profile-products-gigs-prompt.md`](prompt/seller-app-flutter-build-auth-profile-products-gigs-prompt.md) | The complete prompt to hand to the seller app session |
+| Frontend brief: admin Job & Bidding panel | [`prompt/admin/frontend-admin-job-bidding-prompt.md`](prompt/admin/frontend-admin-job-bidding-prompt.md) | The complete prompt for the Admin Web screens (job + bid CRUD on behalf, accept, reject, the admin-only cancel) |
+| Frontend brief: buyer Jobs (post, manage, hire) | [`prompt/buyer/frontend-buyer-job-prompt.md`](prompt/buyer/frontend-buyer-job-prompt.md) | The complete prompt for the Buyer Web screens (post a job, bids, accept) |
+| Frontend brief: public buyer browsing (categories, products, gigs, seller page) | [`prompt/buyer/frontend-buyer-browsing-prompt.md`](prompt/buyer/frontend-buyer-browsing-prompt.md) | The complete prompt for the Buyer Web browsing/search screens |
+| Frontend brief: buyer cart and wishlist (per-seller carts) | [`prompt/buyer/frontend-buyer-cart-wishlist-prompt.md`](prompt/buyer/frontend-buyer-cart-wishlist-prompt.md) | The complete prompt for the Buyer Web cart/wishlist screens |
+| Frontend brief: buyer login and self-registration | [`prompt/buyer/frontend-buyer-auth-prompt.md`](prompt/buyer/frontend-buyer-auth-prompt.md) | The complete prompt for the Buyer Web register/login screens and token handling |
+| Seller App brief: Jobs & Bidding (board, my bids, place/edit/cancel) | [`prompt/seller/seller-app-flutter-jobs-bidding-prompt.md`](prompt/seller/seller-app-flutter-jobs-bidding-prompt.md) | The complete prompt to extend the seller app session with Jobs & Bidding |
 | Knowledge Brief, Phase Tracker, Rebuild Guideline, DB Re-Design, migration documents | `egoola-document/` (sibling repo; it has its own README and rules) | Platform overview, task status, architecture, the new database, data migration |
 | Team rules | `CLAUDE.md` in the root and in each repo | How the five sessions work together |
 
@@ -179,7 +221,8 @@ Web screen tests (frontend repo): `egoola-web/docs/admin-smoke-tests.md`.
 - Location: state must belong to the country, city to the state, thana to the city (any level may be left out).
 - A rejection or change request on a seller or listing needs a note.
 - Prices, discounts and stock are on **SKUs**, not on the listing. Every listing has at least one SKU; hide a SKU with `is_active: false` (SKUs are never deleted).
-- **Product, gig and job are separate kinds with separate endpoints** (`/catalog/listings/` + `/seller/listings/`, `/catalog/gigs/` + `/seller/gigs/`; jobs stay on `/catalog/listings/` for now). A row of the other kind is `404`; `catalog_type` and `posted_by_role` cannot change after creation.
+- **Product, gig and job are separate kinds with separate endpoints** (`/catalog/listings/` + `/seller/listings/`, `/catalog/gigs/` + `/seller/gigs/`, `/catalog/jobs/` + `/buyer/jobs/` + `/seller/jobs/`). A row of the other kind is `404`; `catalog_type` and `posted_by_role` cannot change after creation.
+- **A job is hired through bidding, not bought outright**: sellers place bids (`/seller/jobs/{id}/bids/`), the buyer or an admin accepts one (`/buyer/jobs/{id}/bids/{id}/accept/` or `/bidding/bids/{id}/accept/`), which creates an `Order` directly (no cart) and auto-rejects the other pending bids. Full state machine: [`listing-complete-guide.md`](listing-complete-guide.md) section 16.
 - **A gig is priced by packages**: one SKU per `price_type` (`hourly`, `daily`, `weekly`, `monthly`, `fixed`) (the rate); the buyer chooses the duration when ordering (it is kept on the order item, with `total`, `subtotal` and the order's `payable`). No options, stock, brand or quantity prices on a gig. The thumbnail is a separate `PUT` / `DELETE .../thumbnail/`.
 - Lists are paginated with `?limit=` / `?offset=` (default 20, max 100). The exception is the Seller Request queue, which uses **cursor** pagination (follow `next` / `previous`, no `count`).
 
@@ -192,6 +235,7 @@ Web screen tests (frontend repo): `egoola-web/docs/admin-smoke-tests.md`.
 | A seller rule or flow | `Egoola_Seller_Guide.md` (plain words) **and** the matching technical guide, Postman collection and smoke test |
 | A listing rule or flow | `Egoola_Listing_Guide.md` (plain words) **and** `listing-complete-guide.md`, `listing-module-guide.md` / `seller-api-guide.md`, the Postman collection and smoke test |
 | A gig or thumbnail rule or flow | `Egoola_Listing_Guide.md` §12 (plain words) **and** `listing-complete-guide.md` sections 14–15, `seller-api-guide.md` section 6b, `attribute-sku-guide.md` section 8, the Postman collections and `gig_smoke.py` / `seller_gig_smoke.py` |
+| A job or bidding rule or flow | [`listing-complete-guide.md`](listing-complete-guide.md) section 16 **and** `buyer-api-guide.md` §5 / `seller-api-guide.md` §6c / [`job-admin-guide.md`](job-admin-guide.md), the Postman collections and `buyer_job_smoke.py` / `seller_job_smoke.py` / `bid_accept_smoke.py` / `admin_job_bid_smoke.py` |
 | An API endpoint | The feature's technical guide, its Postman collection, its smoke test |
 | A table or column | `egoola-document/database/Egolola DB Re-Design.docx` (the table's section) |
 | Added a guide, collection or script | This file |
