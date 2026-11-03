@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Egoola API — CMS & Site Settings",
-    "description": "Admin-side content management: Banners, Email Templates, Site Settings and the Site Logo.\n\nAll endpoints need an Admin token. Lists are paginated (limit/offset).\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run **Auth > Admin Login**.\n3. Run the folders top to bottom. Requests that upload an image (banners, site logo) need a real file chosen in the Postman app — they can't run under Newman.\n4. `category_id` must be an existing product category in your database.\n\nSee docs/cms-api-guide.md for every payload and error case.",
+    "description": "Admin-side content management: Banners, Email Templates, Site Settings and the Site Logo.\n\nAll endpoints need an Admin token. Lists are paginated (limit/offset).\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run **Auth > Admin Login**.\n3. Run the folders top to bottom. Requests that upload an image (banners, site logo) need a real file chosen in the Postman app — they can't run under Newman.\n4. `category_id` must be an existing product category in your database.\n\nSee docs/admin/cms-api-guide.md for every payload and error case.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {

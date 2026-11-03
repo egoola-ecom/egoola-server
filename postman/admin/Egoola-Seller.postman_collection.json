@@ -2,7 +2,7 @@
   "info": {
     "name": "Egoola API — Seller (admin)",
     "_postman_id": "9d3e7c1a-5f42-4b8e-9a6d-egoola-seller",
-    "description": "The admin side of sellers: seller management (create, edit, documents, delete), the Seller Request queue (cursor pagination, filters, ordering), review, approve / reject, and the profile change history. Read docs/seller-verification-guide.md alongside it. The seller-facing APIs (sign-up, seller login, own profile, resubmit) are in Egoola-SellerApp.postman_collection.json.\n\nRun top to bottom. The [Setup] requests (a seller signs up) need a real JPG / PNG / WEBP / PDF chosen in the Postman app.",
+    "description": "The admin side of sellers: seller management (create, edit, documents, delete), the Seller Request queue (cursor pagination, filters, ordering), review, approve / reject, and the profile change history. Read docs/admin/seller-verification-guide.md alongside it. The seller-facing APIs (sign-up, seller login, own profile, resubmit) are in Egoola-SellerApp.postman_collection.json.\n\nRun top to bottom. The [Setup] requests (a seller signs up) need a real JPG / PNG / WEBP / PDF chosen in the Postman app.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
