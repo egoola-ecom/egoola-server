@@ -1,15 +1,16 @@
 """
 Admin, read-only oversight of buyers' carts (`/api/v1/orders/carts/...`).
 Buyers manage their own cart through `apps.orders.buyer_views` instead —
-nothing here ever writes to a cart. See docs/cart-wishlist-admin-guide.md.
+nothing here ever writes to a cart. See docs/admin/cart-wishlist-admin-guide.md.
 """
 
 from rest_framework import serializers
 
 from apps.accounts.serializers import BuyerListSerializer
+from config.storage import delete_upload, save_upload
 
 from .buyer_serializers import CartItemListingSerializer, CartItemSkuSerializer
-from .models import Cart, CartItem
+from .models import Cart, CartItem, PaymentGateway, _generate_gateway_slug
 
 
 class AdminCartItemSerializer(serializers.ModelSerializer):
@@ -77,3 +78,40 @@ class AdminCartDetailSerializer(AdminCartListSerializer):
             "items", "created_by", "creator_type", "creator_name",
             "updated_by", "updater_type", "updater_name",
         ]
+
+
+class PaymentGatewaySerializer(serializers.ModelSerializer):
+    """`slug` is always server-generated from `name` (on create, and again on
+    a rename) — never taken from the client. `icon` is optional; sending one
+    replaces the old file, `icon_path`/`icon_url` are always server-computed."""
+
+    icon = serializers.ImageField(write_only=True, required=False, allow_null=True)
+
+    class Meta:
+        model = PaymentGateway
+        fields = ["id", "name", "slug", "icon", "icon_path", "icon_url", "is_active", "created_at", "updated_at"]
+        read_only_fields = ["slug", "icon_path", "icon_url", "created_at", "updated_at"]
+
+    def _apply_icon(self, instance, icon):
+        old_path = instance.icon_path
+        instance.icon_path, instance.icon_url = save_upload(icon, "payment-gateways")
+        instance.save(update_fields=["icon_path", "icon_url"])
+        if old_path and old_path != instance.icon_path:
+            delete_upload(old_path)
+
+    def create(self, validated_data):
+        icon = validated_data.pop("icon", None)
+        validated_data["slug"] = _generate_gateway_slug(validated_data["name"])
+        instance = super().create(validated_data)
+        if icon is not None:
+            self._apply_icon(instance, icon)
+        return instance
+
+    def update(self, instance, validated_data):
+        icon = validated_data.pop("icon", None)
+        if "name" in validated_data and validated_data["name"] != instance.name:
+            validated_data["slug"] = _generate_gateway_slug(validated_data["name"])
+        instance = super().update(instance, validated_data)
+        if icon is not None:
+            self._apply_icon(instance, icon)
+        return instance
