@@ -12,6 +12,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 
 from apps.authentication.permissions import IsActiveVerifiedSellerActor
+from apps.bidding.models import Bid
 from apps.core.pagination import DefaultCursorPagination
 
 from .filters import SellerJobFilter
@@ -23,7 +24,8 @@ class SellerJobViewSet(mixins.RetrieveModelMixin, mixins.ListModelMixin, viewset
     """`GET /seller/jobs/` — the job board: open jobs only, filtered by
     SellerJobFilter. `GET /seller/jobs/{id}/` — a job I can see (open, or one
     I've bid on), with my own bids on it embedded. `GET /seller/jobs/mine/` —
-    jobs I've bid on, any status."""
+    jobs I've bid on, any status; add `?won=true` for only the ones where my
+    own bid is currently accepted or completed (the jobs I actually got)."""
 
     permission_classes = [IsActiveVerifiedSellerActor]
     pagination_class = DefaultCursorPagination
@@ -49,7 +51,10 @@ class SellerJobViewSet(mixins.RetrieveModelMixin, mixins.ListModelMixin, viewset
     def get_queryset(self):
         seller = self.request.user
         if self.action == "mine":
-            return self._scoped(Q(bids__bidder=seller))
+            mine = Q(bids__bidder=seller)
+            if self.request.query_params.get("won") in ("true", "1"):
+                mine &= Q(bids__status__in=(Bid.Status.ACCEPTED, Bid.Status.COMPLETED))
+            return self._scoped(mine)
         if self.action == "retrieve":
             return self._scoped(Q(status=Listing.Status.OPEN_FOR_BIDDING) | Q(bids__bidder=seller))
         return self._scoped(Q(status=Listing.Status.OPEN_FOR_BIDDING))
