@@ -136,6 +136,31 @@
       "key": "thumb_listing_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "adminjob_buyer_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminjob_job_title",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminjob_job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminjob_seller_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminjob_bid_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -3283,6 +3308,691 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Jobs",
+      "item": [
+        {
+          "name": "[Buyer step] Register a demo buyer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/buyer/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "buyer",
+                "register",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman AdminJob Buyer\",\n  \"phone\": \"+88017{{$timestamp}}\",\n  \"password\": \"Buy@12345\"\n}"
+            },
+            "description": "A job always belongs to a buyer. Public sign-up, no admin token needed for this one step."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('adminjob_buyer_id', pm.response.json().id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create a job — no buyer (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/jobs/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "jobs",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"{{service_category_id}}\",\n  \"title\": \"Postman AdminJob No Buyer\",\n  \"description\": \"d\",\n  \"skus\": [\n    {\n      \"price\": \"1\"\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create a job on a buyer's behalf",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/jobs/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "jobs",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"buyer\": \"{{adminjob_buyer_id}}\",\n  \"category\": \"{{service_category_id}}\",\n  \"title\": \"{{adminjob_job_title}}\",\n  \"description\": \"Need a logo designed.\",\n  \"skus\": [\n    {\n      \"price_type\": \"fixed\",\n      \"price\": \"5000\"\n    }\n  ]\n}"
+            },
+            "description": "\"Admin can do everything\": create a job for any buyer. `buyer` is required on create (never reassigned after). Skips moderation — straight to `open_for_bidding`."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('adminjob_job_title')) { pm.collectionVariables.set('adminjob_job_title', 'Postman AdminJob ' + Date.now()); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201, open_for_bidding (no moderation)', () => { pm.response.to.have.status(201); pm.expect(pm.response.json().status).to.eql('open_for_bidding'); });",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('adminjob_job_id', j.id);",
+                  "pm.test('buyer brief shown', () => pm.expect(j.buyer.id).to.eql(pm.collectionVariables.get('adminjob_buyer_id')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List jobs — filter by status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/jobs/?status=open_for_bidding&category=&buyer=&search=&created_from=&created_to=&requested_from=&requested_to=&ordering=-created_at&limit=&offset=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "jobs",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "open_for_bidding",
+                  "description": ""
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "buyer",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "created_from",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "created_to",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "requested_from",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "requested_to",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "ordering",
+                  "value": "-created_at",
+                  "description": ""
+                },
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "offset",
+                  "value": "",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const ids = pm.response.json().results.map(r => r.id);",
+                  "pm.test('the job is there', () => pm.expect(ids).to.include(pm.collectionVariables.get('adminjob_job_id')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List jobs — filter by buyer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/jobs/?buyer={{adminjob_buyer_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "jobs",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "buyer",
+                  "value": "{{adminjob_buyer_id}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, only this buyer\\'s jobs', () => { pm.response.to.have.status(200); pm.response.json().results.forEach(r => {}); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/jobs/{{adminjob_job_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "jobs",
+                "{{adminjob_job_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('buyer brief, budget, no accepted bid yet', () => { pm.expect(j.buyer).to.have.property('phone'); pm.expect(j.budget.price).to.eql('5000.00'); pm.expect(j.accepted_bid).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit on the buyer's behalf",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/jobs/{{adminjob_job_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "jobs",
+                "{{adminjob_job_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"{{adminjob_job_title}} (edited by admin)\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A job id on /catalog/listings/ (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/{{adminjob_job_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                "{{adminjob_job_id}}",
+                ""
+              ]
+            },
+            "description": "A job has its own endpoint now — it is not reachable through the product or gig endpoints."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A job id on /catalog/gigs/ (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/gigs/{{adminjob_job_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "gigs",
+                "{{adminjob_job_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Posting buyer_request to /catalog/listings/ (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"{{service_category_id}}\",\n  \"catalog_type\": \"service\",\n  \"posted_by_role\": \"buyer_request\",\n  \"buyer\": \"{{adminjob_buyer_id}}\",\n  \"title\": \"Postman AdminJob Sneaky\",\n  \"description\": \"d\",\n  \"price\": \"1\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('points at the real endpoint', () => pm.expect(JSON.stringify(pm.response.json())).to.include('/catalog/jobs/'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Bidding step] Create a verified seller",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman AdminJob Seller\",\n  \"email\": \"postman.adminjob.seller.{{$timestamp}}@example.com\",\n  \"phone\": \"+88015{{$timestamp}}\",\n  \"password\": \"Sell@12345\"\n}"
+            },
+            "description": "Needed only to demonstrate the `in_progress -> cancelled` admin-only move below, which requires an already-accepted bid. Full bid oversight: the **Bidding** folder in the main `Egoola` collection."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('adminjob_seller_id', pm.response.json().id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Bidding step] Create a bid on the seller's behalf",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bidding/bids/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bidding",
+                "bids",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing\": \"{{adminjob_job_id}}\",\n  \"bidder\": \"{{adminjob_seller_id}}\",\n  \"price_tiers\": [\n    {\n      \"price\": \"4500\"\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201, pending', () => { pm.response.to.have.status(201); pm.expect(pm.response.json().status).to.eql('pending'); });",
+                  "pm.collectionVariables.set('adminjob_bid_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Bidding step] Accept it on the buyer's behalf",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bidding/bids/{{adminjob_bid_id}}/accept/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bidding",
+                "bids",
+                "{{adminjob_bid_id}}",
+                "accept",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, accepted', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().bid.status).to.eql('accepted'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirm the job is now in_progress",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/jobs/{{adminjob_job_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "jobs",
+                "{{adminjob_job_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, in_progress', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('in_progress'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel a hired job — no reason (expect 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/jobs/{{adminjob_job_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "jobs",
+                "{{adminjob_job_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"cancelled\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400 — a reason is required', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel a hired job — with a reason (admin only)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/jobs/{{adminjob_job_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "jobs",
+                "{{adminjob_job_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"cancelled\",\n  \"note\": \"Buyer and admin agreed to call it off.\"\n}"
+            },
+            "description": "The one move only an admin can make from `in_progress` — a buyer cannot cancel a hired job. Cascades: the accepted bid and its Order both become `cancelled` too (see the **Bidding** folder in `Egoola.postman_collection.json`)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, cancelled', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('cancelled'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "A buyer's request for work, hired through bidding (not bought outright) — see `docs/job-bidding-guide.md`. \"Admin can do everything\": create or edit a job on any buyer's behalf, plus the one admin-only move, `in_progress -> cancelled` with a mandatory reason."
     },
     {
       "name": "Listing files",
