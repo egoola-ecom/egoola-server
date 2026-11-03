@@ -89,12 +89,11 @@ LISTING_B=$(echo "$BODY" | jget "['id']")
 check "listing B explicit pending honored" "pending" "$(echo "$BODY" | jget "['status']")"
 
 echo
-echo "=== 3) Create Listing C (service, buyer_request) ==="
+echo "=== 3) A buyer_request has its own endpoint now (/catalog/jobs/), not this one ==="
 R=$(curl -s -w '\n%{http_code}' -X POST "$BASE/catalog/listings/" -H "$AUTH" -H "Content-Type: application/json" \
   -d "{\"buyer\":$BUYER_ID,\"category\":29,\"catalog_type\":\"service\",\"posted_by_role\":\"buyer_request\",\"title\":\"Smoke Listing C\",\"description\":\"need cleaning\",\"price\":\"30.00\",\"price_type\":\"hourly\"}")
-CODE=$(echo "$R" | tail -1); BODY=$(echo "$R" | sed '$d')
-check "create listing C (service/buyer_request) status code" 201 "$CODE"
-LISTING_C=$(echo "$BODY" | jget "['id']")
+CODE=$(echo "$R" | tail -1)
+check "buyer_request on the product endpoint -> 400" 400 "$CODE"
 
 echo
 echo "=== 4) Seller/buyer exclusivity validation ==="
@@ -238,7 +237,7 @@ check "listing E log count after bulk reject" "2" "$LOGCOUNT"
 
 echo
 echo "=== Cleanup ==="
-for LID in "$LISTING_A" "$LISTING_C" "$LISTING_D" "$LISTING_E" "$LISTING_F"; do
+for LID in "$LISTING_A" "$LISTING_D" "$LISTING_E" "$LISTING_F"; do
   curl -s -o /dev/null -X DELETE "$BASE/catalog/listings/$LID/" -H "$AUTH"
 done
 curl -s -o /dev/null -X DELETE "$BASE/accounts/sellers/$SELLER_ID/" -H "$AUTH"

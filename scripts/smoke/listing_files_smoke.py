@@ -181,10 +181,9 @@ check("GET is not allowed -> 405", 405, A("GET", f"{ADMIN}{prod['id']}/")[0])
 check("PUT is not allowed -> 405", 405, A("PUT", f"{ADMIN}{prod['id']}/", None, F)[0])
 check("DELETE is not allowed -> 405", 405, A("DELETE", f"{ADMIN}{prod['id']}/")[0])
 check("JSON body -> 415", 415, A("POST", f"{ADMIN}{prod['id']}/", {})[0])
-s, job = A("POST", "/catalog/listings/", {"category": SERVICE_CATEGORY, "title": "Smoke LF Job", "description": "d",
-                                          "catalog_type": "service", "posted_by_role": "buyer_request",
-                                          "buyer": int(shell("from apps.accounts.models import User; print(User.objects.get(email='test.buyer@egoola.com').id)") or 0),
-                                          "price": "5", "price_type": "fixed"})
+s, job = A("POST", "/catalog/jobs/", {"category": SERVICE_CATEGORY, "title": "Smoke LF Job", "description": "d",
+                                       "buyer": int(shell("from apps.accounts.models import User; print(User.objects.get(email='test.buyer@egoola.com').id)") or 0),
+                                       "skus": [{"price": "5"}]})
 if s == 201:
     check("a job id -> 404", 404, A("POST", f"{ADMIN}{job['id']}/", None, F)[0])
 else:

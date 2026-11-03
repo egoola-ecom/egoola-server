@@ -264,19 +264,10 @@ check("a product cannot be a buyer_request -> 400", 400, A("POST", "/catalog/lis
 s, buyer = A("GET", "/accounts/buyers/?limit=1")
 buyer_id = buyer["results"][0]["id"]
 job = {"category": SERVICE_CATEGORY, "catalog_type": "service", "posted_by_role": "buyer_request", "buyer": buyer_id,
-       "title": "Smoke Gig Job", "description": "need cleaning", "price": "300", "price_type": "hourly", "urgent": True, "delivery_days": 2}
-s, j = A("POST", "/catalog/listings/", job)
-check("a buyer's job request still works on the listing endpoint (for now)", 201, s)
-check("a job request is not a gig (not on the gig endpoint)", 404, A("GET", f"/catalog/gigs/{j['id']}/")[0])
-check("a job SKU may carry a price type", "hourly", j["skus"][0]["price_type"])
-check("job: product-only field -> 400", 400, A("POST", "/catalog/listings/", dict(job, title="Smoke Gig Job2", brand=1))[0])
-check("job: SKU description -> 400", 400, A("POST", "/catalog/listings/", dict(job, title="Smoke Gig Job3", price=None, skus=[{"price": "5", "description": "x"}]))[0])
-jb = {k: v for k, v in job.items() if k not in ("price", "price_type")}
-r = A("POST", "/catalog/listings/", dict(jb, title="Smoke Gig Job4", skus=[{"price": "5", "price_type": "hourly"}, {"price": "6", "price_type": "hourly"}]))
-check("job: two SKUs with the same price type -> 400 (not a database error)", True, r[0] == 400 and "price type" in json.dumps(r[1]))
+       "title": "Smoke Gig Job", "description": "need cleaning", "price": "300", "price_type": "hourly"}
+check("a buyer's job request has its own endpoint now, not this one -> 400", 400, A("POST", "/catalog/listings/", job)[0])
 check("a zero in a service-only field on a product is still refused", 400, A("POST", "/catalog/listings/", product("Smoke Gig E25", delivery_days=0))[0])
 check("a zero in a product-only field on a gig is still refused", 400, A("POST", "/catalog/gigs/", gig("Smoke Gig E26", price="5", price_type="daily", min_order_qty=0))[0])
-check("job: category / type cannot change", 400, A("PATCH", f"/catalog/listings/{j['id']}/", {"posted_by_role": "seller_offer"})[0])
 
 print("\n=== Moderation and the pending list ===")
 s, gp = A("POST", "/catalog/gigs/", gig("Smoke Gig Pending", price="5", price_type="daily", seller=seller["id"], status="pending"))

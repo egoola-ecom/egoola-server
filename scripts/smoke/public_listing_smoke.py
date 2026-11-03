@@ -129,8 +129,8 @@ g3 = gig("Smoke Pub Gig Pending", S1, status="pending", price="5", price_type="d
 g4 = gig("Smoke Pub Gig Paused Seller", S2, price="5", price_type="daily")
 g5 = gig("Smoke Pub Gig Discount", S1, delivery_days=1, price="200", discounted_price="150", price_type="daily")
 buyer = int(shell("from apps.accounts.models import User; print(User.objects.get(email='test.buyer@egoola.com').id)") or 0)
-s, job = A("POST", "/catalog/listings/", {"category": SERVICE_CATEGORY, "catalog_type": "service", "posted_by_role": "buyer_request", "buyer": buyer,
-                                          "title": "Smoke Pub Job", "description": "d", "price": "5", "price_type": "fixed"})
+s, job = A("POST", "/catalog/jobs/", {"category": SERVICE_CATEGORY, "buyer": buyer,
+                                      "title": "Smoke Pub Job", "description": "d", "skus": [{"price": "5"}]})
 
 print("\n=== Products: visibility ===")
 s, r = G("products/", "?search=Smoke%20Pub&page_size=100")
