@@ -1,6 +1,6 @@
 """
 Admin, read-only oversight of buyers' wishlists: `GET /api/v1/engagement/favourites/`
-and `/engagement/favourites/{id}/`. See docs/cart-wishlist-admin-guide.md.
+and `/engagement/favourites/{id}/`. See docs/admin/cart-wishlist-admin-guide.md.
 
 Buyers save, re-save and remove their own favourites through
 `apps.engagement.buyer_views` — nothing here can write to one. Unlike that

@@ -1,6 +1,6 @@
 """
 Serializers for the buyer's own cart (`/api/v1/buyer/cart/...`). See
-buyer_views.py and docs/buyer-api-guide.md.
+buyer_views.py and docs/buyer/buyer-api-guide.md.
 """
 
 from rest_framework import serializers

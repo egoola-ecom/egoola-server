@@ -1,7 +1,7 @@
 """
 Admin, read-only oversight of buyers' wishlists (`/api/v1/engagement/favourites/...`).
 Buyers manage their own list through `apps.engagement.buyer_views` instead —
-nothing here ever writes to a favourite. See docs/cart-wishlist-admin-guide.md.
+nothing here ever writes to a favourite. See docs/admin/cart-wishlist-admin-guide.md.
 """
 
 from rest_framework import serializers

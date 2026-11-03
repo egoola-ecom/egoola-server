@@ -1,6 +1,6 @@
 """
 A buyer looking at, and acting on, the bids on their own job
-(`/api/v1/buyer/jobs/{job_id}/bids/...`). See docs/buyer-api-guide.md.
+(`/api/v1/buyer/jobs/{job_id}/bids/...`). See docs/buyer/buyer-api-guide.md.
 """
 
 from django.db import transaction

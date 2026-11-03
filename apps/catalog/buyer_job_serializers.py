@@ -3,7 +3,7 @@ Serializers for a buyer's own job postings (`/api/v1/buyer/jobs/...`). A job
 is a `Listing` with `catalog_type=service`, `posted_by_role=buyer_request`,
 `buyer=<the poster>`, `seller=None` — see `apps.catalog.kinds` and
 `Listing.Status`'s docstring for the full state machine. See
-docs/buyer-api-guide.md.
+docs/buyer/buyer-api-guide.md.
 
 Unlike a product or a gig, a job skips admin moderation entirely (no
 draft/pending/approved/rejected/changes_requested review) — it goes straight

@@ -1,7 +1,7 @@
 """
 Serializers for the seller's job board (`/api/v1/seller/jobs/...`): browsing
 open jobs and the seller's own history on each. See
-docs/buyer-api-guide.md / the seller guide for the full contract.
+docs/buyer/buyer-api-guide.md / the seller guide for the full contract.
 """
 
 from rest_framework import serializers

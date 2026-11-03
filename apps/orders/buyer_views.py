@@ -1,5 +1,5 @@
 """
-The buyer's own cart(s) (`/api/v1/buyer/cart/...`). See docs/buyer-api-guide.md.
+The buyer's own cart(s) (`/api/v1/buyer/cart/...`). See docs/buyer/buyer-api-guide.md.
 
 A buyer has at most one *active* cart per (type, seller) — see Cart.CatalogType
 and the model docstring for why a cart never spans sellers. GET/DELETE are pure

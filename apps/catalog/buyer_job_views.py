@@ -1,6 +1,6 @@
 """
 A buyer's own job postings (`/api/v1/buyer/jobs/...`). See
-docs/buyer-api-guide.md and buyer_job_serializers.py for the state machine.
+docs/buyer/buyer-api-guide.md and buyer_job_serializers.py for the state machine.
 """
 
 from django.db import transaction

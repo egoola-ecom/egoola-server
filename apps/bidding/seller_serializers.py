@@ -1,6 +1,6 @@
 """
 Serializers for a seller's own bids (`/api/v1/seller/bids/...`,
-`/api/v1/seller/jobs/{job_id}/bids/`). See docs/buyer-api-guide.md /
+`/api/v1/seller/jobs/{job_id}/bids/`). See docs/buyer/buyer-api-guide.md /
 seller-api-guide.md for the bid lifecycle.
 
 A bid can only be created on a job that's `open_for_bidding`, and only while

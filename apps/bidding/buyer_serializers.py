@@ -2,7 +2,7 @@
 Serializers for a buyer looking at the bids on their own job
 (`/api/v1/buyer/jobs/{job_id}/bids/...`). Read-only at this step — accepting
 a bid is a later step, once a seller can actually place one. See
-docs/buyer-api-guide.md.
+docs/buyer/buyer-api-guide.md.
 """
 
 from rest_framework import serializers

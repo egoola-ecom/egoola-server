@@ -1,6 +1,6 @@
 """
 Serializers for the buyer's own wishlist (`/api/v1/buyer/favourites/...`).
-See buyer_views.py and docs/buyer-api-guide.md.
+See buyer_views.py and docs/buyer/buyer-api-guide.md.
 """
 
 from rest_framework import serializers

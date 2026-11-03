@@ -1,6 +1,6 @@
 """
 The buyer's own wishlist (`/api/v1/buyer/favourites/...`). See
-docs/buyer-api-guide.md.
+docs/buyer/buyer-api-guide.md.
 
 Unlike the cart, favouriting is a plain, idempotent toggle: saving an
 already-saved listing changes nothing, and un-saving one that was never
