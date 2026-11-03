@@ -3,6 +3,22 @@ from rest_framework import serializers
 LOCATION_FIELDS = ("country", "state", "city", "thana")
 
 
+class LocationNamesMixin(serializers.ModelSerializer):
+    """Adds `country_name`/`state_name`/`city_name`/`thana_name`, read-only,
+    alongside whichever id fields a serializer already lists. A page
+    showing an address only has ids to work with otherwise — it has no way
+    to turn `{"country": 126, "state": 13}` into "Feni, Chittagong" without
+    a second round trip to the geography endpoints.
+
+    List the ones you want in `Meta.fields` (e.g. add `"country_name"` next
+    to `"country"`) — only a level the model actually has should be listed."""
+
+    country_name = serializers.CharField(source="country.name", read_only=True, default=None)
+    state_name = serializers.CharField(source="state.name", read_only=True, default=None)
+    city_name = serializers.CharField(source="city.name", read_only=True, default=None)
+    thana_name = serializers.CharField(source="thana.name", read_only=True, default=None)
+
+
 class LocationConsistencyMixin:
     """Keeps a record's country / state / city / thana on one branch of the
     geography tree: the state must belong to the country, the city to the
