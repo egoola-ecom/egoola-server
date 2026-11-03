@@ -1,6 +1,6 @@
 """
 Admin, read-only oversight of buyers' carts: `GET /api/v1/orders/carts/` and
-`/orders/carts/{id}/`. See docs/cart-wishlist-admin-guide.md.
+`/orders/carts/{id}/`. See docs/admin/cart-wishlist-admin-guide.md.
 
 Buyers create, change and clear their own carts through
 `apps.orders.buyer_views` — nothing here can write to one. Every cart is
@@ -10,15 +10,18 @@ admin needs the full picture, not the buyer-facing visibility rule.
 
 from django.db.models import Count, Prefetch
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import mixins, viewsets
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from apps.authentication.permissions import IsAdminActor
+from apps.core.mixins import AuditedViewSetMixin
 from apps.core.pagination import DefaultCursorPagination
+from config.storage import delete_upload
 
 from .filters import CartFilter
-from .models import Cart, CartItem
-from .serializers import AdminCartDetailSerializer, AdminCartListSerializer
+from .models import Cart, CartItem, PaymentGateway
+from .serializers import AdminCartDetailSerializer, AdminCartListSerializer, PaymentGatewaySerializer
 
 
 class AdminCartViewSet(ReadOnlyModelViewSet):
@@ -45,3 +48,23 @@ class AdminCartViewSet(ReadOnlyModelViewSet):
             queryset=CartItem.objects.select_related("listing", "listing_sku").order_by("id"),
         )
         return queryset.prefetch_related(items)
+
+
+class AdminPaymentGatewayViewSet(
+    AuditedViewSetMixin, mixins.ListModelMixin, mixins.CreateModelMixin,
+    mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet,
+):
+    """Payment Gateway Management — list / create / update / delete. No
+    retrieve: the list row already carries everything there is. Create and
+    update take multipart form data when sending an icon file."""
+
+    permission_classes = [IsAdminActor]
+    queryset = PaymentGateway.objects.all()
+    serializer_class = PaymentGatewaySerializer
+    filterset_fields = ["is_active"]
+    search_fields = ["name", "slug"]
+
+    def perform_destroy(self, instance):
+        path = instance.icon_path
+        instance.delete()
+        delete_upload(path)
