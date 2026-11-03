@@ -1,7 +1,7 @@
 import django_filters
 from django.db.models import Exists, OuterRef
 
-from .models import Cart, CartItem
+from .models import Cart, CartItem, Order
 
 
 class CartFilter(django_filters.FilterSet):
@@ -32,3 +32,26 @@ class CartFilter(django_filters.FilterSet):
 
     def filter_listing(self, queryset, name, value):
         return queryset.filter(Exists(CartItem.objects.filter(cart=OuterRef("pk"), listing_id=value)))
+
+
+class _OrderDateFilters(django_filters.FilterSet):
+    created_from = django_filters.DateFilter(field_name="created_at", lookup_expr="date__gte")
+    created_to = django_filters.DateFilter(field_name="created_at", lookup_expr="date__lte")
+
+
+class SellerOrderFilter(_OrderDateFilters):
+    """A seller's own order list filters: `status` exact, `created_from`/
+    `created_to` inclusive dates (YYYY-MM-DD)."""
+
+    class Meta:
+        model = Order
+        fields = ["status"]
+
+
+class AdminOrderFilter(_OrderDateFilters):
+    """Admin order list filters: `buyer`, `seller`, `status`, `order_type`
+    exact, plus the same date range as SellerOrderFilter."""
+
+    class Meta:
+        model = Order
+        fields = ["buyer", "seller", "status", "order_type"]
