@@ -213,7 +213,7 @@ The app keeps loading the next page until it reaches the last one. If nothing ma
 ## 9. What is not part of this yet
 
 - **Ratings and reviews** on products, gigs and sellers (reviews are not connected yet).
-- **Checkout, orders, hiring and bidding.** The cart and the wishlist exist (see `buyer-api-guide.md`); actually buying or hiring does not yet.
+- **Checkout, orders, hiring and bidding.** The cart and the wishlist exist (see `buyer/buyer-api-guide.md`); actually buying or hiring does not yet.
 - **Messaging a seller.**
 - **A full seller directory** (a list of all sellers). For now a buyer reaches a seller from one of their items.
 

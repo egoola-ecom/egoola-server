@@ -15,7 +15,7 @@ wrong or something is missing, stop and report it.
 ## 0. Read first (in this order)
 
 1. This file.
-2. `egoola-server/docs/seller-api-guide.md` section 6c — the seller contract (summarized below, read the full
+2. `egoola-server/docs/seller/seller-api-guide.md` section 6c — the seller contract (summarized below, read the full
    section for anything ambiguous).
 3. `egoola-server/docs/listing-complete-guide.md` section 16 — the full state machine shared by all three roles
    (buyer, seller, admin). Read 16.2 ("every case"), 16.3 (bid statuses), 16.4 (price tiers), 16.8–16.9 (the
@@ -26,7 +26,7 @@ wrong or something is missing, stop and report it.
    Update `PHASES.md` as work lands.
 6. Test accounts: `egoola-server/docs/test-accounts.md` (seller: phone `0100000002`, password `Test@12345` — must
    be **verified and active** to use this feature; check that account's state first, or use/approve a fresh one).
-   Postman (use it to see real responses): `egoola-server/postman/Egoola-SellerApp.postman_collection.json` →
+   Postman (use it to see real responses): `egoola-server/postman/seller/Egoola-SellerApp.postman_collection.json` →
    **Seller jobs & bidding** folder, with `Egoola-Local.postman_environment.json`.
 
 ## 1. What this is

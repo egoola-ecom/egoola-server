@@ -14,7 +14,7 @@ admin; a super-admin is not required).
 
 Lists are paginated: `?limit=` / `?offset=` (default 20, max 100) →
 `{count, next, previous, results}`.
-Postman: `postman/Egoola-CMS.postman_collection.json`.
+Postman: `postman/admin/Egoola-CMS.postman_collection.json`.
 
 This API is admin-only. Public read endpoints for the storefront (active
 banners, the logo, public settings) belong to the later browsing phase.

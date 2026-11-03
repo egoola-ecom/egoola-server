@@ -5,7 +5,7 @@ Everything in this file was tested against the running server before being
 written down — the example responses are real, not made up.
 
 Also in this repo:
-- **[Egoola.postman_collection.json](../postman/Egoola.postman_collection.json)** +
+- **[Egoola.postman_collection.json](../postman/admin/Egoola.postman_collection.json)** +
   **[Egoola-Local.postman_environment.json](../postman/Egoola-Local.postman_environment.json)**
   — import both into Postman and you can call every endpoint below without
   typing anything by hand. Logging in auto-saves the token for you.
@@ -17,7 +17,7 @@ Also in this repo:
 - **[authentication.md](authentication.md)** — a deeper explanation of *how*
   the login/token/permission system works internally, if you're curious.
   This guide only covers *how to call it*.
-- **[geography-api-guide.md](geography-api-guide.md)** — Country/State/City/
+- **[admin/geography-api-guide.md](admin/geography-api-guide.md)** — Country/State/City/
   Thana reference-data management (Admin-only), documented separately since
   it's a different kind of resource from accounts.
 
@@ -74,7 +74,7 @@ Every endpoint requires a valid token **except** the three login endpoints,
 `POST /api/v1/auth/token/refresh/`, the public seller sign-up
 `POST /api/v1/auth/seller/register/` (§8.1) and the public read-only geography
 lists `GET /api/v1/public/geography/{countries,states,cities,thanas}/` (they
-need no token; see `seller-api-guide.md` section 2).
+need no token; see `seller/seller-api-guide.md` section 2).
 There is no "public browsing" of accounts data — an Admin, Seller, or Buyer
 must be logged in for literally everything else in this guide.
 
@@ -83,7 +83,7 @@ must be logged in for literally everything else in this guide.
 ## 3. Logging in
 
 There are three separate login endpoints — one per actor type. They all
-work the same way and return the same shape. **An admin logs in with email + password; a seller with phone number + password; a buyer with phone number + password, or email + password if the buyer gave an email** (see `buyer-api-guide.md`).
+work the same way and return the same shape. **An admin logs in with email + password; a seller with phone number + password; a buyer with phone number + password, or email + password if the buyer gave an email** (see `buyer/buyer-api-guide.md`).
 
 | Actor  | Endpoint |
 |---|---|
@@ -127,7 +127,7 @@ the super-admin-only **Admin Management** section; the server still checks it on
 ```json
 { "detail": "Invalid email or password." }
 ```
-For a seller (wrong phone or password): `401 { "detail": "Invalid phone number or password." }`. See `seller-api-guide.md` §4.
+For a seller (wrong phone or password): `401 { "detail": "Invalid phone number or password." }`. See `seller/seller-api-guide.md` §4.
 
 **What to do with the response:** save `access` and `refresh` somewhere
 (localStorage, a cookie, wherever your app keeps this). Don't bother
@@ -179,7 +179,7 @@ login again.
 
 | Status | Meaning | Example |
 |---|---|---|
-| `401` | No token, an invalid/expired one, a wrong password at login, or the account is not allowed in (a deactivated admin or buyer, a suspended seller or buyer) | `{"detail": "Authentication credentials were not provided."}` or `{"detail": "This account is not active."}` (a seller who is not approved yet is **not** refused: they can log in and use `/seller/me/`, see `seller-api-guide.md`) |
+| `401` | No token, an invalid/expired one, a wrong password at login, or the account is not allowed in (a deactivated admin or buyer, a suspended seller or buyer) | `{"detail": "Authentication credentials were not provided."}` or `{"detail": "This account is not active."}` (a seller who is not approved yet is **not** refused: they can log in and use `/seller/me/`, see `seller/seller-api-guide.md`) |
 | `403` | Valid token, but this actor isn't allowed here | `{"detail": "Only an authenticated Admin can access this endpoint."}` |
 | `400` | The request body itself is wrong | see below |
 
@@ -258,7 +258,7 @@ across a few fields) plus filters specific to that resource.
 | Resource | `search` matches | Extra filters |
 |---|---|---|
 | Admins | name, email, mobile | `?type=` (`super_admin` \| `admin`), `?status=` (`active` \| `inactive`) |
-| Sellers | name, email, phone | `?verification_status=` (`unverified` \| `pending` \| `verified` \| `rejected`; or `verification_status__in=a,b`), `?status=` (`active` \| `inactive` \| `suspended`; or `status__in=a,b`), `?is_seller_request=`, `?creator_type=` (`seller` \| `admin`), `?country=` `?state=` `?city=` `?thana=`, `?email_verified=` / `?phone_verified=` / `?has_business_profile=` (`true` \| `false`), `?business_type=`, `?created_from=` / `?created_to=` (`YYYY-MM-DD`). Full list: `seller-verification-guide.md` |
+| Sellers | name, email, phone | `?verification_status=` (`unverified` \| `pending` \| `verified` \| `rejected`; or `verification_status__in=a,b`), `?status=` (`active` \| `inactive` \| `suspended`; or `status__in=a,b`), `?is_seller_request=`, `?creator_type=` (`seller` \| `admin`), `?country=` `?state=` `?city=` `?thana=`, `?email_verified=` / `?phone_verified=` / `?has_business_profile=` (`true` \| `false`), `?business_type=`, `?created_from=` / `?created_to=` (`YYYY-MM-DD`). Full list: `admin/seller-verification-guide.md` |
 | Buyers | name, email, phone | `?status=` (`active` \| `suspended`), `?country=` `?state=` `?city=` `?thana=` (ids), `?email_verified=` / `?phone_verified=` (`true` \| `false`), `?created_from=` / `?created_to=` (`YYYY-MM-DD`, inclusive) |
 
 Example: `GET /api/v1/accounts/sellers/?search=arafat&verification_status=pending`
@@ -268,7 +268,7 @@ Filters combine — they're AND'd together, and combine fine with
 
 **One list uses cursor pagination instead of limit/offset:** the admin's Seller
 Request queue (`GET /api/v1/accounts/sellers/requests/`, §8.2). It has `next` /
-`previous` links and no `count`. See `seller-verification-guide.md`.
+`previous` links and no `count`. See `admin/seller-verification-guide.md`.
 
 ---
 
@@ -446,11 +446,11 @@ built yet (see §11), so none of these can be set through this endpoint.
 `verification_status` and `verification_note` are **writable** — that is how an
 Admin approves or rejects a seller (rejecting needs a note). Every real
 status change adds a row to `verification_logs` (newest first), and the
-note is only read when the status changes. See `seller-verification-guide.md`.
+note is only read when the status changes. See `admin/seller-verification-guide.md`.
 
 `profile_change_logs` (detail only, newest first) lists every change to the seller's profile, by the seller or an
 admin, with the values before and after. `requested_at` is when the seller joined the Seller Request queue. Both are
-read-only; see `seller-verification-guide.md`.
+read-only; see `admin/seller-verification-guide.md`.
 
 ### Create — `POST /api/v1/accounts/sellers/`
 
@@ -503,7 +503,7 @@ Required: `name`, `email`, `phone`, `password`, `present_address`,
 Optional: `thana`, `profile_pic`, more documents, and the business profile
 (`info`, a JSON string). The account is created `unverified` + `inactive` with
 `is_seller_request: true`, and the response has no token. Full details, fields,
-errors and a code example: **`seller-api-guide.md`** (the seller-facing guide).
+errors and a code example: **`seller/seller-api-guide.md`** (the seller-facing guide).
 
 ### 8.2 Seller Request queue — `GET /api/v1/accounts/sellers/requests/`
 
@@ -514,7 +514,7 @@ plus `ordering` (`requested_at`, `created_at`, `name`, `id`; `-` reverses; defau
 leaves the queue when an admin really changes their `verification_status` or
 `status`. To approve send both `{"verification_status": "verified", "status":
 "active"}`. For a menu badge use `GET /accounts/sellers/?is_seller_request=true&limit=1`
-and read `count`. Details: **`seller-verification-guide.md`**.
+and read `count`. Details: **`admin/seller-verification-guide.md`**.
 
 ---
 
@@ -613,7 +613,7 @@ Don't build screens against these — they don't exist on the backend yet:
 
 - **Seller/Buyer self-service login screens that go anywhere past login.**
   Seller and Buyer login work (§3) and return a valid token. A seller has
-  their own profile endpoints (`/seller/me/`, see `seller-api-guide.md`), but
+  their own profile endpoints (`/seller/me/`, see `seller/seller-api-guide.md`), but
   there are no seller features for sellers who can operate yet (listings, orders,
   wallet) and no Buyer-facing endpoints at all.
 - **Signup / registration for Buyers.** Sellers can register themselves
@@ -624,7 +624,7 @@ Don't build screens against these — they don't exist on the backend yet:
   `email_verified_at` etc. show as read-only above.
 - **Seller wallet/bonus adjustments.** Read-only — the workflow that changes
   them hasn't been built. (Seller *verification* approval does exist: see §8
-  and `seller-verification-guide.md`.)
+  and `admin/seller-verification-guide.md`.)
 
 If frontend work needs any of these sooner, flag it — the plan is to build
 them "gradually" per actor, not all at once.

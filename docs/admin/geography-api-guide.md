@@ -8,20 +8,20 @@ tested against the running server before being written down — every
 example request/response is real, not made up.
 
 Also in this repo:
-- **[Egoola-Geography.postman_collection.json](Egoola-Geography.postman_collection.json)** +
-  **[Egoola-Local.postman_environment.json](Egoola-Local.postman_environment.json)**
+- **[Egoola-Geography.postman_collection.json](../../postman/admin/Egoola-Geography.postman_collection.json)** +
+  **[Egoola-Local.postman_environment.json](../../postman/Egoola-Local.postman_environment.json)**
   — import both into Postman and you can call every endpoint below without
   typing anything by hand. Logging in auto-saves the token for you.
-- **[openapi.json](openapi.json)** — the exact, always-up-to-date machine
+- **[openapi.json](../../postman/openapi.json)** — the exact, always-up-to-date machine
   schema. If this guide and that file ever disagree, trust `openapi.json`.
-- **[frontend-api-guide.md](frontend-api-guide.md)** — covers login and
+- **[../frontend-api-guide.md](../frontend-api-guide.md)** — covers login and
   Admin/Seller/Buyer management. Look there for how to get an Admin token
   in the first place — every endpoint here needs one.
 
 > **Need the lists without logging in** (for example the seller sign-up form)? Everything below is
 > admin-only. Use the public, read-only lists at `/api/v1/public/geography/` instead. They return
 > only `id`, `name`, `slug` and the parent ids, with no audit data. See
-> [`seller-api-guide.md`](seller-api-guide.md) section 2.
+> [`../seller/seller-api-guide.md`](../seller/seller-api-guide.md) section 2.
 
 ---
 
@@ -46,7 +46,7 @@ http://127.0.0.1:8000/api/v1/geography/
 
 Every path below is relative to that. All four resources are
 **Admin-only** — log in via `POST /api/v1/auth/admin/login/` (see
-[frontend-api-guide.md](frontend-api-guide.md) §3) and send the token on
+[../frontend-api-guide.md](../frontend-api-guide.md) §3) and send the token on
 every request:
 
 ```
@@ -87,11 +87,11 @@ No/invalid token → `401`. A valid Seller or Buyer token → `403`.
 - **`flag_path`/`flag_url` always come back `null`.** The columns exist but
   there's no image-upload step for geography rows yet (see §4 below).
 - **Validation errors** are the same `{field: [messages]}` shape as every
-  other endpoint in this API — see frontend-api-guide.md §4 if you haven't
+  other endpoint in this API — see ../frontend-api-guide.md §4 if you haven't
   built a generic handler for that shape yet.
 - **List responses** use the same limit/offset pagination envelope
   (`count`/`next`/`previous`/`results`) as every other list endpoint — see
-  frontend-api-guide.md §5. **Filter query params still take a plain id**
+  ../frontend-api-guide.md §5. **Filter query params still take a plain id**
   (`?country=124`), even though the field they filter on is nested in the
   response.
 
@@ -576,7 +576,7 @@ nests them.
 - **Country/State/City/Thana flag images.** `flag_path`/`flag_url` exist on
   every row above but there's no upload endpoint for them yet — same
   reasoning as the profile-picture upload on Admin/Seller/Buyer (see
-  frontend-api-guide.md §11), just not built for geography.
+  ../frontend-api-guide.md §11), just not built for geography.
 - **Bulk import.** Every row is created one at a time through these
   endpoints. There's no CSV/legacy-data import step.
 

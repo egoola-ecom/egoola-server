@@ -10,8 +10,8 @@ combination has its own price, discount and stock.
 Admin-only. Header on every request: `Authorization: Bearer <admin access token>`.
 A seller or buyer token gets `403`, no token gets `401`.
 Lists are paginated: `?limit=` / `?offset=` (default 20, max 100).
-Postman: `postman/Egoola-Attribute.postman_collection.json` (the SKU requests
-are in its **Listing SKUs** folder). Listings in general: [listing-module-guide.md](listing-module-guide.md).
+Postman: `postman/admin/Egoola-Attribute.postman_collection.json` (the SKU requests
+are in its **Listing SKUs** folder). Listings in general: [admin/listing-module-guide.md](admin/listing-module-guide.md).
 
 ---
 

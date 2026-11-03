@@ -3,7 +3,7 @@
 Backend done and tested in `egoola-server`: the buyer's cart(s) and wishlist. Read top to bottom, then build in
 **Buyer Web**. Do not push; commit locally only if asked.
 
-Read first: `docs/buyer-api-guide.md` sections 3–4 (technical contract below is a copy of it — the source of truth),
+Read first: `docs/buyer/buyer-api-guide.md` sections 3–4 (technical contract below is a copy of it — the source of truth),
 `docs/Egoola_Cart_Guide.md` (plain-language explainer if anything below is unclear conceptually). Postman:
 `Egoola-BuyerApp` → **Cart**, **Wishlist**. Run backend with `uv run manage.py runserver 8000`. Needs a buyer token
 (`test.buyer@egoola.com` / `Test@12345`, or register one — `docs/test-accounts.md`).

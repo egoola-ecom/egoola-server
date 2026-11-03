@@ -6,8 +6,9 @@ cannot do.
 
 > **Products, gigs and jobs are separate kinds.** Sections 1–11 describe **products** and the rules every listing shares (statuses, checking,
 > history, the thumbnail); those rules apply to gigs too. **Section 12 covers gigs** (work a seller offers): their own place, screens and price
-> rules. A **job** (work a buyer asks for, hired through bidding) has its own place too, for the buyer, the seller and the admin — see
-> [`listing-complete-guide.md`](listing-complete-guide.md) section 16 and [`job-admin-guide.md`](job-admin-guide.md).
+> rules. A **job** (work a buyer asks for, hired through bidding) has its own place too, for the buyer, the seller and the admin — the full
+> story, status flow included, is its own guide now: **[`Egoola_Job_Guide.md`](Egoola_Job_Guide.md)**. Section 13 below is a short summary;
+> the technical reference is [`listing-complete-guide.md`](listing-complete-guide.md) section 16 and [`admin/job-admin-guide.md`](admin/job-admin-guide.md).
 
 It is written for all teams: operations, support, product, design, testing and development. You do not need any
 technical knowledge to read it.
@@ -431,8 +432,9 @@ seller **cannot delete** a gig. They can hide a package, and an admin can delete
 
 A **job** is different from a product or a gig in one big way: it is never bought outright. A **buyer** posts what
 they need done, **sellers compete for it by placing bids**, and the buyer (or an admin) picks one to hire. It has
-its own place in the buyer, seller and admin panels (**Jobs**). Technical reference, every error, every case:
-[`listing-complete-guide.md`](listing-complete-guide.md) section 16.
+its own place in the buyer, seller and admin panels (**Jobs**). This section is a short summary — for the full
+picture (including the status flow for both the job and its bids) read **[`Egoola_Job_Guide.md`](Egoola_Job_Guide.md)**.
+Technical reference, every error, every case: [`listing-complete-guide.md`](listing-complete-guide.md) section 16.
 
 ### 13.1 What a job holds
 
@@ -596,7 +598,7 @@ Products and gigs are separate lists. Open the **Gigs** list.
 Please do not promise these to sellers yet.
 
 - **Messages to sellers** (email, SMS or app) when a listing is approved, rejected or sent back.
-- **Buyers buying** a product outright (browsing, cart and wishlist are built — see `public-api-guide.md`, `buyer-api-guide.md`).
+- **Buyers buying** a product outright (browsing, cart and wishlist are built — see `public-api-guide.md`, `buyer/buyer-api-guide.md`).
 - **Sellers deleting or hiding** their own listings.
 - **Saving a draft** before sending. A seller's new listing always goes straight to Pending.
 - **Restoring** a deleted listing.

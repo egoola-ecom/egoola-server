@@ -22,7 +22,7 @@ Rules that always apply: all data comes from `egoola-server` over REST only; fol
 
 Run the backend: `cd D:\egola-ecom\egoola-server && uv run manage.py runserver 8000`. Base URL `http://localhost:8000/api/v1`. Logins and ids:
 `egoola-server\docs\test-accounts.md` (password `Test@12345`; product category 18, **service category 29**, measurement 13, Bangladesh 126 /
-Chittagong 13 / Feni 8). Postman: `postman\Egoola-Listing.postman_collection.json` → **Gigs** and **Listing files**. Media URLs come back as
+Chittagong 13 / Feni 8). Postman: `postman\admin\Egoola-Listing.postman_collection.json` → **Gigs** and **Listing files**. Media URLs come back as
 `/media/...`: resolve them with `resolveMediaUrl`.
 
 ---

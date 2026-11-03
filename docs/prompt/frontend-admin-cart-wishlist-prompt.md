@@ -4,8 +4,8 @@ Backend done and tested in `egoola-server`: two **read-only** admin APIs for sup
 and every buyer's wishlist. Read this file top to bottom, then build the two screens in **Admin Web**. Do not push;
 commit locally only if asked.
 
-Read first: `egoola-server/docs/cart-wishlist-admin-guide.md` (the technical contract below is a copy of it),
-`egoola-server/docs/buyer-api-guide.md` sections 3–4 (what the buyer-facing cart/wishlist look like — useful context,
+Read first: `egoola-server/docs/admin/cart-wishlist-admin-guide.md` (the technical contract below is a copy of it),
+`egoola-server/docs/buyer/buyer-api-guide.md` sections 3–4 (what the buyer-facing cart/wishlist look like — useful context,
 not something you're building here), `egoola-server/docs/Egoola_Cart_Guide.md` (plain-language explanation of how a
 cart/wishlist behaves, if anything is unclear conceptually). Postman: `Egoola` → **Carts & Wishlists (admin)**. Run
 the backend with `uv run manage.py runserver 8000`; accounts in `docs/test-accounts.md` (admin: `test.admin@egoola.com`

@@ -10,14 +10,14 @@ All endpoints live under `/api/v1/catalog/` and are **Admin-only**
 `403`; no token gets `401`.
 
 > **Products, gigs and jobs.** `/catalog/listings/` manages **products** and (until the Job step) buyer **job requests**. A seller's service offer
-> is a **gig** and has its own endpoints, `/catalog/gigs/`: see [`listing-complete-guide.md`](listing-complete-guide.md) section 14. A gig id on `/catalog/listings/` is `404`,
+> is a **gig** and has its own endpoints, `/catalog/gigs/`: see [`../listing-complete-guide.md`](../listing-complete-guide.md) section 14. A gig id on `/catalog/listings/` is `404`,
 > and a service offer posted there is `400`. The **thumbnail and gallery files** have their own APIs (section 9.5); create and update here are JSON only.
 
-Overview of the whole listing area (relations, creation walkthrough): [listing-complete-guide.md](listing-complete-guide.md).
+Overview of the whole listing area (relations, creation walkthrough): [../listing-complete-guide.md](../listing-complete-guide.md).
 
 Related files: `apps/catalog/models.py`, `serializers.py`, `views.py`,
 `urls.py`, `admin.py`; migrations `0004`–`0007`; Postman collection
-`postman/Egoola-Listing.postman_collection.json`.
+`postman/admin/Egoola-Listing.postman_collection.json`.
 
 ---
 
@@ -65,8 +65,8 @@ Related files: `apps/catalog/models.py`, `serializers.py`, `views.py`,
 | Listing | create, retrieve, update, list, delete (soft) | One table `listings` for every product format (and job requests). Gigs: `/catalog/gigs/` |
 | Thumbnail and gallery | `POST` / `PATCH /listing-files/{id}/` | Columns `imagePath`, `imageUrl` on `listings`; gallery in `listingMedia` |
 | Listing moderation | status change through PATCH, `bulk-moderate` | Full history in `status_change_logs` |
-| Attribute, Attribute value | create, retrieve, update, list, delete | Tables `attributes`, `attributeValues` — see [attribute-sku-guide.md](attribute-sku-guide.md) |
-| Listing SKUs (price, discount, stock per option combination) | nested inside Listing (`skus`) | Tables `listingSkus`, `listingSkuVariants` — see [attribute-sku-guide.md](attribute-sku-guide.md) |
+| Attribute, Attribute value | create, retrieve, update, list, delete | Tables `attributes`, `attributeValues` — see [../attribute-sku-guide.md](../attribute-sku-guide.md) |
+| Listing SKUs (price, discount, stock per option combination) | nested inside Listing (`skus`) | Tables `listingSkus`, `listingSkuVariants` — see [../attribute-sku-guide.md](../attribute-sku-guide.md) |
 | Price tiers | nested inside Listing | Table `listingPriceTiers` |
 | Media | nested inside Listing (multipart) | Table `listingMedia` |
 
@@ -100,7 +100,7 @@ Attributes, and each combination is a SKU.
 | `price`, `discountedPrice`, `stockQty`, `reservedQty` | **Moved to `listingSkus`** (one row per option combination). Every listing has at least one SKU. |
 | `color`, `colors`, `sizes` | **Removed.** Replaced by Attributes + SKU variants (see the attribute guide). The GIN indexes on `colors` and `sizes` are gone too. |
 | `imagePath`, `imageUrl` | **New.** The thumbnail (section 9.5). `null` until one is uploaded |
-| `priceType`, `hourlyRate` | **Removed.** A service's price type now lives on its SKUs (`listingSkus.priceType`, see [`listing-complete-guide.md`](listing-complete-guide.md) section 14.3) |
+| `priceType`, `hourlyRate` | **Removed.** A service's price type now lives on its SKUs (`listingSkus.priceType`, see [`../listing-complete-guide.md`](../listing-complete-guide.md) section 14.3) |
 | `sellerId`, `buyerId` | Both optional. Admin-created listings can have neither. Never both. |
 | `status` | `draft`, `pending`, `approved`, `rejected`, `changes_requested` |
 | `note` | Note of the **latest** status change only (null if that change had no note) |
@@ -118,7 +118,7 @@ One row for every status change (including the creation of the listing):
 `createdAt`. Rows are never edited or removed.
 
 `listingSkus` also gained `priceType`, `description`, `descriptionBn` (gig packages) and the constraint
-`unique_sku_price_type_per_listing`; see [`listing-complete-guide.md`](listing-complete-guide.md) section 14.8.
+`unique_sku_price_type_per_listing`; see [`../listing-complete-guide.md`](../listing-complete-guide.md) section 14.8.
 
 Migrations: `0004` (moderation fields, soft delete), `0005` (rename to
 `note` / `ListingStatusChangeLog`), `0006` (brands, `brandId`,
@@ -291,7 +291,7 @@ Base path: `/api/v1/catalog/listings/`
 | description | text, **required** | |
 | brand | brand id, optional | read back with `brand_name` |
 | model, origin, warranty | text, optional | |
-| skus | list, **required on create** (or send `price`) | the sellable combinations — see 5.2 and the [attribute guide](attribute-sku-guide.md) |
+| skus | list, **required on create** (or send `price`) | the sellable combinations — see 5.2 and the [attribute guide](../attribute-sku-guide.md) |
 | price, discounted_price, discount_start_date, discount_end_date, stock_qty, sku | create only | shortcut for **one default SKU** when there are no options. Do not send together with `skus` |
 | currency | string, default `BDT` | |
 | delivery_days, urgent, package_includes, available_from, available_to | optional | job requests only (`400` on a product) |
@@ -308,7 +308,7 @@ Base path: `/api/v1/catalog/listings/`
 `skus` on create takes the full list; on update it **merges by `id`** (an item with an `id`
 changes that SKU, an item without one adds a SKU, SKUs you leave out are untouched). SKUs are
 never deleted: send `{"id": 5, "is_active": false}` to hide one. Full details, payloads and rules:
-[attribute-sku-guide.md](attribute-sku-guide.md).
+[../attribute-sku-guide.md](../attribute-sku-guide.md).
 
 **Price tiers** (quantity prices) still apply to the whole listing:
 
@@ -424,7 +424,7 @@ A service offer is created on `POST /catalog/gigs/`, with packages that have a `
   "delivery_days": 2
 }
 ```
-On `/catalog/listings/` the same body (with `catalog_type: "service"`, `posted_by_role: "seller_offer"`) is `400`. See [`listing-complete-guide.md`](listing-complete-guide.md) section 14.
+On `/catalog/listings/` the same body (with `catalog_type: "service"`, `posted_by_role: "seller_offer"`) is `400`. See [`../listing-complete-guide.md`](../listing-complete-guide.md) section 14.
 
 **D. Seller-owned product**
 ```json
@@ -589,7 +589,7 @@ All test data was removed afterwards.
 - Use `brand` (id) and show `brand_name`. Load the Brand dropdown from
   `GET /brands/?is_active=true`.
 - A listing's `price` / `discounted_price` are the cheapest active SKU ("from ..."). On the product page show the chosen SKU's `price` struck through only when its `effective_price` is lower; hide SKUs with `is_active: false`.
-- Build the option pickers (Size, Colour ...) from `skus[].variants`; see [attribute-sku-guide.md](attribute-sku-guide.md).
+- Build the option pickers (Size, Colour ...) from `skus[].variants`; see [../attribute-sku-guide.md](../attribute-sku-guide.md).
 - Show `note` as the current reason, and `status_change_logs` as the timeline.
 - `listing_type = brand` → mark the Brand dropdown as required.
 - Attribute / Color / Origin dropdowns are not available yet.
@@ -598,8 +598,8 @@ All test data was removed afterwards.
 
 ## 9. Added for seller listings (reference)
 
-Sellers can now create and manage their own listings (see [listing-complete-guide.md](listing-complete-guide.md) section 13 and
-[seller-api-guide.md](seller-api-guide.md) section 6). What that added to the admin side:
+Sellers can now create and manage their own listings (see [../listing-complete-guide.md](../listing-complete-guide.md) section 13 and
+[../seller/seller-api-guide.md](../seller/seller-api-guide.md) section 6). What that added to the admin side:
 
 ### 9.1 Database changes (`listings` and a new log table)
 
@@ -643,7 +643,7 @@ plus `ordering` (`requested_at`, `created_at`, `title`, `id`). Row shape = the l
 | `GET /seller/lookups/{categories,brands,measurements,attributes}/` | active items only |
 | `DELETE` | not allowed |
 
-All need a verified and active seller. Details and examples: [seller-api-guide.md](seller-api-guide.md) section 6.
+All need a verified and active seller. Details and examples: [../seller/seller-api-guide.md](../seller/seller-api-guide.md) section 6.
 
 ### 9.5 Thumbnail and gigs (reference)
 
@@ -651,9 +651,9 @@ All need a verified and active seller. Details and examples: [seller-api-guide.m
   `POST` / `PATCH /seller/listing-files/{id}/` (seller, own listings). `POST` adds (`thumbnail` optional, refused with `400` if one exists; `media_file` repeated, optional).
   `PATCH` takes `remove_thumbnail`, `thumbnail` (a new one always replaces the old), `remove_media_ids` (`4,5`) and `media_file`, all independent. The listing / gig create and
   update are JSON only (`415` for multipart). Response `{image_path, image_url, media, status}`. Written in the info change log `thumbnail` / `media`; it never changes the status. Old files are deleted. Full rules:
-  [`listing-complete-guide.md`](listing-complete-guide.md) section 15.
+  [`../listing-complete-guide.md`](../listing-complete-guide.md) section 15.
 - **Gigs** (`/catalog/gigs/`, `/seller/gigs/`): a separate API for a seller's service offer, priced by packages (one SKU per `price_type`; the buyer
-  chooses the duration when ordering). Same moderation, pending list (`/catalog/gigs/requests/`), bulk moderation and change logs. See [`listing-complete-guide.md`](listing-complete-guide.md) section 14.
+  chooses the duration when ordering). Same moderation, pending list (`/catalog/gigs/requests/`), bulk moderation and change logs. See [`../listing-complete-guide.md`](../listing-complete-guide.md) section 14.
 - **Kind guards:** `catalog_type` and `posted_by_role` cannot change after creation; `/catalog/listings/` refuses a gig (`400`) and returns `404` for a gig
   id; fields of another kind are `400` (product-only fields on a job, service-only fields and gig SKU fields on a product).
 - **Same-title rule** (`unique_listing_title_per_seller`) is now per `catalogType`: a seller may have a product and a gig with the same title.

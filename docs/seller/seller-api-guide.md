@@ -5,14 +5,14 @@ seller app). It covers: public location lookups, sign-up with KYC documents, sel
 (`/seller/me`), resubmit after a rejection, change password, **the seller's products** (section 6) and **the seller's gigs** (section 6b), each
 with its own files API for the thumbnail and gallery (section 6.8).
 
-- **Plain-language guides** (no API details): `Egoola_Seller_Guide.md` (the seller process) and `Egoola_Listing_Guide.md` (listings).
-- **Postman:** `postman/Egoola-SellerApp.postman_collection.json` (one collection for all of it) and
+- **Plain-language guides** (no API details): `../Egoola_Seller_Guide.md` (the seller process) and `../Egoola_Listing_Guide.md` (listings).
+- **Postman:** `postman/seller/Egoola-SellerApp.postman_collection.json` (one collection for all of it) and
   `postman/Egoola-Local.postman_environment.json`.
 - **Smoke tests:** `scripts/smoke/seller_self_smoke.sh`, `seller_listing_smoke.sh`, `public_geography_smoke.sh`, and the sign-up part of
   `seller_onboarding_smoke.sh`.
 - **Not in this guide: the admin side** (seller list, filters, Seller Request queue, approve / reject, profile change
-  history). That is in [`seller-verification-guide.md`](seller-verification-guide.md) and
-  [`frontend-api-guide.md`](frontend-api-guide.md) §8, with the collection `Egoola-Seller.postman_collection.json`.
+  history). That is in [`../admin/seller-verification-guide.md`](../admin/seller-verification-guide.md) and
+  [`../frontend-api-guide.md`](../frontend-api-guide.md) §8, with the collection `Egoola-Seller.postman_collection.json`.
 - Every example below is a real response from the running server.
 
 ---
@@ -127,7 +127,7 @@ says "an admin approves", the admin does it with `PATCH /accounts/sellers/{id}/`
 
 ## 2. Public lookups for the sign-up form (no login)
 
-The country / state / city / thana lists are public routes, documented in [`public-api-guide.md`](public-api-guide.md) section 2 (no token, `GET` only, sorted by name,
+The country / state / city / thana lists are public routes, documented in [`../public-api-guide.md`](../public-api-guide.md) section 2 (no token, `GET` only, sorted by name,
 `limit` default 500). Load them one level at a time (`states/?country=`, `cities/?state=`, `thanas/?city=`); an empty list is normal. `business_type`, `employees_range` and
 `annual_revenue` (business profile) are free text: the frontend decides which choices to offer.
 
@@ -307,7 +307,7 @@ What to do in the app:
   for both, so nobody can find out which numbers are registered).
 
 Tokens, refresh and error shapes are the same as everywhere else: see
-`frontend-api-guide.md` §3–4 and `authentication.md`.
+`../frontend-api-guide.md` §3–4 and `../authentication.md`.
 
 ---
 
@@ -424,7 +424,7 @@ What happens:
 
 - `verification_status` becomes **`pending`**, `is_seller_request` becomes `true` and
   `requested_at` becomes now, so the seller is back in the admin's Seller Request queue,
-  as the **newest** request (admin side: `seller-verification-guide.md`).
+  as the **newest** request (admin side: `../admin/seller-verification-guide.md`).
 - The seller's `note` becomes `verification_note` (the note on the row always belongs to
   the current status). The admin's rejection reason stays in `verification_logs`.
 - A history entry is added, made by the seller (`creator_type: "seller"`).
@@ -451,7 +451,7 @@ seller who is already `pending`). The response is the same body as `GET /seller/
 
 One shared set of endpoints for **every product format** (`general`, `used`, `village`, `retail`, `wholesale`, `brand`). A seller's
 **services are gigs**: they are on `/seller/gigs/` (section 6b), and a service sent here is `400`. Admin-side rules, SKUs and the full field
-reference are in [`listing-complete-guide.md`](listing-complete-guide.md); the plain-language version is `Egoola_Listing_Guide.md`.
+reference are in [`../listing-complete-guide.md`](../listing-complete-guide.md); the plain-language version is `../Egoola_Listing_Guide.md`.
 
 **Who can use it.** Only a seller who **can operate** (verified **and** active). Everyone else gets `403` with a message that says why:
 
@@ -490,7 +490,7 @@ JSON only (multipart is `415`; files use section 6.8). The new listing is **alwa
 **Not accepted** (ignored if sent): `seller`, `buyer`, `posted_by_role`, `status`, `requested_at`, and `note` on create.
 
 Required: `category`, `catalog_type`, `title`, `description`, and either `skus` or a `price` (a shortcut for one default SKU).
-Everything else is optional. The fields are the same as the admin's (see `listing-complete-guide.md` section 6.1):
+Everything else is optional. The fields are the same as the admin's (see `../listing-complete-guide.md` section 6.1):
 
 | Group | Fields |
 |---|---|
@@ -638,7 +638,7 @@ Two calls, both `multipart/form-data`, for a product id or a gig id of mine (`40
 
 Response: `{"image_path", "image_url", "media": [{id, media_type, media_path, media_url}], "status"}`. Thumbnail: JPG, PNG or WEBP, up to 10 MB. Gallery: see 6.6.
 If any part is refused, nothing is saved. Old files are deleted from storage. It is written in the admin's info change log and **never changes the status** (a rejected product or gig stays rejected; only saving it resubmits it).
-Details and errors: [`listing-complete-guide.md`](listing-complete-guide.md) section 15.
+Details and errors: [`../listing-complete-guide.md`](../listing-complete-guide.md) section 15.
 
 ---
 
@@ -648,8 +648,8 @@ A **gig** is a service the seller offers (cleaning, photography, repair). It is 
 same access rules, moderation and "saving is resubmitting" behaviour as products, but a different price model: **packages**. Every package is a SKU with a
 `price_type` (`hourly`, `daily`, `weekly`, `monthly` or `fixed`), and a `price` (the rate for that unit). A package has **no duration**: the buyer chooses how many hours, days, weeks or months when ordering and pays the rate
 times that number. A gig has **no options, no stock, no brand and no quantity prices**, at most **one package per price
-type**, and no delete for the seller. The complete guide (every rule, error, filter and response) is **[`listing-complete-guide.md`](listing-complete-guide.md) section 14**; the plain-language
-version is `Egoola_Listing_Guide.md` section 12. In short:
+type**, and no delete for the seller. The complete guide (every rule, error, filter and response) is **[`../listing-complete-guide.md`](../listing-complete-guide.md) section 14**; the plain-language
+version is `../Egoola_Listing_Guide.md` section 12. In short:
 
 | Call | What it does |
 |---|---|
@@ -676,7 +676,7 @@ send `price` and `price_type` on the gig itself. Lookups: `GET /seller/lookups/c
 
 A **job** is a buyer's request for work that sellers compete for by **bidding**, not buying outright. Needs a
 seller who can operate (verified **and** active) — the usual `403` otherwise. Full reference (the state machine,
-every error, the buyer and admin sides): [`listing-complete-guide.md`](listing-complete-guide.md) section 16. In short:
+every error, the buyer and admin sides): [`../listing-complete-guide.md`](../listing-complete-guide.md) section 16. In short:
 
 | Call | What it does |
 |---|---|
@@ -704,7 +704,7 @@ PATCH /seller/bids/7/
 ```
 
 Acceptance and rejection are the buyer's/admin's call, not the seller's (section 16.6, 16.11 of
-`listing-complete-guide.md`). After a bid is cancelled (`{"status": "cancelled"}`, the only status move a seller
+`../listing-complete-guide.md`). After a bid is cancelled (`{"status": "cancelled"}`, the only status move a seller
 can make), the seller may place a fresh one on the same job — a new historical row, not a reuse of the old one.
 
 ---
@@ -768,7 +768,7 @@ Do not build screens against these:
 ## 10. Try it
 
 1. Start the server: `uv run manage.py runserver 8000`.
-2. Import `postman/Egoola-SellerApp.postman_collection.json` and `postman/Egoola-Local.postman_environment.json`.
+2. Import `postman/seller/Egoola-SellerApp.postman_collection.json` and `postman/Egoola-Local.postman_environment.json`.
 3. Run the folders in order: Setup (admin token), Public lookups, Seller sign-up, Seller — own profile, After approval, **Seller listings**, **Seller gigs**,
    **Seller jobs & bidding**, After review. Requests named **[Admin step]** / **[Buyer step]** are not seller APIs: they play another actor so you can see
    what a seller sees (an approval, a rejection, a suspension, a buyer posting a job). In every request with a file row, choose a real JPG, PNG or PDF in Postman.

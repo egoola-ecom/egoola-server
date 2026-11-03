@@ -40,7 +40,7 @@ The role is read from the database on each request, so promoting or demoting an
 admin takes effect immediately (even with a token that was issued earlier).
 
 Postman: **Auth > Super-Admin Login**, then the **Admins** folder in
-`postman/Egoola.postman_collection.json`.
+`postman/admin/Egoola.postman_collection.json`.
 
 ## Safety rules
 

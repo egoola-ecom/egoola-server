@@ -5,7 +5,7 @@ create or edit a job on any buyer's behalf, create or edit a bid on any seller's
 buyer's behalf, and undo an already-accepted hire. Read this file top to bottom, then build the two screens
 (**Jobs**, **Bidding**) in **Admin Web**. Do not push; commit locally only if asked.
 
-Read first: `egoola-server/docs/job-admin-guide.md` (the admin contract — read this one fully, the sections below
+Read first: `egoola-server/docs/admin/job-admin-guide.md` (the admin contract — read this one fully, the sections below
 are a summary of it), `egoola-server/docs/listing-complete-guide.md` section 16 (the full state machine shared by
 all three roles — read this for the "why", it has every case), `egoola-server/docs/Egoola_Listing_Guide.md`
 section 13 (plain-language version, if anything below is unclear conceptually). Postman: `Egoola-Listing` →

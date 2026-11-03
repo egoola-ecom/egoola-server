@@ -182,4 +182,4 @@ branch survives (kept as ancestor context for the two matching "Clothing" catego
 
 ## Buyer Panel: the public browse list
 
-The public, no-login category list (root / children / search, page-based paging) now lives in [`public-api-guide.md`](public-api-guide.md) section 3.
+The public, no-login category list (root / children / search, page-based paging) now lives in [`../public-api-guide.md`](../public-api-guide.md) section 3.

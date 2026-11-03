@@ -3,7 +3,7 @@
 Backend change, done and tested in `egoola-server`. Files (the thumbnail and the gallery) are no longer sent with a listing or a gig and the old
 thumbnail endpoints are gone. Read this file top to bottom, then update both the **Admin Web** and the **Seller Web**. Do not push; commit locally only if asked.
 
-Read first: `egoola-server/docs/listing-complete-guide.md` section 15, `egoola-server/docs/seller-api-guide.md` sections 6.6 and 6.8,
+Read first: `egoola-server/docs/listing-complete-guide.md` section 15, `egoola-server/docs/seller/seller-api-guide.md` sections 6.6 and 6.8,
 `egoola-server/docs/prompt/frontend-listing-audit-prompt.md` sections 6 and 7 (checks T1–T6, M1–M3, P14). Postman: `Egoola-Listing` → **Listing files**,
 `Egoola-SellerApp` → **Seller listings / Seller gigs**. Run the backend with `uv run manage.py runserver 8000`; accounts in `docs/test-accounts.md`.
 

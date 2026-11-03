@@ -5,7 +5,7 @@ build both in **Buyer Web**. Do not push; commit locally only if asked. (This re
 for the same features — `frontend-cart-prompt.md` and `frontend-wishlist-prompt.md` — which went through a few
 contract revisions; this file is the current, settled state of both.)
 
-Read first: `egoola-server/docs/buyer-api-guide.md` sections 3–4 (the technical contracts below are a copy of it),
+Read first: `egoola-server/docs/buyer/buyer-api-guide.md` sections 3–4 (the technical contracts below are a copy of it),
 `egoola-server/docs/Egoola_Cart_Guide.md` (plain-language explanation of how each behaves — Part I is the cart, Part
 II the wishlist; read whichever one is unclear conceptually below). Postman: `Egoola-BuyerApp` → **Cart**,
 **Favourites**. Run the backend with `uv run manage.py runserver 8000`; accounts in `docs/test-accounts.md` (buyer:

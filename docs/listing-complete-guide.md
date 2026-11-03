@@ -17,13 +17,13 @@ topic, the other guides go deeper:
 
 | Topic | Deeper guide |
 |---|---|
-| Listing endpoints, moderation tables, brand CRUD, the pending list | [listing-module-guide.md](listing-module-guide.md) |
-| The seller's listing endpoints and lookups (request / response) | [seller-api-guide.md](seller-api-guide.md) section 6 |
+| Listing endpoints, moderation tables, brand CRUD, the pending list | [admin/listing-module-guide.md](admin/listing-module-guide.md) |
+| The seller's listing endpoints and lookups (request / response) | [seller/seller-api-guide.md](seller/seller-api-guide.md) section 6 |
 | Attributes, attribute values, SKU rules | [attribute-sku-guide.md](attribute-sku-guide.md) |
-| Category tree and parent chain | [category-tree-api-guide.md](category-tree-api-guide.md) |
-| Country / state / city / thana | [geography-api-guide.md](geography-api-guide.md) |
+| Category tree and parent chain | [admin/category-tree-api-guide.md](admin/category-tree-api-guide.md) |
+| Country / state / city / thana | [admin/geography-api-guide.md](admin/geography-api-guide.md) |
 | Login, tokens, errors, pagination | [frontend-api-guide.md](frontend-api-guide.md) |
-| Postman | `postman/Egoola-Listing.postman_collection.json` (listings, **Gigs**, **Jobs**, **Listing files**), `postman/Egoola-Attribute.postman_collection.json` (admin); `postman/Egoola-SellerApp.postman_collection.json` → **Seller listings**, **Seller gigs**, **Seller jobs & bidding** (seller); `postman/Egoola-BuyerApp.postman_collection.json` → **Jobs** (buyer); `postman/Egoola.postman_collection.json` → **Bidding** (admin) |
+| Postman | `postman/admin/Egoola-Listing.postman_collection.json` (listings, **Gigs**, **Jobs**, **Listing files**), `postman/admin/Egoola-Attribute.postman_collection.json` (admin); `postman/seller/Egoola-SellerApp.postman_collection.json` → **Seller listings**, **Seller gigs**, **Seller jobs & bidding** (seller); `postman/buyer/Egoola-BuyerApp.postman_collection.json` → **Jobs** (buyer); `postman/admin/Egoola.postman_collection.json` → **Bidding** (admin) |
 
 Base URL: `http://127.0.0.1:8000/api/v1`. Sections 1-12 are the **admin** product endpoints (`/catalog/...`; gigs: section 14; jobs: section 16):
 every call needs `Authorization: Bearer <admin access token>`; seller and buyer tokens get `403`; no token gets `401`. The **seller** endpoints
@@ -666,7 +666,7 @@ There is no restore endpoint yet.
 A seller who is **verified and active** manages their own **products** through one shared set of endpoints, for every product format
 (`general`, `used`, `village`, `retail`, `wholesale`, `brand`). Their **gigs** (services) are on `/seller/gigs/`
 (section 14.5). Full request and response examples are in
-[seller-api-guide.md](seller-api-guide.md) section 6; the rules are:
+[seller/seller-api-guide.md](seller/seller-api-guide.md) section 6; the rules are:
 
 | Call | What it does |
 |---|---|
@@ -876,7 +876,7 @@ List row:
 ```
 
 Moderation (status, note, history, bulk, the pending list) works exactly as for products: see
-section 8 and [`listing-module-guide.md`](listing-module-guide.md) 5.7–5.8.
+section 8 and [`admin/listing-module-guide.md`](admin/listing-module-guide.md) 5.7–5.8.
 
 ### 14.5 Seller gig endpoints — `/seller/gigs/`
 
@@ -1429,6 +1429,6 @@ bid that isn't currently `accepted` → `400` ("Only an accepted bid can be reje
 - `scripts/smoke/sku_smoke.py` (attributes, SKUs, category protection), `listing_smoke.sh`, `brand_smoke.sh`, `e2e_smoke.sh`: all pass. Run everything with `scripts/smoke/run_all.sh`.
 - `seller_listing_smoke.sh`: the seller product API, lookups, unique title, the pending list, approve / reject / fix, the info change log, Bangla fields and files removed from storage.
 - `gig_smoke.py` (the admin gig API, the product / gig / job separation), `seller_gig_smoke.py` (the seller gig API) and `listing_files_smoke.py` (the 4 files APIs, both roles).
-- Jobs (section 16): `buyer_job_smoke.py`, `seller_job_smoke.py`, `bid_accept_smoke.py`, `admin_job_bid_smoke.py` — see also [`job-admin-guide.md`](job-admin-guide.md).
+- Jobs (section 16): `buyer_job_smoke.py`, `seller_job_smoke.py`, `bid_accept_smoke.py`, `admin_job_bid_smoke.py` — see also [`admin/job-admin-guide.md`](admin/job-admin-guide.md).
 - Postman: `Egoola-Listing` and `Egoola-Attribute` (admin) and `Egoola-SellerApp` → **Seller listings**, **Seller gigs** (seller) collections.
   Jobs: `Egoola-BuyerApp` → **Jobs**, `Egoola-SellerApp` → **Seller jobs & bidding**, `Egoola-Listing` → **Jobs**, `Egoola` → **Bidding** (admin).

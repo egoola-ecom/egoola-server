@@ -3,7 +3,7 @@
 Backend done and tested in `egoola-server`: a buyer posting a job and hiring a seller for it. Read this file top
 to bottom, then build it in **Buyer Web**. Do not push; commit locally only if asked.
 
-Read first: `egoola-server/docs/buyer-api-guide.md` section 5 (the technical contract below is a copy of it),
+Read first: `egoola-server/docs/buyer/buyer-api-guide.md` section 5 (the technical contract below is a copy of it),
 `egoola-server/docs/listing-complete-guide.md` section 16 (the full state machine shared by all three roles — read
 this for the "why", it has every case), `egoola-server/docs/Egoola_Listing_Guide.md` section 13 (plain-language
 version, if anything below is unclear conceptually). Postman: `Egoola-BuyerApp` → **Jobs**. Run the backend with

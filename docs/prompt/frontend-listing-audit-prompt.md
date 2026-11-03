@@ -5,7 +5,7 @@ backend enforces many rules and constraints. Your job now is **not** to build ne
 implemented correctly**, fix every gap you find, and report the result. Be strict: "looks fine" is not evidence.
 
 Read first: `egoola-server/docs/listing-complete-guide.md` (all sections; gigs = §14, files = §15), `egoola-server/docs/Egoola_Listing_Guide.md`
-(plain words), `egoola-server/docs/seller-api-guide.md` (§6, 6b, 6.8), `egoola-server/docs/attribute-sku-guide.md`,
+(plain words), `egoola-server/docs/seller/seller-api-guide.md` (§6, 6b, 6.8), `egoola-server/docs/attribute-sku-guide.md`,
 `egoola-server/docs/frontend-api-guide.md`, `egoola-server/docs/prompt/frontend-gigs-thumbnail-prompt.md`, `egoola-server/docs/test-accounts.md`. Paths: the
 repos are under `/Users/ghl/Github/egoola/` (`egoola-web`, `egoola-server`, `egoola-document`). **Never edit `egoola-server`**; report backend bugs.
 

@@ -148,7 +148,7 @@ as the reference and bring `buyers/` and `admins/` to the same level. Audit each
   branch of the geography tree; email/phone/mobile must be unique (400 on that field).
 - **Admins specifics:** only two types, `super_admin` and `admin`. **The whole Admins section is super-admin only** — a plain admin gets 403 on
   every `/accounts/admins/` call, so hide the menu item and guard the route (the admin login response has `admin_type`: `super_admin` or `admin` — store it with the session; see
-  `docs/admin-management-guide.md`). You cannot delete yourself or change your own type or status (400) — disable those controls for your own row.
+  `docs/admin/admin-management-guide.md`). You cannot delete yourself or change your own type or status (400) — disable those controls for your own row.
 
 ### Task D — Listing moderation review
 

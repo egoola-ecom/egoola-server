@@ -11,7 +11,7 @@ Header: `Authorization: Bearer <admin access token>`.
 | buyer or seller token | `403` |
 | admin | allowed |
 
-Postman: **Buyers** folder in `postman/Egoola.postman_collection.json`.
+Postman: **Buyers** folder in `postman/admin/Egoola.postman_collection.json`.
 
 ---
 

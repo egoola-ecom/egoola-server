@@ -72,7 +72,7 @@ GET /api/v1/public/geography/thanas/?city=8
   "results": [ { "id": 40, "name": "Feni Sadar", "slug": "feni-sadar", "country": 126, "state": 13, "city": 8 } ] }
 ```
 
-Tests: `scripts/smoke/public_geography_smoke.sh`. Postman: `Egoola-SellerApp` → **Public lookups**. Admin-side geography (with writes and audit columns) is a different API: [`geography-api-guide.md`](geography-api-guide.md).
+Tests: `scripts/smoke/public_geography_smoke.sh`. Postman: `Egoola-SellerApp` → **Public lookups**. Admin-side geography (with writes and audit columns) is a different API: [`admin/geography-api-guide.md`](admin/geography-api-guide.md).
 
 ## 3. Categories: `GET /api/v1/public/catalog/categories/`
 

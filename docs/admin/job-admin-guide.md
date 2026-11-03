@@ -4,7 +4,7 @@ Unlike Cart/Wishlist oversight, this is **not read-only**: "admin can do everyth
 create or edit a job on any buyer's behalf, create or edit a bid on any seller's behalf, accept a bid on the
 buyer's behalf, and undo an already-accepted hire. This guide is the admin-facing reference; the full state
 machine and every error case (shared with the buyer and seller sides) is
-[`listing-complete-guide.md`](listing-complete-guide.md) section 16, which this guide assumes.
+[`../listing-complete-guide.md`](../listing-complete-guide.md) section 16, which this guide assumes.
 
 Header: `Authorization: Bearer <admin access token>`. Both a plain `admin` and a `super_admin` may use these —
 no super-admin-only restriction here.
@@ -87,7 +87,7 @@ The admin detail/list rows carry a **`buyer` brief** (`id`, `name`, `phone`, `em
 ### Edit — `PATCH /catalog/jobs/{id}/`
 
 Same budget-SKU reconcile, same status-move table as a buyer's own job
-(`listing-complete-guide.md` §16.2, §16.5) — **plus one admin-only move**:
+(`../listing-complete-guide.md` §16.2, §16.5) — **plus one admin-only move**:
 
 | From | To | Note |
 |---|---|---|
@@ -162,7 +162,7 @@ bid."}` for anything else. **Use `accept` / `reject` below for those**, not a pl
 
 ### Accept — `POST /bidding/bids/{id}/accept/`
 
-Identical effect to the buyer's own accept (`listing-complete-guide.md` §16.6): that bid → `accepted`, every
+Identical effect to the buyer's own accept (`../listing-complete-guide.md` §16.6): that bid → `accepted`, every
 other pending bid on the job → `rejected`, the job → `in_progress`, and an Order is created directly.
 
 ```json

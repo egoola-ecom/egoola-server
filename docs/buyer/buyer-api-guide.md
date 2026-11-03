@@ -1,7 +1,7 @@
 # Buyer API Guide — sign-up and login (the buyer-facing APIs)
 
-For the buyer web, the buyer app and anything a buyer does **before** they have a token. Browsing needs no login at all: see [`public-api-guide.md`](public-api-guide.md).
-What an admin does with buyers (list, edit, suspend) is in [`buyer-management-guide.md`](buyer-management-guide.md).
+For the buyer web, the buyer app and anything a buyer does **before** they have a token. Browsing needs no login at all: see [`../public-api-guide.md`](../public-api-guide.md).
+What an admin does with buyers (list, edit, suspend) is in [`../admin/buyer-management-guide.md`](../admin/buyer-management-guide.md).
 
 ---
 
@@ -40,7 +40,7 @@ Public: no token needed (a token sent by mistake is ignored). Send **JSON**, or 
 | `profile_pic` | no | One image file (needs multipart) |
 | `description` | no | About the buyer |
 | `address_line` | no | Street address |
-| `country`, `state`, `city`, `thana` | no | Ids from the public lists ([`public-api-guide.md`](public-api-guide.md) section 2). Each level must belong to the one above (state in country, city in state, thana in city). Any level can be left out |
+| `country`, `state`, `city`, `thana` | no | Ids from the public lists ([`../public-api-guide.md`](../public-api-guide.md) section 2). Each level must belong to the one above (state in country, city in state, thana in city). Any level can be left out |
 | `skills`, `experiences`, `interests`, `educations` | no | Free-form lists (JSON) |
 
 Not accepted (ignored if sent): `status`, `wallet_balance`, `email_verified_at`, `phone_verified_at`. A new buyer is always `active`, with an empty wallet.
@@ -61,7 +61,7 @@ POST /api/v1/auth/buyer/register/
   "status": "active", "message": "Welcome to Egoola. Your account is ready." }
 ```
 
-Save `access` (1 hour) and `refresh` (14 days) as after a login: see `frontend-api-guide.md` sections 3 and 4. The password is never returned.
+Save `access` (1 hour) and `refresh` (14 days) as after a login: see `../frontend-api-guide.md` sections 3 and 4. The password is never returned.
 
 **With a picture and more details (multipart):**
 
@@ -113,7 +113,7 @@ Send **exactly one** of `phone` or `email`, with `password`:
   "email": null, "phone": "+8801711000111" }
 ```
 
-`email` is `null` for a buyer who has none. Tokens, refresh and error shapes: `frontend-api-guide.md` sections 3 and 4.
+`email` is `null` for a buyer who has none. Tokens, refresh and error shapes: `../frontend-api-guide.md` sections 3 and 4.
 
 ## 3. Cart — `/api/v1/buyer/cart/...`
 
@@ -242,14 +242,14 @@ already-saved listing returns the **existing** row, `200` (not `201`, and not a 
   "created_at": "..." }
 ```
 
-`listing` is the exact same row shape a buyer already sees while browsing (`public-api-guide.md` sections 4–5) — a
+`listing` is the exact same row shape a buyer already sees while browsing (`../public-api-guide.md` sections 4–5) — a
 product gets the product shape, a gig the gig shape; `catalog_type` on the favourite itself tells you which one
 without inspecting the shape. Nothing about price is frozen here either — it is worked out live, the same as
 everywhere else.
 
 ### List — `GET /buyer/favourites/?type=product`
 
-Page-based paging, same convention as every other Buyer Panel list (`public-api-guide.md` section 1):
+Page-based paging, same convention as every other Buyer Panel list (`../public-api-guide.md` section 1):
 `{count, page, page_size, total_pages, results}`. `type` is optional — leave it out for both kinds together.
 
 **A favourite survives its listing going private** (the seller turned inactive, the listing was rejected, and so on)
@@ -267,7 +267,7 @@ Scoped to the logged-in buyer's own favourites (nothing to leak either way, sinc
 Needs a buyer token. A job is a request for work that sellers **bid** on, instead of something bought outright.
 It skips moderation entirely — it's `open_for_bidding` the instant it's created. Full reference (the complete
 state machine, the seller and admin sides, every error case):
-[`listing-complete-guide.md`](listing-complete-guide.md) section 16.
+[`../listing-complete-guide.md`](../listing-complete-guide.md) section 16.
 
 | Route | What |
 |---|---|

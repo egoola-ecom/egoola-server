@@ -3,7 +3,7 @@
 Backend done and tested in `egoola-server`: a buyer signing themself up and logging in. Read top to bottom, then
 build in **Buyer Web**. Do not push; commit locally only if asked.
 
-Read first: `docs/buyer-api-guide.md` sections 1–2 (the technical contract below is a copy of it), `docs/frontend-api-guide.md`
+Read first: `docs/buyer/buyer-api-guide.md` sections 1–2 (the technical contract below is a copy of it), `docs/frontend-api-guide.md`
 sections 3–4 (token handling — shared across admin/seller/buyer, read this for the refresh flow and error shapes).
 Postman: `Egoola-BuyerApp` → **Auth**. Run backend with `uv run manage.py runserver 8000`. Existing test account:
 `test.buyer@egoola.com` / `Test@12345` (or register a new one against this contract).
