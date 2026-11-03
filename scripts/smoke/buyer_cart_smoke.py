@@ -201,6 +201,17 @@ check("add a second no-seller listing -> 201", 201, s)
 s, no_seller_cart = B("GET", "/buyer/cart/?type=product&seller=0")
 check("both no-seller listings share the same cart (seller=0)", (200, None, 2), (s, no_seller_cart["seller"], len(no_seller_cart["items"])))
 
+print("\n=== Cart summary (across every active cart) ===")
+s, summary = B("GET", "/buyer/cart/summary/")
+check("summary -> 200", 200, s)
+check("3 active carts (seller1, seller2, no-seller)", 3, len(summary["carts"]))
+check("summary item_count = sum of per-cart item_count", sum(c["item_count"] for c in summary["carts"]), summary["item_count"])
+seller_ids_seen = {c["seller"]["id"] if c["seller"] else None for c in summary["carts"]}
+check("every seller (and the no-seller bucket) represented", {SELLER, SELLER2, None}, seller_ids_seen)
+no_seller_row = next(c for c in summary["carts"] if c["seller"] is None)
+check("no-seller row's item_count = 2 lines (not a qty sum)", 2, no_seller_row["item_count"])
+check("summary no token -> 401", 401, call("GET", "/buyer/cart/summary/")[0])
+
 print("\n=== A gig gets its own (service) cart, independent of the product carts ===")
 s, gitem = B("POST", "/buyer/cart/items/", {"listing": CLEANING["id"], "listing_sku": CLEANING_SKU, "duration": 3})
 check("add gig -> 201", 201, s)
@@ -227,6 +238,7 @@ check("no token -> 401", 401, call("GET", "/buyer/cart/?type=product")[0])
 
 s, slogin = call("POST", "/auth/seller/login/", body={"phone": "+8801700093000", "password": "Sell@12345"})
 check("a seller token -> 403", 403, call("GET", "/buyer/cart/?type=product", token=slogin.get("access"))[0])
+check("summary with a seller token -> 403", 403, call("GET", "/buyer/cart/summary/", token=slogin.get("access"))[0])
 
 print("\n=== Edit / remove a line, scoped to its own buyer ===")
 s, patched = B("PATCH", f"/buyer/cart/items/{ITEM_ID}/", {"qty": 1})
