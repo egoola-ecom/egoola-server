@@ -21,6 +21,8 @@ API_V1 = [
     # Read-only catalog lists for browsing (the Buyer Panel): no login.
     path("public/catalog/", include("apps.catalog.public_urls")),
     path("public/sellers/", include("apps.accounts.public_urls")),
+    # Read-only active-gateway list for the checkout form: no login.
+    path("public/orders/", include("apps.orders.public_urls")),
     path("accounts/", include("apps.accounts.urls")),
     # The logged-in seller's own endpoints (profile, resubmit, password).
     path("seller/", include("apps.accounts.seller_urls")),
@@ -29,6 +31,8 @@ API_V1 = [
     # The seller's job board (open jobs, my bids) and bidding.
     path("seller/", include("apps.catalog.seller_job_urls")),
     path("seller/", include("apps.bidding.seller_urls")),
+    # The seller's own orders (accept, reject, in_progress, shipped, delivered).
+    path("seller/", include("apps.orders.seller_urls")),
     # Login (one endpoint per actor table) + token refresh — see
     # apps.authentication. Kept as its own app/urls.py rather than
     # apps.accounts, since "prove who you are" and "manage Admin/Seller/
