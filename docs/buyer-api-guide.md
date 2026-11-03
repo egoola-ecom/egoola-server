@@ -5,6 +5,26 @@ What an admin does with buyers (list, edit, suspend) is in [`buyer-management-gu
 
 ---
 
+## Table of contents
+
+- [1. Sign up — `POST /api/v1/auth/buyer/register/`](#1-sign-up-post-apiv1authbuyerregister)
+- [2. Log in — `POST /api/v1/auth/buyer/login/`](#2-log-in-post-apiv1authbuyerlogin)
+- [3. Cart — `/api/v1/buyer/cart/...`](#3-cart-apiv1buyercart)
+  - [Add to cart — `POST /buyer/cart/items/`](#add-to-cart-post-buyercartitems)
+  - [The cart — `GET /buyer/cart/?type=product`](#the-cart-get-buyercarttypeproduct)
+  - [Edit / remove a line](#edit-remove-a-line)
+  - [Clearing — `DELETE /buyer/cart/?type=product[&seller=]`](#clearing-delete-buyercarttypeproductseller)
+- [4. Wishlist (favourites) — `/api/v1/buyer/favourites/...`](#4-wishlist-favourites-apiv1buyerfavourites)
+  - [Save — `POST /buyer/favourites/`](#save-post-buyerfavourites)
+  - [List — `GET /buyer/favourites/?type=product`](#list-get-buyerfavouritestypeproduct)
+  - [Remove — `DELETE /buyer/favourites/{listing_id}/`](#remove-delete-buyerfavouriteslisting_id)
+- [5. Jobs — post work and hire — `/api/v1/buyer/jobs/...`](#5-jobs-post-work-and-hire-apiv1buyerjobs)
+  - [Status moves](#status-moves)
+  - [Accepting a bid](#accepting-a-bid)
+- [6. Not built yet](#6-not-built-yet)
+
+---
+
 ## 1. Sign up — `POST /api/v1/auth/buyer/register/`
 
 Public: no token needed (a token sent by mistake is ignored). Send **JSON**, or **`multipart/form-data`** when a profile picture is included.
@@ -114,11 +134,33 @@ exactly as that order's record — and the buyer's next add of that type and sel
 
 | Route | What |
 |---|---|
+| `GET /buyer/cart/summary/` | one row per active cart (every type, every seller) — for a header badge or "all carts" view |
 | `GET /buyer/cart/?type=product\|service[&seller=]` | that seller's cart, or the most recently touched one if `seller` is left out — `null` if none |
 | `POST /buyer/cart/items/` | add a listing + SKU |
 | `PATCH /buyer/cart/items/{id}/` | change the quantity (product) or duration (gig) of one line |
 | `DELETE /buyer/cart/items/{id}/` | remove one line |
 | `DELETE /buyer/cart/?type=product\|service[&seller=]` | empty that same cart (same lookup as `GET`) — no-op if there is none |
+
+### Cart summary — `GET /buyer/cart/summary/`
+
+The one call that sees *every* active cart at once — everything else in this section acts on exactly one. For a
+header cart-icon badge (the true total, across every seller and type) and for a real "all carts" page, linking each
+row to `GET /buyer/cart/?type=<cart_type>&seller=<id>`.
+
+```json
+{ "item_count": 2,
+  "carts": [
+    { "id": 192, "cart_type": "product", "seller": {"id": 550, "name": "Karim Electric", "profile_pic_url": null},
+      "item_count": 1, "subtotal": "4300.00", "updated_at": "..." },
+    { "id": 191, "cart_type": "product", "seller": {"id": 553, "name": "Sylhet Books", "profile_pic_url": null},
+      "item_count": 1, "subtotal": "300.00", "updated_at": "..." } ] }
+```
+
+Newest-touched first. `item_count` (per cart, and the top-level grand total) is the **number of lines**, not a sum
+of `qty`/`duration` — a product's quantity and a gig's duration aren't the same unit, so they can't be added
+together meaningfully; counting lines is the one thing that's comparable across a product cart and a service cart
+both. `seller: null` is the shared no-seller cart (admin-owned listings). Never creates a cart — an empty result
+is `{"item_count": 0, "carts": []}`, not an error.
 
 ### Add to cart — `POST /buyer/cart/items/`
 
@@ -220,12 +262,66 @@ row entirely rather than flagging it (there is nothing to "buy later" from a hid
 Always `204`, whether or not it was actually saved — a toggle button on the frontend never needs to check first.
 Scoped to the logged-in buyer's own favourites (nothing to leak either way, since the response carries no detail).
 
-## 5. Not built yet
+## 5. Jobs — post work and hire — `/api/v1/buyer/jobs/...`
+
+Needs a buyer token. A job is a request for work that sellers **bid** on, instead of something bought outright.
+It skips moderation entirely — it's `open_for_bidding` the instant it's created. Full reference (the complete
+state machine, the seller and admin sides, every error case):
+[`listing-complete-guide.md`](listing-complete-guide.md) section 16.
+
+| Route | What |
+|---|---|
+| `POST /buyer/jobs/` | post a job — category, title, description and at least one budget option (`skus`) |
+| `GET /buyer/jobs/` | my jobs (page-based paging) |
+| `GET /buyer/jobs/{id}/` | detail, including `accepted_bid` once one is accepted |
+| `PATCH /buyer/jobs/{id}/` | edit, or move `status` (pause/reopen/cancel) |
+| `GET /buyer/jobs/{id}/bids/` | every bid placed on it, any status |
+| `POST /buyer/jobs/{id}/bids/{bid_id}/accept/` | hire that bidder |
+
+```json
+POST /buyer/jobs/
+{ "category": 29, "title": "Need a plumber", "description": "Leaking pipe under the basin.",
+  "skus": [ { "price_type": "fixed", "price": "1500" } ] }
+```
+
+`category`, `title`, `description` and at least one budget option (`skus`) are required — no budget is
+`{"skus": ["A job needs at least one budget option."]}`. The category must be an active **service** category.
+
+### Status moves
+
+| From | To | How |
+|---|---|---|
+| `open_for_bidding` | `draft` (pause), `cancelled` | `PATCH {"status": "draft"}` / `{"status": "cancelled"}` |
+| `draft` | `pending` | `PATCH {"status": "pending"}` (not straight back to `open_for_bidding` — `400`) |
+| `pending` | `open_for_bidding` (reopen) | `PATCH {"status": "open_for_bidding"}` |
+| `in_progress` | `completed` | `PATCH {"status": "completed"}` — the **only** field accepted here; anything else is `400` |
+
+Cancelling takes every live bid down with it (pending **or** accepted) as `cancelled`; a buyer **cannot** cancel
+an `in_progress` job themselves — only an admin can (with a mandatory reason).
+
+### Accepting a bid
+
+```json
+POST /buyer/jobs/42/bids/7/accept/
+{ "price_tier_id": 12 }
+```
+`price_tier_id` only needed when that bid quoted more than one price option. This creates an **Order directly**
+(no cart, `status: "in_progress"`), auto-rejects the job's other pending bids, and moves the job to `in_progress`:
+
+```json
+{ "bid": { "id": 7, "status": "accepted", "accepted_price_tier": { "id": 12, "...": "..." }, "...": "..." },
+  "order": { "id": 301, "status": "in_progress", "payable": "1300.00" } }
+```
+
+Marking the job `completed` afterwards carries the accepted bid and its Order to `completed` too.
+
+## 6. Not built yet
 
 - **OTP / phone and email verification.** `phone_verified_at` and `email_verified_at` stay empty for everyone; there is no code sent and no check.
 - **Forgot / reset password** and **change password** for a buyer.
 - **Rate limiting** on the public sign-up and login endpoints: put a limit in front of them before launch.
-- **The buyer's own profile API** (view and edit my profile, add documents) and checkout (Stripe/bKash): the next Buyer Panel steps.
+- **The buyer's own profile API** (view and edit my profile, add documents) and checkout for products/gigs (Stripe/bKash) — a job's Order is already created on bid acceptance (§5), just not paid for yet.
 
-Tests: `scripts/smoke/buyer_register_smoke.py`, `scripts/smoke/buyer_cart_smoke.py`, `scripts/smoke/buyer_favourites_smoke.py`.
-Postman: `Egoola-BuyerApp` → **Buyer sign-up and login**, **Cart**, **Favourites**.
+Tests: `scripts/smoke/buyer_register_smoke.py`, `scripts/smoke/buyer_cart_smoke.py`, `scripts/smoke/buyer_favourites_smoke.py`,
+`scripts/smoke/buyer_job_smoke.py`, `scripts/smoke/bid_accept_smoke.py`.
+Postman: `Egoola-BuyerApp` → **Buyer sign-up and login**, **Cart**, **Favourites**, **Jobs**.
