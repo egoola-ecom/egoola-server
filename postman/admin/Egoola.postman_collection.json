@@ -98,6 +98,56 @@
       "key": "bid_tier1_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "pg_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cod_gateway_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "aord_seller_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "aord_listing_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "aord_sku_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "aord_buyer_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "aord_address_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "aord_cart_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "aord_order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "aord_thana_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -885,7 +935,7 @@
                     }
                   ]
                 },
-                "description": "Admin-only. Light rows (no media). Filters: search, status, country, state, city, thana, email_verified, phone_verified, created_from, created_to — combine freely. Paginated with limit/offset. Full detail (media, address, skills) is on Retrieve Buyer. See docs/buyer-management-guide.md."
+                "description": "Admin-only. Light rows (no media). Filters: search, status, country, state, city, thana, email_verified, phone_verified, created_from, created_to — combine freely. Paginated with limit/offset. Full detail (media, address, skills) is on Retrieve Buyer. See docs/admin/buyer-management-guide.md."
               },
               "event": [
                 {
@@ -1051,11 +1101,11 @@
     },
     {
       "name": "Carts & Wishlists (admin)",
-      "description": "Admin, read-only oversight of buyers' carts and wishlists — no create/update/delete here, buyers manage their own through the buyer-facing API (see Egoola-BuyerApp). Needs an Admin token (super-admin or plain admin, both work). See docs/cart-wishlist-admin-guide.md.",
+      "description": "Admin, read-only oversight of buyers' carts and wishlists — no create/update/delete here, buyers manage their own through the buyer-facing API (see Egoola-BuyerApp). Needs an Admin token (super-admin or plain admin, both work). See docs/admin/cart-wishlist-admin-guide.md.",
       "item": [
         {
           "name": "Carts",
-          "description": "Read-only (list + detail): every buyer's cart. A cart never spans sellers — every row belongs to exactly one seller, or to none (admin-owned listings). See docs/cart-wishlist-admin-guide.md section 1.",
+          "description": "Read-only (list + detail): every buyer's cart. A cart never spans sellers — every row belongs to exactly one seller, or to none (admin-owned listings). See docs/admin/cart-wishlist-admin-guide.md section 1.",
           "item": [
             {
               "name": "List carts",
@@ -1167,7 +1217,7 @@
         },
         {
           "name": "Favourites",
-          "description": "Read-only (list + detail): every buyer's saved listing, regardless of whether it is still publicly visible — see `listing_visible`. See docs/cart-wishlist-admin-guide.md section 2.",
+          "description": "Read-only (list + detail): every buyer's saved listing, regardless of whether it is still publicly visible — see `listing_visible`. See docs/admin/cart-wishlist-admin-guide.md section 2.",
           "item": [
             {
               "name": "List favourites",
@@ -1917,6 +1967,935 @@
         }
       ],
       "description": "Admin oversight of every bid, plus \"do everything\": create a bid on any seller's behalf, accept one on the buyer's behalf, or undo an already-accepted hire. A job itself (create on a buyer's behalf, the admin-only `in_progress -> cancelled` move) is the **Jobs** folder in `Egoola-Listing.postman_collection.json`. Full reference: `docs/job-bidding-guide.md`. Order oversight (a job's hire creates one directly, no cart) isn't browsable via API yet — the next step."
+    },
+    {
+      "name": "Payment Gateways (admin)",
+      "description": "Admin CRUD for the ways a buyer can pay at checkout. Only Cash on Delivery exists today (seeded). No retrieve — the list row already carries everything. See docs/admin/admin-payment-gateway-api-guide.md.",
+      "item": [
+        {
+          "name": "List payment gateways",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json().results; const cod = r.find(g => g.slug === 'cash-on-delivery'); if (cod) pm.collectionVariables.set('cod_gateway_id', cod.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/payment-gateways/?is_active=&search=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "payment-gateways",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "is_active",
+                  "value": "",
+                  "description": "true | false"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "matches name or slug"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create a gateway",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('slug auto-generated', () => pm.expect(pm.response.json().slug).to.eql('postman-gateway'));",
+                  "pm.collectionVariables.set('pg_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/payment-gateways/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "payment-gateways",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Gateway\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Duplicate name -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/payment-gateways/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "payment-gateways",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Gateway\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Rename (slug regenerates)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('slug regenerated', () => pm.expect(pm.response.json().slug).to.eql('postman-gateway-renamed'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/payment-gateways/{{pg_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "payment-gateways",
+                "{{pg_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Gateway Renamed\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Deactivate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('is_active is false', () => pm.expect(pm.response.json().is_active).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/payment-gateways/{{pg_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "payment-gateways",
+                "{{pg_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/payment-gateways/{{pg_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "payment-gateways",
+                "{{pg_id}}",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Unknown id -> 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/payment-gateways/999999/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "payment-gateways",
+                "999999",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders (admin)",
+      "description": "Full oversight of every product order: list, detail (buyer, seller, items, address, payment + both status histories), and PATCH to any status at any time, no transition check. Seeds its own demo seller/buyer/listing/order first. See docs/admin/admin-order-api-guide.md.",
+      "item": [
+        {
+          "name": "[Admin step] Create a seller",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('aord_seller_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman AOrd Seller\",\n  \"email\": \"postman.aord.seller.{{$timestamp}}@example.com\",\n  \"phone\": \"+88012{{$timestamp}}\",\n  \"password\": \"Sell@12345\"\n}"
+            }
+          }
+        },
+        {
+          "name": "[Admin step] Create an approved product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('aord_listing_id', pm.response.json().id);",
+                  "pm.collectionVariables.set('aord_sku_id', pm.response.json().skus[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/listings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "listings",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": 18,\n  \"catalog_type\": \"product\",\n  \"listing_type\": \"general\",\n  \"status\": \"approved\",\n  \"title\": \"Postman AOrd Product {{$timestamp}}\",\n  \"description\": \"d\",\n  \"seller\": \"{{aord_seller_id}}\",\n  \"price\": \"90\",\n  \"stock_qty\": 50\n}"
+            }
+          }
+        },
+        {
+          "name": "[Buyer step] Register a demo buyer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('aord_buyer_token', pm.response.json().access);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/buyer/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "buyer",
+                "register",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman AOrd Buyer\",\n  \"phone\": \"+88013{{$timestamp}}\",\n  \"password\": \"Buy@12345\"\n}"
+            }
+          }
+        },
+        {
+          "name": "[Setup] Create a thana (country 126 / state 13 / city 8 have no seeded thana)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('aord_thana_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/geography/thanas/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "geography",
+                "thanas",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Thana {{$timestamp}}\",\n  \"country\": 126,\n  \"state\": 13,\n  \"city\": 8\n}"
+            }
+          }
+        },
+        {
+          "name": "[Buyer step] Save an address",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('aord_address_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{aord_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/addresses/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "addresses",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman AOrd Addr\",\n  \"phone\": \"+8801711110099\",\n  \"country\": 126,\n  \"state\": 13,\n  \"city\": 8,\n  \"thana\": \"{{aord_thana_id}}\",\n  \"address_line1\": \"House 1\"\n}"
+            }
+          }
+        },
+        {
+          "name": "[Buyer step] Add to cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{aord_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/items/?type=product",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                "items",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "product"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing\": \"{{aord_listing_id}}\",\n  \"listing_sku\": \"{{aord_sku_id}}\",\n  \"qty\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "[Buyer step] Find the cart id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const carts = pm.response.json().carts; if (carts && carts.length) pm.collectionVariables.set('aord_cart_id', carts[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{aord_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/cart/summary/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "cart",
+                "summary",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Buyer step] Checkout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('payment status is due', () => pm.expect(pm.response.json().payment_status).to.eql('due'));",
+                  "pm.collectionVariables.set('aord_order_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{aord_buyer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/buyer/orders/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buyer",
+                "orders",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cart\": \"{{aord_cart_id}}\",\n  \"address\": \"{{aord_address_id}}\",\n  \"payment_gateway\": \"{{cod_gateway_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List orders",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('cursor shape', () => pm.expect(pm.response.json()).to.have.all.keys('next','previous','results'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/orders/?buyer=&seller=&status=&order_type=&created_from=&created_to=&search=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "orders",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "buyer",
+                  "value": "",
+                  "description": "exact buyer id"
+                },
+                {
+                  "key": "seller",
+                  "value": "",
+                  "description": "exact seller id"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "pending | accepted | rejected | in_progress | shipped | delivered | cancelled | ..."
+                },
+                {
+                  "key": "order_type",
+                  "value": "",
+                  "description": "product | service | job"
+                },
+                {
+                  "key": "created_from",
+                  "value": "",
+                  "description": "YYYY-MM-DD"
+                },
+                {
+                  "key": "created_to",
+                  "value": "",
+                  "description": "YYYY-MM-DD"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "buyer name/phone, or seller name"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Retrieve a order (detail, with payment + both histories)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('payment nested', () => pm.expect(pm.response.json().payment).to.not.be.null);",
+                  "pm.test('status_histories nested', () => pm.expect(pm.response.json().status_histories).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/orders/{{aord_order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "orders",
+                "{{aord_order_id}}",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin override: jump straight to delivered (payment auto-flips to paid)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status is delivered', () => pm.expect(pm.response.json().status).to.eql('delivered'));",
+                  "pm.test('payment flipped to paid', () => pm.expect(pm.response.json().payment.status).to.eql('paid'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/orders/{{aord_order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "orders",
+                "{{aord_order_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"delivered\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Admin override: move it back to pending (no restriction)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/orders/{{aord_order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "orders",
+                "{{aord_order_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"pending\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Admin reject with a reason",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('rejected_reason recorded', () => pm.expect(pm.response.json().rejected_reason).to.eql('Postman admin reason'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/orders/{{aord_order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "orders",
+                "{{aord_order_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"rejected\",\n  \"reason\": \"Postman admin reason\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Unknown id -> 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/orders/999999/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "orders",
+                "999999",
+                ""
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }
