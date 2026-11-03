@@ -17,6 +17,46 @@ with its own files API for the thumbnail and gallery (section 6.8).
 
 ---
 
+## Table of contents
+
+- [1. The big picture](#1-the-big-picture)
+  - [A seller's life](#a-sellers-life)
+  - [Two switches, not one](#two-switches-not-one)
+  - [What each state can do](#what-each-state-can-do)
+  - [The seller-facing endpoints](#the-seller-facing-endpoints)
+- [2. Public lookups for the sign-up form (no login)](#2-public-lookups-for-the-sign-up-form-no-login)
+- [3. Seller sign-up (public)](#3-seller-sign-up-public)
+  - [Fields](#fields)
+  - [Documents (`media_for` + `media_file`)](#documents-media_for-media_file)
+  - [Business profile (`info`, optional)](#business-profile-info-optional)
+  - [Example (browser code)](#example-browser-code)
+  - [Success — `201`](#success-201)
+  - [Errors — `400`](#errors-400)
+- [4. Login](#4-login)
+- [5. The seller's own profile — `/api/v1/seller/me/`](#5-the-sellers-own-profile-apiv1sellerme)
+  - [5.1 Read — `GET /api/v1/seller/me/`](#51-read-get-apiv1sellerme)
+  - [5.2 Edit — `PATCH /api/v1/seller/me/`](#52-edit-patch-apiv1sellerme)
+  - [5.3 Documents](#53-documents)
+  - [5.4 Resubmit after a rejection — `POST /api/v1/seller/me/resubmit/`](#54-resubmit-after-a-rejection-post-apiv1sellermeresubmit)
+  - [5.5 Change password — `POST /api/v1/seller/me/change-password/`](#55-change-password-post-apiv1sellermechange-password)
+- [6. Listings: create and manage my products](#6-listings-create-and-manage-my-products)
+  - [6.1 Lookups for the form (read-only)](#61-lookups-for-the-form-read-only)
+  - [6.2 Create: `POST /api/v1/seller/listings/`](#62-create-post-apiv1sellerlistings)
+  - [6.3 Same title rule](#63-same-title-rule)
+  - [6.4 List and detail](#64-list-and-detail)
+  - [6.5 Edit: `PATCH` or `PUT /api/v1/seller/listings/{id}/`](#65-edit-patch-or-put-apiv1sellerlistingsid)
+  - [6.6 Files](#66-files)
+  - [6.7 Errors](#67-errors)
+  - [6.8 Thumbnail and gallery files (products and gigs)](#68-thumbnail-and-gallery-files-products-and-gigs)
+- [6b. Gigs: create and manage my gigs](#6b-gigs-create-and-manage-my-gigs)
+- [6c. Jobs: the board and bidding](#6c-jobs-the-board-and-bidding)
+- [7. What a seller who cannot operate can NOT do](#7-what-a-seller-who-cannot-operate-can-not-do)
+- [8. Rules in one place](#8-rules-in-one-place)
+- [9. Not built yet](#9-not-built-yet)
+- [10. Try it](#10-try-it)
+
+---
+
 ## 1. The big picture
 
 ### A seller's life
@@ -632,9 +672,46 @@ send `price` and `price_type` on the gig itself. Lookups: `GET /seller/lookups/c
 
 ---
 
+## 6c. Jobs: the board and bidding
+
+A **job** is a buyer's request for work that sellers compete for by **bidding**, not buying outright. Needs a
+seller who can operate (verified **and** active) — the usual `403` otherwise. Full reference (the state machine,
+every error, the buyer and admin sides): [`listing-complete-guide.md`](listing-complete-guide.md) section 16. In short:
+
+| Call | What it does |
+|---|---|
+| `GET /seller/jobs/` | the job board: open jobs only, cursor-paged. Filters: `category`, location, `price_type`, `budget_min`/`budget_max`, `delivery_days_max`, `urgent`, dates |
+| `GET /seller/jobs/{id}/` | detail (any open job, or one I've bid on), with my own bids on it |
+| `GET /seller/jobs/mine/` | jobs I've bid on, any status. `?won=true` narrows it to jobs I actually got (my own bid is `accepted`/`completed`) |
+| `POST /seller/jobs/{job_id}/bids/` | place a bid — at least one price tier, only on an open job, only one live bid of mine per job |
+| `GET /seller/bids/` | my bids, cursor-paged, job details embedded. Filters: `status`, `listing` |
+| `GET /seller/bids/{id}/` | one bid |
+| `PATCH /seller/bids/{id}/` | edit while `pending` (price tiers reconcile like a gig's packages), or `{"status": "cancelled"}` |
+
+```json
+POST /seller/jobs/42/bids/
+{ "description": "I can start tomorrow", "price_tiers": [ { "price_type": "fixed", "price": "1300" } ] }
+```
+
+A bid needs at least one price tier (`400` without), the job must be `open_for_bidding` (`400` otherwise), and
+this seller must have no other **live** bid on it already (`400` "You already have a live bid on this job.").
+Editing (`PATCH`, only while `pending`) reconciles `price_tiers` like a gig's packages — an item with an `id`
+updates that tier, one without adds a new tier, a tier not mentioned is left alone:
+
+```json
+PATCH /seller/bids/7/
+{ "price_tiers": [ { "id": 12, "price": "1400" }, { "price_type": "hourly", "price": "200" } ] }
+```
+
+Acceptance and rejection are the buyer's/admin's call, not the seller's (section 16.6, 16.11 of
+`listing-complete-guide.md`). After a bid is cancelled (`{"status": "cancelled"}`, the only status move a seller
+can make), the seller may place a fresh one on the same job — a new historical row, not a reuse of the old one.
+
+---
+
 ## 7. What a seller who cannot operate can NOT do
 
-Everything outside `/seller/me/...`. Products (section 6) and gigs (section 6b) need a seller who **can operate** (verified **and** active), and so will orders, wallet and
+Everything outside `/seller/me/...`. Products (section 6), gigs (section 6b) and the job board/bidding (section 6c) need a seller who **can operate** (verified **and** active), and so will orders, wallet and
 withdrawals when they are built. Everyone else gets `403` with a message that says which switch is holding them back:
 
 - not verified yet (unverified, pending, rejected):
@@ -663,6 +740,7 @@ Admin endpoints (`/accounts/...`) are always `403` for a seller, whatever their 
 | Identity documents (NID, birth certificate) locked once `verified`; at least one NID always | `/seller/me/` |
 | Products and gigs: only a seller who can operate; always my own; new = `pending`; a save on a rejected / changes-requested one = `pending` again (a files change does not change the status); an approved one stays approved; no delete; one title per seller per kind; products and gigs are separate endpoints (the other kind is `404`) | `/seller/listings/`, `/seller/gigs/` |
 | A gig is priced by packages: one SKU per `price_type` (the rate; the buyer chooses the duration when ordering); no options, stock or quantity prices | `/seller/gigs/` |
+| A job is hired through bidding: the board shows open jobs only; one live bid (pending/accepted) per seller per job; price tiers reconcile like a gig's packages; accept/reject is the buyer's/admin's call | `/seller/jobs/`, `/seller/bids/` |
 | Only a `rejected` seller can resubmit; result is `pending` + back in the queue | `/seller/me/resubmit/` |
 | Every real profile change is logged (before and after) for admins | change log |
 
@@ -681,8 +759,9 @@ Do not build screens against these:
   one decision for the whole seller.
 - **Seeing the change history as a seller:** only admins see it, on the seller detail.
 - **Deleting or hiding a listing as a seller**, saving a seller draft, bulk upload, and any message to the seller when a listing is approved or rejected.
-- **The other seller features** (for sellers who can operate): hire requests on a gig (accept, decline, deliver), the job board and bidding,
-  orders, the wallet and withdrawals: the next Phase 3 steps. Products, gigs and their thumbnails are built.
+- **The other seller features** (for sellers who can operate): hire requests on a **gig** (accept, decline, deliver — a
+  direct hire, not the job board), orders, the wallet and withdrawals: the next Phase 3 steps. Products, gigs, their
+  thumbnails, and the job board/bidding (section 6c) are built.
 
 ---
 
@@ -690,8 +769,8 @@ Do not build screens against these:
 
 1. Start the server: `uv run manage.py runserver 8000`.
 2. Import `postman/Egoola-SellerApp.postman_collection.json` and `postman/Egoola-Local.postman_environment.json`.
-3. Run the folders in order: Setup (admin token), Public lookups, Seller sign-up, Seller — own profile, After approval, **Seller listings**, After review.
-   Requests named **[Admin step]** are not seller APIs: they play the admin so you can see what a seller sees after an
-   approval, a rejection and a suspension. In every request with a file row, choose a real JPG, PNG or PDF in Postman.
+3. Run the folders in order: Setup (admin token), Public lookups, Seller sign-up, Seller — own profile, After approval, **Seller listings**, **Seller gigs**,
+   **Seller jobs & bidding**, After review. Requests named **[Admin step]** / **[Buyer step]** are not seller APIs: they play another actor so you can see
+   what a seller sees (an approval, a rejection, a suspension, a buyer posting a job). In every request with a file row, choose a real JPG, PNG or PDF in Postman.
 
-Or from a terminal: `scripts/smoke/seller_self_smoke.sh`, `seller_onboarding_smoke.sh`, `public_geography_smoke.sh`.
+Or from a terminal: `scripts/smoke/seller_self_smoke.sh`, `seller_onboarding_smoke.sh`, `public_geography_smoke.sh`, `seller_job_smoke.py`.

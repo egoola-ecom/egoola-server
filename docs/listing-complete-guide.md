@@ -3,13 +3,14 @@
 Everything about listings in one place: what a listing is, what it is connected to
 (categories, brands, attributes, SKUs, geography, owners), what you must create first,
 how to create every kind of listing, and what happens to it afterwards (media, moderation, edits, delete).
-It covers **both sides**: the admin (sections 1-12) and the **seller** who creates and manages their own listings (section 13), and it includes **gigs** (section 14) and the **thumbnail** (section 15).
+It covers **both sides**: the admin (sections 1-12) and the **seller** who creates and manages their own listings (section 13), and it includes **gigs** (section 14), the **thumbnail** (section 15) and **jobs & bidding** (section 16).
 A plain-language version for everyone, with no API details, is [`Egoola_Listing_Guide.md`](Egoola_Listing_Guide.md).
 
 > **Products, gigs and jobs have separate APIs.** Sections 1–13 are about **products** (`/catalog/listings/`, `/seller/listings/`) and the rules
 > every listing shares (SKUs, moderation, change logs). A **gig** (a seller's service offer) has its own endpoints (`/catalog/gigs/`,
 > `/seller/gigs/`) and its own price model: **section 14**. The **thumbnail** (cover picture of a product or gig) is **section 15**. A **job** (a
-> buyer's request) stays on `/catalog/listings/` until the Job step. The sections say where a rule differs.
+> buyer's request, hired through bidding, never moderated) has its own endpoints for the buyer, the seller and the admin, plus the bidding
+> endpoints: **section 16**. The sections say where a rule differs.
 
 This guide explains the whole picture. For the exact request and response of one
 topic, the other guides go deeper:
@@ -22,12 +23,76 @@ topic, the other guides go deeper:
 | Category tree and parent chain | [category-tree-api-guide.md](category-tree-api-guide.md) |
 | Country / state / city / thana | [geography-api-guide.md](geography-api-guide.md) |
 | Login, tokens, errors, pagination | [frontend-api-guide.md](frontend-api-guide.md) |
-| Postman | `postman/Egoola-Listing.postman_collection.json` (listings, **Gigs**, **Listing files**), `postman/Egoola-Attribute.postman_collection.json` (admin); `postman/Egoola-SellerApp.postman_collection.json` → **Seller listings**, **Seller gigs** (seller) |
+| Postman | `postman/Egoola-Listing.postman_collection.json` (listings, **Gigs**, **Jobs**, **Listing files**), `postman/Egoola-Attribute.postman_collection.json` (admin); `postman/Egoola-SellerApp.postman_collection.json` → **Seller listings**, **Seller gigs**, **Seller jobs & bidding** (seller); `postman/Egoola-BuyerApp.postman_collection.json` → **Jobs** (buyer); `postman/Egoola.postman_collection.json` → **Bidding** (admin) |
 
-Base URL: `http://127.0.0.1:8000/api/v1`. Sections 1-12 are the **admin** product endpoints (`/catalog/...`; gigs: section 14): every call needs
-`Authorization: Bearer <admin access token>`; seller and buyer tokens get `403`; no token gets `401`. The **seller** endpoints
-(`/seller/listings/...`, section 13; `/seller/gigs/...`, section 14.5) need a seller token instead. The ids in the examples come from the demo
+Base URL: `http://127.0.0.1:8000/api/v1`. Sections 1-12 are the **admin** product endpoints (`/catalog/...`; gigs: section 14; jobs: section 16):
+every call needs `Authorization: Bearer <admin access token>`; seller and buyer tokens get `403`; no token gets `401`. The **seller** endpoints
+(`/seller/listings/...`, section 13; `/seller/gigs/...`, section 14.5; `/seller/jobs/...` and `/seller/bids/...`, section 16.8-16.9) need a seller
+token instead. The **buyer** job endpoints (`/buyer/jobs/...`, section 16.5-16.6) need a buyer token. The ids in the examples come from the demo
 database, yours will differ — always load ids from the list APIs.
+
+---
+
+## Table of contents
+
+- [1. The big picture](#1-the-big-picture)
+  - [How the parts are connected, and what happens on delete](#how-the-parts-are-connected-and-what-happens-on-delete)
+  - [What is *not* connected](#what-is-not-connected)
+- [2. What to create first (in this order)](#2-what-to-create-first-in-this-order)
+  - [2.1 Category](#21-category)
+  - [2.2 Measurement](#22-measurement)
+  - [2.3 Brand](#23-brand)
+  - [2.4 Attributes and values](#24-attributes-and-values)
+  - [2.5 Owner (seller or buyer)](#25-owner-seller-or-buyer)
+  - [2.6 Location](#26-location)
+- [3. Product, gig or job? Which fields apply](#3-product-gig-or-job-which-fields-apply)
+- [4. Creating a listing — step by step](#4-creating-a-listing-step-by-step)
+  - [4.1 The simplest listing (no options, no owner)](#41-the-simplest-listing-no-options-no-owner)
+  - [4.2 A product with options (sizes, colours, storage ...)](#42-a-product-with-options-sizes-colours-storage)
+  - [4.3 A branded product](#43-a-branded-product)
+  - [4.4 A wholesale product with quantity prices](#44-a-wholesale-product-with-quantity-prices)
+  - [4.5 A service: it is a gig](#45-a-service-it-is-a-gig)
+  - [4.6 A buyer's job request](#46-a-buyers-job-request)
+  - [4.7 Photos, videos and the thumbnail](#47-photos-videos-and-the-thumbnail)
+  - [4.8 Choosing the status when you create](#48-choosing-the-status-when-you-create)
+- [5. Prices, discounts, stock — how SKUs work](#5-prices-discounts-stock-how-skus-work)
+- [6. The complete field reference](#6-the-complete-field-reference)
+  - [6.1 Listing fields (create and update)](#61-listing-fields-create-and-update)
+  - [6.2 What comes back](#62-what-comes-back)
+- [7. Reading listings](#7-reading-listings)
+- [8. After creation: moderation](#8-after-creation-moderation)
+  - [The pending list (admin)](#the-pending-list-admin)
+- [9. Editing and deleting](#9-editing-and-deleting)
+- [10. Common errors](#10-common-errors)
+- [11. A checklist for the admin "Create listing" screen](#11-a-checklist-for-the-admin-create-listing-screen)
+- [12. Quick answers](#12-quick-answers)
+- [13. Sellers: creating and managing their own listings](#13-sellers-creating-and-managing-their-own-listings)
+- [14. Gigs (a seller's service offers)](#14-gigs-a-sellers-service-offers)
+  - [14.1 Product, gig, job: three kinds, three APIs](#141-product-gig-job-three-kinds-three-apis)
+  - [14.2 What a gig is](#142-what-a-gig-is)
+  - [14.3 Packages: gig SKUs](#143-packages-gig-skus)
+  - [14.4 Admin gig endpoints — `/catalog/gigs/`](#144-admin-gig-endpoints-cataloggigs)
+  - [14.5 Seller gig endpoints — `/seller/gigs/`](#145-seller-gig-endpoints-sellergigs)
+  - [14.6 Product, gig and job at a glance](#146-product-gig-and-job-at-a-glance)
+  - [14.7 Orders and carts (what changed for gigs)](#147-orders-and-carts-what-changed-for-gigs)
+  - [14.8 Database changes (migrations `catalog 0011`–`0013`, `orders 0003`)](#148-database-changes-migrations-catalog-00110013-orders-0003)
+  - [14.9 Not built yet](#149-not-built-yet)
+- [15. Files: thumbnail and gallery (listings and gigs)](#15-files-thumbnail-and-gallery-listings-and-gigs)
+- [16. Jobs (work a buyer asks for, hired through bidding)](#16-jobs-work-a-buyer-asks-for-hired-through-bidding)
+  - [16.1 How a job differs from a product or a gig](#161-how-a-job-differs-from-a-product-or-a-gig)
+  - [16.2 The state machine — every case](#162-the-state-machine-every-case)
+  - [16.3 Bids: statuses, and the one-live-bid rule](#163-bids-statuses-and-the-one-live-bid-rule)
+  - [16.4 Price tiers — a bid's pricing (and a job's budget)](#164-price-tiers-a-bids-pricing-and-a-jobs-budget)
+  - [16.5 Buyer: post and manage jobs — `/api/v1/buyer/jobs/...`](#165-buyer-post-and-manage-jobs-apiv1buyerjobs)
+  - [16.6 Buyer: bids on my job, and accepting one](#166-buyer-bids-on-my-job-and-accepting-one)
+  - [16.7 What an accepted bid becomes: the Order](#167-what-an-accepted-bid-becomes-the-order)
+  - [16.8 Seller: the job board and my bids](#168-seller-the-job-board-and-my-bids)
+  - [16.9 Seller: placing, editing and cancelling a bid](#169-seller-placing-editing-and-cancelling-a-bid)
+  - [16.10 Admin: the job panel — `/api/v1/catalog/jobs/...`](#1610-admin-the-job-panel-apiv1catalogjobs)
+  - [16.11 Admin: the bid panel — `/api/v1/bidding/bids/...`](#1611-admin-the-bid-panel-apiv1biddingbids)
+  - [16.12 Errors reference](#1612-errors-reference)
+  - [16.13 Not built yet](#1613-not-built-yet)
+- [17. Tests](#17-tests)
 
 ---
 
@@ -193,7 +258,7 @@ Any level can be left out. Example: country 126 (Bangladesh), state 13 (Chittago
 
 | | Product (`catalog_type = "product"`) | Gig (`service` + `seller_offer`) | Job (`service` + `buyer_request`) |
 |---|---|---|---|
-| Admin endpoint | `/catalog/listings/` | `/catalog/gigs/` | `/catalog/listings/` (for now) |
+| Admin endpoint | `/catalog/listings/` | `/catalog/gigs/` | `/catalog/jobs/` |
 | Category type | product | service | service |
 | `listing_type` | `general` `used` `village` `retail` `wholesale` `brand` | not used | not used |
 | `posted_by_role` | `seller_offer` or empty | always `seller_offer` (set by the endpoint) | `buyer_request` |
@@ -310,15 +375,10 @@ section 14.
 
 ### 4.6 A buyer's job request
 
-```json
-{
-  "category": 30, "catalog_type": "service", "posted_by_role": "buyer_request", "buyer": 4,
-  "title": "Need a plumber for bathroom pipe repair", "description": "Leaking pipe under the basin.",
-  "price": "1500.00", "price_type": "hourly", "urgent": true, "delivery_days": 1
-}
-```
-Here `price` is the buyer's budget (one default SKU, with an optional `price_type`). Do not send a `seller`. A job request has no product
-fields (`brand`, `model`, `listing_type`, ...) and no SKU `description`.
+A job has its **own** endpoints now, not this one — `POST /catalog/jobs/` (admin, on any buyer's behalf) or
+`POST /buyer/jobs/` (buyer, for themselves). Sending `posted_by_role: "buyer_request"` here is `400` ("A buyer's
+job request has its own endpoint: /catalog/jobs/ (admin) or /buyer/jobs/ (buyer)."). Full reference, including the
+status/bidding state machine, the seller's job board and the admin bid panel: section 16.
 
 ### 4.7 Photos, videos and the thumbnail
 
@@ -572,10 +632,10 @@ There is no restore endpoint yet.
 
 ## 11. A checklist for the admin "Create listing" screen
 
-1. **Kind:** this form is for **products** (and, for now, job requests: service + `buyer_request`). A gig has its own form: section 14. Then choose `listing_type` (products).
+1. **Kind:** this form is for **products** only now. A gig has its own form: section 14. A job request has its own form too: section 16.10 (admin) / 16.5 (buyer). Then choose `listing_type`.
 2. **Category:** show the tree (`/categories/tree/?type=<kind>`), only active ones, and send the chosen id.
-3. **Brand** (required for `brand`), **measurement**, **model / origin / warranty** (products), or **delivery / urgent** (job requests).
-4. **Owner:** a seller (offer) or a buyer (request), or none.
+3. **Brand** (required for `brand`), **measurement**, **model / origin / warranty**.
+4. **Owner:** a seller, or none.
 5. **Location:** cascading dropdowns (country → state → city → thana), each filtered by the one above.
 6. **Options?** If yes, pick attributes and values (`/attributes/?is_active=true`, values come with each attribute), generate every combination as a row with
    `sku` code, `price`, `discounted_price`, discount dates, `stock_qty`, and send them as `skus`. If no, show one price box and send `price` (+ stock).
@@ -673,7 +733,7 @@ All three are rows of the one `listings` table. Each kind has its own endpoints;
 |---|---|---|---|
 | **Product** | `catalog_type = product` | `/catalog/listings/` | `/seller/listings/` |
 | **Gig** (a seller's service offer) | `catalog_type = service` and `posted_by_role = seller_offer` | `/catalog/gigs/` | `/seller/gigs/` |
-| **Job** (a buyer's request for work) | `catalog_type = service` and `posted_by_role = buyer_request` | `/catalog/listings/` for now (the Job step will give it its own API) | not built yet |
+| **Job** (a buyer's request for work, bid on by sellers) | `catalog_type = service` and `posted_by_role = buyer_request` | `/catalog/jobs/` | not on `/seller/listings/` — see `/seller/jobs/` in section 16.8 |
 
 What the server checks, on every call:
 
@@ -681,7 +741,8 @@ What the server checks, on every call:
   `seller_offer`: you do not need to send them (sending them is fine when they match; a different value is `400`).
 - `catalog_type` and `posted_by_role` **cannot be changed** after the listing is created (`400`).
 - `/catalog/listings/` refuses a seller's service offer: `400 {"catalog_type": ["A seller's service offer is a gig: use the gig endpoints (/catalog/gigs/). ..."]}`.
-  It also refuses a product with `posted_by_role = buyer_request`.
+  It also refuses `posted_by_role = buyer_request` (a job has its own endpoint — section 16), on a product or otherwise.
+  A job id is `404` on `/catalog/listings/` and `/catalog/gigs/` alike.
 - Fields of another kind are refused with `400` (an empty value is fine). On a gig: `listing_type`, `brand`, `model`, `origin`, `origin_bn`,
   `warranty`, `warranty_bn`, `measurement`, `min_order_qty`, `condition_note`, `condition_note_bn`, `attributes`, `price_tiers`:
   `{"brand": "Not available here."}`. On a product: `delivery_days`, `urgent`, `package_includes`, `package_includes_bn`, `available_from`,
@@ -918,7 +979,7 @@ extra SKUs of an old gig were hidden (`is_active = false`), not deleted. The mig
 ### 14.9 Not built yet
 
 - Buying or hiring a gig (cart, orders, payments) and the buyer's gig browsing: Phase 4.
-- The seller's hire requests on a gig (accept, decline, deliver) and the job board and bidding: the next Phase 3 rows.
+- The seller's hire requests **on a gig** (accept, decline, deliver — a direct hire, separate from job bidding, which is built: section 16): the next Phase 3 rows.
 - A link from categories to gig packages, per-package delivery time (delivery days is on the gig), restoring a deleted gig, a gig draft.
 
 ---
@@ -980,9 +1041,394 @@ media_file:       <box.jpg>
 
 ---
 
-## 16. Tests
+## 16. Jobs (work a buyer asks for, hired through bidding)
+
+A **job** is a buyer's request for work (DB Re-Design doc, Listings + Section 3.6, "Bidding & Hiring"). It is a row
+of the same `listings` table as products and gigs (`catalog_type = service`, `posted_by_role = buyer_request`),
+but unlike either of them it is never bought outright — sellers compete for it with **bids**, and the buyer (or
+an admin) picks a winner. This section is the complete reference: the state machine, every endpoint for the
+buyer, the seller and the admin, every error, and what happens to the `bids`, `bidPriceTiers` and `orders` tables
+along the way. Plain-language overview: `Egoola_Listing_Guide.md` (to be extended). Postman:
+`Egoola-BuyerApp` → **Jobs**, `Egoola-SellerApp` → **Seller jobs & bidding**, `Egoola-Listing` → **Jobs** (admin),
+`Egoola` → **Bidding** (admin). Smoke tests: `buyer_job_smoke.py`, `seller_job_smoke.py`, `bid_accept_smoke.py`,
+`admin_job_bid_smoke.py`.
+
+### 16.1 How a job differs from a product or a gig
+
+| | Product | Gig (seller's offer) | Job (buyer's request) |
+|---|---|---|---|
+| `catalog_type` / `posted_by_role` | `product` / — | `service` / `seller_offer` | `service` / `buyer_request` |
+| Who creates it | seller or admin | seller or admin | **buyer** or admin |
+| Owner field | `seller` | `seller` | `buyer` (`seller` stays `null` forever — enforced by the schema) |
+| Moderation | `pending → approved / rejected / changes_requested` | same as a product | **none** — skips straight to `open_for_bidding` |
+| How it's obtained | bought (cart → order; not built yet) | hired (cart → order; not built yet) | **bid on**, then one bid is **accepted** → an Order is created directly, no cart |
+| Admin endpoint | `/catalog/listings/` | `/catalog/gigs/` | `/catalog/jobs/` |
+| Seller endpoint | `/seller/listings/` | `/seller/gigs/` | `/seller/jobs/` (browse + bid), `/seller/bids/` |
+| Buyer endpoint | — (browsing only) | — (browsing only) | `/buyer/jobs/` |
+| Pricing | SKUs with options + stock | packages, one SKU per `price_type` | a **budget** (same SKU shape as a gig's packages, minus stock/options) on the job; a **bid** quotes its own price tiers back |
+
+A job id is `404` on `/catalog/listings/` and `/catalog/gigs/` (and the other way round); sending
+`posted_by_role: "buyer_request"` to either of those is `400`
+(`{"posted_by_role": ["A buyer's job request has its own endpoint: /catalog/jobs/ (admin) or /buyer/jobs/ (buyer)."]}`).
+
+### 16.2 The state machine — every case
+
+The shared `Listing.status` field (the same one products/gigs use for moderation) is reused for a job, but the
+values mean something different: there is no moderation queue, and `draft` / `pending` are a **pause/reopen**
+cycle instead.
+
+```
+                 ┌──────────────────┐
+   create ─────► │ open_for_bidding │ ◄────────────────────┐
+                 └─────────┬────────┘                      │
+          ┌────────────────┼────────────────┐              │ pending → open_for_bidding
+          ▼                ▼                 ▼              │          (reopen)
+     cancelled           draft        (a bid is accepted)  ┌┴─────────┐
+     (terminal)            │                   │           │ pending  │
+                            ▼                   │           └────┬─────┘
+                         pending ───────────────┘                ▲
+                            │                                     │
+                            └─────────────────────────────────────┘
+                                      (draft → pending)
+
+     in_progress ──► completed      buyer or admin: "mark complete"
+          │
+          └────────► cancelled      ADMIN ONLY, mandatory `note`
+```
+
+| Current status | May move to | Who | Notes |
+|---|---|---|---|
+| `open_for_bidding` | `open_for_bidding` (edit any field in place), `draft` (pause), `cancelled` | buyer or admin | pausing does not touch existing `pending` bids — they stay live |
+| `draft` | `draft`, `pending`, `cancelled` | buyer or admin | `draft → open_for_bidding` directly is refused (`400`) — must pass through `pending` |
+| `pending` | `pending`, `open_for_bidding` (reopen), `cancelled` | buyer or admin | |
+| `in_progress` | `in_progress` (no-op), `completed` | buyer or admin | **every other field is locked** — `400` ("This job has been hired — only an admin can edit it now (you may still mark it complete).") for a buyer sending anything else in the same request |
+| `in_progress` | `cancelled`, with a mandatory `note` | **admin only** | the only way to cancel a hired job; a buyer gets `400` trying this |
+| `completed`, `cancelled` | nothing | — | terminal |
+
+`open_for_bidding → in_progress` **never** happens through a status edit — only by accepting a bid (16.6, 16.11).
+Editing a job that is already `completed` or `cancelled` is always `400`
+(`"This job can no longer be edited (it's completed or cancelled)."`), whatever field is sent. An invalid move
+not listed above is `400 {"status": "Cannot move a job from '<from>' to '<to>'."}`.
+
+**What happens to the job's bids, case by case:**
+
+| Job event | Effect on its bids | Effect on the Order (if one exists) |
+|---|---|---|
+| Paused (`open_for_bidding → draft`) | untouched — pending bids stay live | — |
+| A bid is **accepted** | that bid → `accepted`; every other **pending** bid → `rejected` | one is **created** (16.7) |
+| **Cancelled**, from any status | every **live** bid (`pending` or `accepted`) → `cancelled`. A bid that had already lost earlier (`rejected`) **stays `rejected`** — nothing new happened to it | `cancelled`, `cancelled_reason` = the job's `note` |
+| Marked `completed` | the accepted bid → `completed` | `completed`, `completed_at` stamped |
+| Admin **rejects an already-accepted bid** (16.11) — not a job cancel | that one bid → `rejected`; bids that auto-rejected earlier when it was accepted **stay `rejected`** (sellers may place a fresh bid) | `cancelled`, `cancelled_reason` = the admin's note |
+
+The distinction between `cancelled` and `rejected` on a `Bid` is deliberate: `rejected` means the bid *was judged*
+— it lost to another one, or the hire was undone. `cancelled` means nothing was judged — the seller withdrew it,
+or the whole opportunity vanished when the job itself was cancelled.
+
+### 16.3 Bids: statuses, and the one-live-bid rule
+
+`Bid.status`: `pending → accepted / rejected / cancelled`, and `accepted → completed`. A `Bid` row is **never
+hard-deleted** — only its status changes, same "deactivate, don't delete" rule as everywhere else in this schema.
+
+A seller **can** have more than one historical `Bid` row against the same job over time: cancel one, place a
+genuinely new one later — that is a new row, not a reuse of the old one. What is **not** allowed is **two live
+bids** (`pending` or `accepted`) from the same seller on the same job **at once** — `400`
+("You already have a live bid on this job.") on create. This is enforced in the API, not a database constraint
+(there is no unique constraint on `(listing, bidder)`), because "live" depends on status, not the pair alone.
+
+### 16.4 Price tiers — a bid's pricing (and a job's budget)
+
+Both a job's budget and a seller's bid are priced the same way a gig's packages are: one row per `price_type`
+(`fixed`, `hourly`, `daily`, `weekly`, `monthly`), at most one row per type on the same job/bid. A bid's tiers
+live in their own table, `BidPriceTier` (not `listingSkus` — a job's own budget SKU and a bid's price tiers are
+different tables), because a seller can quote **several** options on one bid (৳500/hour *or* ৳15,000/week) for
+the buyer to choose between when accepting.
+
+| `BidPriceTier` field | Notes |
+|---|---|
+| `price_type` | `fixed`, `hourly`, `daily`, `weekly`, `monthly`. Optional on write — defaults to `fixed` |
+| `price` | the rate for that unit |
+| `duration` | how many units (hours, weeks, ...) this quote covers. Forced to `1` when `price_type = fixed` |
+| `description` | optional text about this specific price option |
+| `total_price` | **read only** — `price × duration`, recomputed on every save |
+
+Editing tiers **reconciles** the full array, exactly like a gig's packages or a product's SKUs: an item with an
+`id` updates that tier (only the fields sent change), an item without one adds a new tier, a tier not mentioned
+is left alone (never auto-deleted — there is no separate "delete one tier" call).
+
+### 16.5 Buyer: post and manage jobs — `/api/v1/buyer/jobs/...`
+
+Needs a buyer token. Scoped to the logged-in buyer — another buyer's job is `404`.
+
+| Call | What it does |
+|---|---|
+| `POST /buyer/jobs/` | create — always starts `open_for_bidding`; a `status` sent is ignored |
+| `GET /buyer/jobs/` | my jobs, page-based paging (`count`, `page`, `page_size`, `total_pages`, `results`; default 20, max 100) |
+| `GET /buyer/jobs/{id}/` | detail |
+| `PATCH` / `PUT /buyer/jobs/{id}/` | edit (fields, budget, or `status` per 16.2's table) |
+| `GET /buyer/jobs/{id}/bids/` | every bid on this job, any status, newest first (16.6) |
+| `POST /buyer/jobs/{id}/bids/{bid_id}/accept/` | hire that bidder (16.6) |
+
+Filters: `status`. Search: `title`, `title_bn`, `description`. Ordering: `created_at`, `id` (default
+`-created_at`).
+
+```json
+POST /buyer/jobs/
+{
+  "category": 29,
+  "title": "Need a plumber for bathroom pipe repair",
+  "description": "Leaking pipe under the basin.",
+  "urgent": true,
+  "delivery_days": 1,
+  "skus": [ { "price_type": "fixed", "price": "1500" } ]
+}
+```
+
+`category`, `title`, `description` and **at least one budget option** are required —
+`{"skus": ["A job needs at least one budget option."]}` with none. `skus` here is the same shape a gig's packages
+use, minus the parts that only make sense for something for sale (`variants`, `stock_qty`, `reserved_qty` are
+dropped): `price_type` (optional, defaults to `fixed`), `price`, `description`, `description_bn`. Two tiers with
+the same `price_type` in one request is `400`. The category must be an **active service** category —
+`{"category": "A job needs a service category."}` otherwise. `country` / `state` / `city` / `thana` are optional
+(same consistency rule as everywhere: state must belong to country, city to state, thana to city).
+
+`201` (shortened):
+
+```json
+{
+  "id": 42, "title": "Need a plumber for bathroom pipe repair", "slug": "need-a-plumber-for-bathroom-pipe-repair",
+  "category": { "id": 29, "name": "Home Repair", "name_bn": "...", "slug": "home-repair" },
+  "status": "open_for_bidding", "budget": { "price": "1500.00", "price_type": "fixed" }, "bid_count": 0,
+  "delivery_days": 1, "urgent": true, "created_at": "...", "updated_at": "...",
+  "description": "Leaking pipe under the basin.",
+  "location": { "country": null, "state": null, "city": null, "thana": null },
+  "skus": [ { "id": 101, "price_type": "fixed", "price": "1500.00", "effective_price": "1500.00", "is_active": true, "...": "..." } ],
+  "accepted_bid": null, "note": null
+}
+```
+
+`budget` (on the list row and the detail) is the **cheapest active** tier's price and type (`null` if none
+active). `bid_count` is every bid ever placed on it, any status. `accepted_bid` (detail only) is the currently
+accepted bid, or `null`.
+
+**Editing the budget** works exactly like editing a gig's packages — send the full `skus` array:
+
+```json
+PATCH /buyer/jobs/42/
+{ "title": "Need a plumber — urgent", "skus": [ { "id": 101, "price": "1800" }, { "price_type": "hourly", "price": "400" } ] }
+```
+
+**Status moves** go through the same endpoint: `{"status": "draft"}` pauses it; `{"status": "pending"}` then
+`{"status": "open_for_bidding"}` reopens it; `{"status": "cancelled"}` cancels it (terminal — every live bid on
+it is cancelled too, 16.2). Once `in_progress`, only `{"status": "completed"}` is accepted.
+
+### 16.6 Buyer: bids on my job, and accepting one
+
+**`GET /buyer/jobs/{id}/bids/`** — every bid ever placed on this job, any status, so the buyer sees the full
+history (not just what's currently live). `?status=pending` filters. Page-based pagination, newest first.
+
+```json
+{ "count": 2, "page": 1, "page_size": 20, "total_pages": 1, "results": [
+  { "id": 7, "bidder": { "id": 15, "name": "Karim Electric", "profile_pic_url": null }, "status": "pending",
+    "accepted_price_tier": null, "created_at": "...", "description": "I can start tomorrow",
+    "proposed_start": null, "proposed_end": null, "actual_start_date": null, "actual_end_date": null,
+    "note": null, "price_tiers": [ { "id": 12, "price_type": "fixed", "price": "1300.00", "duration": 1,
+    "description": null, "total_price": "1300.00" } ], "updated_at": "..." } ] }
+```
+
+**`POST /buyer/jobs/{id}/bids/{bid_id}/accept/`** — hires that bidder. Body: `{"price_tier_id": 12}`, **required
+only when the bid quoted more than one price tier**; with a single tier it's picked automatically.
+
+What happens, all in one transaction (`apps.bidding.services.accept_bid`):
+1. That bid → `accepted`, `accepted_price_tier` set, `actual_start_date` stamped `now()`.
+2. Every other **pending** bid on the job → `rejected`.
+3. The job → `in_progress`.
+4. An **Order** is created directly (16.7) — **no cart involved**.
+
+```json
+{
+  "bid": { "id": 7, "status": "accepted", "accepted_price_tier": { "id": 12, "price_type": "fixed", "...": "..." }, "...": "..." },
+  "order": { "id": 301, "status": "in_progress", "payable": "1300.00" }
+}
+```
+
+Errors: job not `open_for_bidding` → `400` (checked **before** the bid id is even looked up); bid not `pending`
+→ `400` ("Only a pending bid can be accepted."); a multi-tier bid with no `price_tier_id` → `400`
+(`{"price_tier_id": "This bid has more than one price option — say which one you're accepting."}`); an id that
+isn't one of that bid's tiers → `400` (`{"price_tier_id": "Doesn't belong to this bid."}`); unknown bid id on an
+open job → `404`; not this job's buyer → `404`; a non-buyer token → `403`.
+
+### 16.7 What an accepted bid becomes: the Order
+
+Accepting a bid (here or via the admin's `accept`, 16.11) creates an `Order` (`order_type: "job"`) directly —
+jobs never go through a cart. `subtotal = total = payable` = the accepted tier's `total_price`; one `OrderItem`
+snapshots the tier's `price` / `price_type` / `duration`.
+
+| Job / bid event | Order |
+|---|---|
+| Bid accepted | created, `status: "in_progress"` — **not** `accepted`: the job itself is `in_progress` at this same moment, so the order starts there too |
+| Job marked `completed` | → `status: "completed"`, `completed_at` stamped |
+| Job cancelled while this bid was the accepted one | → `status: "cancelled"`, `cancelled_reason` = the job's `note` |
+| Admin `reject`s this accepted bid (16.11) | → `status: "cancelled"`, `cancelled_reason` = the admin's note |
+
+`commission_rate` / `commission_amount` stay `null` for now — the commission mechanism itself (Phase 2's
+financial oversight) is not built yet. Payment collection (bKash) against this Order is a separate, later effort.
+
+### 16.8 Seller: the job board and my bids
+
+**`GET /seller/jobs/`** — the job board: open jobs only (`status = open_for_bidding`), cursor-paginated (`next` /
+`previous`, no `count`). Only a seller who **can operate** (verified **and** active) — the usual `403` otherwise;
+no token `401`; buyer token `403`.
+
+Filters: `category`, `country`, `state`, `city`, `thana`, `price_type` (an active budget tier priced that way),
+`budget_min` / `budget_max` (against the cheapest active tier's price), `delivery_days_max`, `urgent`,
+`created_from` / `created_to`, `requested_from` / `requested_to`.
+
+```json
+{ "id": 42, "title": "Need a plumber for bathroom pipe repair", "slug": "...",
+  "category": { "...": "..." }, "status": "open_for_bidding", "budget": { "price": "1500.00", "price_type": "fixed" },
+  "delivery_days": 1, "urgent": true, "bid_count": 2, "my_bid_count": 0, "created_at": "..." }
+```
+
+`bid_count` is every bid on the job (any seller, any status); `my_bid_count` is this seller's own (any status).
+
+**`GET /seller/jobs/{id}/`** — any `open_for_bidding` job, **or** a job this seller has placed a bid on regardless
+of its current status (so a seller who already bid keeps seeing it after it closes) — anything else is `404`.
+Same fields as the board row, plus `description`, `package_includes`, `available_from` / `available_to`,
+`location`, and **`my_bids`**: this seller's own bids on the job (any status), with their `price_tiers`.
+
+**`GET /seller/jobs/mine/`** — every job this seller has ever placed a bid on, any job status, same shape and
+filters as the board, cursor-paged. Add **`?won=true`** to narrow it to only the jobs where **this seller's own
+bid** is currently `accepted` or `completed` — the jobs this seller actually got, not just bid on.
+
+**`GET /seller/bids/`** — my bids, cursor-paginated, newest first, each row carrying a brief `job` (`id`, `title`,
+`title_bn`, `slug`, `status`). Filters: `status`, `listing` (job id). Search: `listing__title`.
+
+```json
+{ "id": 7, "job": { "id": 42, "title": "...", "status": "in_progress" }, "status": "accepted",
+  "description": "...", "proposed_start": null, "proposed_end": null,
+  "price_tiers": [ { "...": "..." } ], "accepted_price_tier": { "...": "..." }, "created_at": "...", "updated_at": "..." }
+```
+
+`GET /seller/bids/{id}/` adds `actual_start_date`, `actual_end_date`, `note`. Another seller's bid is `404`.
+
+### 16.9 Seller: placing, editing and cancelling a bid
+
+**`POST /seller/jobs/{job_id}/bids/`**
+
+```json
+{ "description": "I can start tomorrow", "proposed_start": "2026-11-01T09:00:00Z", "proposed_end": "2026-11-01T17:00:00Z",
+  "price_tiers": [ { "price_type": "fixed", "price": "1300" } ] }
+```
+
+A bid needs **at least one price tier** (`{"price_tiers": ["A bid needs at least one price option."]}` with none).
+Two tiers with the same `price_type` in one request is `400`. The job must be `open_for_bidding` — `400`
+("This job isn't open for bidding.") otherwise. This seller must have **no other live bid** on this job already
+(16.3). `status` sent is ignored (always starts `pending`). `201` returns the full bid.
+
+**`PATCH /seller/bids/{id}/`** — only while the bid is `pending` (`400` "This bid can no longer be edited."
+otherwise). `description`, `proposed_start`, `proposed_end` change in place; `price_tiers` reconciles (16.4).
+
+**Cancel**: `PATCH /seller/bids/{id}/` with `{"status": "cancelled"}` — the **only** status move a seller can
+make directly. Any other value here is `400` ("You can only cancel a pending bid.") — acceptance and rejection
+are the buyer's/admin's call. After cancelling, the seller may place a brand-new bid on the same job (a new
+historical row) once no other live bid of theirs is blocking it.
+
+### 16.10 Admin: the job panel — `/api/v1/catalog/jobs/...`
+
+Admin only. Same shape and state machine as a buyer's own job, plus "admin can do everything": create or edit a
+job **on any buyer's behalf**, and one extra transition only an admin may make.
+
+| Call | What it does |
+|---|---|
+| `POST /catalog/jobs/` | create **on a buyer's behalf** — `buyer` is required |
+| `GET /catalog/jobs/` | every job (limit/offset: `count`, `next`, `previous`, `results`; default 20, max 100) |
+| `GET /catalog/jobs/{id}/` | detail — same shape as the buyer's own, plus a `buyer` brief (`id`, `name`, `phone`, `email`) |
+| `PATCH` / `PUT /catalog/jobs/{id}/` | edit on the buyer's behalf |
+
+Filters/search/ordering: the admin listing filter (`status`, `category`, `buyer`, plus the date ranges); search on
+title, description, buyer name/phone.
+
+```json
+POST /catalog/jobs/
+{ "buyer": 4, "category": 29, "title": "Need a plumber", "description": "...", "skus": [ { "price": "1500" } ] }
+```
+
+`{"buyer": "Say which buyer this job is for."}` with none, on create only — `buyer` is never reassigned on
+update. Everything else (budget, category, SKU reconcile, validation messages) is identical to 16.5.
+
+**The one admin-only move**: `in_progress → cancelled`, with a mandatory `note` —
+`{"note": "A reason is required to cancel a hired job."}` without one. This is the only way to cancel a job once
+it's been hired; it cascades the same as any other job cancel (16.2, 16.7): the accepted bid and its Order both
+become `cancelled`.
+
+### 16.11 Admin: the bid panel — `/api/v1/bidding/bids/...`
+
+Admin only, cursor-paginated. Oversight of every bid, plus "do everything" — create or edit a bid **on any
+seller's behalf**, accept one on the buyer's behalf, or undo a hire.
+
+| Call | What it does |
+|---|---|
+| `POST /bidding/bids/` | create **on a seller's behalf** — `listing` (the job) and `bidder` (the seller) required |
+| `GET /bidding/bids/` | every bid. Filters: `status`, `listing`, `bidder` |
+| `GET /bidding/bids/{id}/` | detail (job brief includes `buyer`; bidder brief: `id`, `name`, `phone`) |
+| `PATCH /bidding/bids/{id}/` | edit on the seller's behalf (same price-tier reconcile as 16.9); only while `pending`; only move is `cancelled` |
+| `POST /bidding/bids/{id}/accept/` | accept **on the buyer's behalf** — same effect, same `price_tier_id` rule, as 16.6 |
+| `POST /bidding/bids/{id}/reject/` | undo an **already-accepted** hire — mandatory `{"note": "..."}` |
+
+```json
+POST /bidding/bids/
+{ "listing": 42, "bidder": 15, "price_tiers": [ { "price_type": "fixed", "price": "1300" } ] }
+```
+
+Same rules as a seller's own create (16.9): job must be `open_for_bidding`, that seller must have no other live
+bid on it, at least one price tier.
+
+**`accept` vs `reject`**: `accept` (16.6) is the normal hire. `reject` is specifically for **undoing a hire that
+already happened**, without cancelling the job itself — only works on a bid that's currently `accepted`. It goes
+to `rejected` (not `cancelled` — this one *was* judged, the other way), its Order is cancelled, and the job
+**reopens** to `open_for_bidding`. Every bid that auto-rejected earlier when this one was accepted **stays
+`rejected`** — the sellers may place a fresh bid if they want back in; nothing about their old one is restored. A
+bid that isn't currently `accepted` → `400` ("Only an accepted bid can be rejected this way."); no `note` → `400`
+("A reason is required."). To cancel the job itself instead, use 16.10's admin-only `in_progress → cancelled` move.
+
+### 16.12 Errors reference
+
+| Case | Error |
+|---|---|
+| No budget / price tiers on create | `{"skus": ["A job needs at least one budget option."]}` / `{"price_tiers": ["A bid needs at least one price option."]}` |
+| Two tiers, same `price_type`, same create/edit | `"Two budget options use the same price type (...)"` / `"Two tiers use the same price type (...)"` |
+| Job category is a product category | `{"category": "A job needs a service category."}` |
+| Job not open for bidding | `"This job isn't open for bidding."` |
+| Seller already has a live bid on this job | `"You already have a live bid on this job."` (seller) / `"This seller already has a live bid on this job."` (admin) |
+| Editing a non-pending bid | `"This bid can no longer be edited."` |
+| A seller sends any status but `cancelled` | `{"status": "You can only cancel a pending bid."}` |
+| Editing a `completed`/`cancelled` job | `"This job can no longer be edited (it's completed or cancelled)."` |
+| An invalid status move | `{"status": "Cannot move a job from '<from>' to '<to>'."}` |
+| Editing anything but `status` while `in_progress` | `"This job has been hired — only an admin can edit it now (you may still mark it complete)."` |
+| Admin cancels an `in_progress` job with no `note` | `{"note": "A reason is required to cancel a hired job."}` |
+| Accepting a non-pending bid | `"Only a pending bid can be accepted."` |
+| Multi-tier bid, no `price_tier_id` | `{"price_tier_id": "This bid has more than one price option — say which one you're accepting."}` |
+| `price_tier_id` not on this bid | `{"price_tier_id": "Doesn't belong to this bid."}` |
+| Rejecting a bid that isn't `accepted` | `"Only an accepted bid can be rejected this way."` |
+| No `note` on `reject` | `{"note": "A reason is required."}` |
+| A `buyer_request` sent to `/catalog/listings/` or `/catalog/gigs/` | `400`, points to `/catalog/jobs/` / `/buyer/jobs/` |
+| Wrong owner / wrong role / no token | `404` (not this buyer's/seller's), `403` (wrong role, or a seller who can't operate), `401` (no token) |
+
+### 16.13 Not built yet
+
+- **Payment collection** (bKash) against a job's Order — a separate, later effort.
+- **Commission** on a job Order (`commission_rate` / `commission_amount` stay `null`).
+- Deliverables, messaging between buyer and seller, reviews/ratings on a completed job.
+- Order **list/detail APIs** for buyers/sellers/admins to browse the Orders a job produced — the Order row exists
+  and updates correctly (16.7), there is just no dedicated endpoint to list or read it yet.
+
+---
+
+## 17. Tests
 
 - `scripts/smoke/sku_smoke.py` (attributes, SKUs, category protection), `listing_smoke.sh`, `brand_smoke.sh`, `e2e_smoke.sh`: all pass. Run everything with `scripts/smoke/run_all.sh`.
 - `seller_listing_smoke.sh`: the seller product API, lookups, unique title, the pending list, approve / reject / fix, the info change log, Bangla fields and files removed from storage.
 - `gig_smoke.py` (the admin gig API, the product / gig / job separation), `seller_gig_smoke.py` (the seller gig API) and `listing_files_smoke.py` (the 4 files APIs, both roles).
+- Jobs (section 16): `buyer_job_smoke.py`, `seller_job_smoke.py`, `bid_accept_smoke.py`, `admin_job_bid_smoke.py` — see also [`job-admin-guide.md`](job-admin-guide.md).
 - Postman: `Egoola-Listing` and `Egoola-Attribute` (admin) and `Egoola-SellerApp` → **Seller listings**, **Seller gigs** (seller) collections.
+  Jobs: `Egoola-BuyerApp` → **Jobs**, `Egoola-SellerApp` → **Seller jobs & bidding**, `Egoola-Listing` → **Jobs**, `Egoola` → **Bidding** (admin).

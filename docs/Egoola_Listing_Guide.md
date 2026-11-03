@@ -6,7 +6,8 @@ cannot do.
 
 > **Products, gigs and jobs are separate kinds.** Sections 1–11 describe **products** and the rules every listing shares (statuses, checking,
 > history, the thumbnail); those rules apply to gigs too. **Section 12 covers gigs** (work a seller offers): their own place, screens and price
-> rules. A **job** (work a buyer asks for) is managed by admins for now.
+> rules. A **job** (work a buyer asks for, hired through bidding) has its own place too, for the buyer, the seller and the admin — see
+> [`listing-complete-guide.md`](listing-complete-guide.md) section 16 and [`job-admin-guide.md`](job-admin-guide.md).
 
 It is written for all teams: operations, support, product, design, testing and development. You do not need any
 technical knowledge to read it.
@@ -17,13 +18,49 @@ verification, login), read the **Egoola Seller Guide**.
 
 ---
 
+## Table of contents
+
+- [1. The people in this guide](#1-the-people-in-this-guide)
+- [2. What is a listing?](#2-what-is-a-listing)
+- [3. The status of a listing](#3-the-status-of-a-listing)
+- [4. Seller: creating a listing](#4-seller-creating-a-listing)
+  - [4.1 The thumbnail and the photos](#41-the-thumbnail-and-the-photos)
+- [5. The same title rule](#5-the-same-title-rule)
+- [6. Admin: checking the listings](#6-admin-checking-the-listings)
+  - [6.1 The pending list](#61-the-pending-list)
+  - [6.2 Deciding](#62-deciding)
+  - [6.3 What the admin sees on a listing](#63-what-the-admin-sees-on-a-listing)
+- [7. Seller: changing a listing](#7-seller-changing-a-listing)
+- [8. Seeing and searching listings](#8-seeing-and-searching-listings)
+- [9. The change history (admins only)](#9-the-change-history-admins-only)
+- [10. Deleting](#10-deleting)
+- [11. When an admin creates a listing](#11-when-an-admin-creates-a-listing)
+- [12. Gigs (a seller's service offers)](#12-gigs-a-sellers-service-offers)
+  - [12.1 What a gig holds](#121-what-a-gig-holds)
+  - [12.2 Packages and prices](#122-packages-and-prices)
+  - [12.3 Seller: creating a gig](#123-seller-creating-a-gig)
+  - [12.4 Admin: checking gigs](#124-admin-checking-gigs)
+  - [12.5 Seller: changing a gig](#125-seller-changing-a-gig)
+- [13. Jobs (work a buyer asks for, hired through bidding)](#13-jobs-work-a-buyer-asks-for-hired-through-bidding)
+  - [13.1 What a job holds](#131-what-a-job-holds)
+  - [13.2 Buyer: posting and managing a job](#132-buyer-posting-and-managing-a-job)
+  - [13.3 Seller: the job board and bidding](#133-seller-the-job-board-and-bidding)
+  - [13.4 What happens when a bid is accepted](#134-what-happens-when-a-bid-is-accepted)
+  - [13.5 Admin: overseeing jobs and bids](#135-admin-overseeing-jobs-and-bids)
+- [14. Quick rules (one page)](#14-quick-rules-one-page)
+- [15. Questions we often get (for support and operations)](#15-questions-we-often-get-for-support-and-operations)
+- [16. Not available yet](#16-not-available-yet)
+- [17. Words used in this guide](#17-words-used-in-this-guide)
+
+---
+
 ## 1. The people in this guide
 
 | Who | What they do with listings |
 |---|---|
 | **Seller** | Creates and manages their own products. Can create, change, see and search them. Cannot delete them. |
 | **Admin** | Checks the products sellers create (approve or reject). Can also create, change and delete any product, for a seller or for nobody. |
-| **Buyer** | Will browse and buy from approved listings (the buyer side is not built yet). |
+| **Buyer** | Browses and saves products and gigs, and posts jobs for sellers to bid on. Buying/hiring a product or gig outright is not built yet. |
 | **Operations / support team** | Helps sellers and admins. Uses the admin panel. |
 
 ---
@@ -35,12 +72,34 @@ The old app had separate, repeated screens for each format. Now every format use
 
 **Product, gig and job**
 
-- A **product** is a thing you can touch and ship. It lives under **Listings** (Product is chosen by default).
-- A **gig** is work a seller offers (cleaning, photography, repair). It lives under **Gigs** (Service is chosen by default), with its own
-  screens and price rules (packages with a price type). See section 12.
-- A **job** is work a buyer asks for. Admins manage it for now.
+- A **product** is a thing you can touch and ship (a phone, a shirt, a bag of rice). A seller creates it, or an admin creates
+  it for a seller or for nobody. It lives under **Listings** (Product chosen by default), goes through the usual
+  checking (Pending → Approved/Rejected/Changes requested, section 3), is priced on its **options** (size, colour,
+  storage — each combination has its own price, discount and stock), and can carry quantity prices for wholesale. Once
+  checked, a buyer will eventually be able to buy it outright (not built yet — a buyer can browse and save it today).
+  Sections 1–11 are all about products.
+- A **gig** is work a **seller** offers (cleaning, photography, logo design, repair) — a service, not a physical thing.
+  It lives under **Gigs** (Service chosen by default), with its own place, its own pending list, and a completely
+  different price model: **packages**, one per price type (hourly, daily, weekly, monthly, or one fixed price), instead
+  of options and stock. A buyer will eventually hire a gig outright (not built yet — browsing is). Full detail: section 12.
+- A **job** is work a **buyer** asks for — the mirror image of a gig. Instead of a seller offering a fixed service at a
+  fixed rate, the buyer describes what they need and a **budget**, and sellers **bid** for the work with their own
+  price. The buyer (or an admin, on the buyer's behalf) picks one bid to **hire**; every other bid on that job is
+  turned down, and the two sides are connected through an order right away — no cart step, unlike a product or a
+  gig. A job skips the Pending/Approved checking entirely: it's live the moment it's posted. Full detail: section 13.
 
-Each place only accepts its own kind: a gig never shows in the product list, and a service cannot be created from the product form.
+Each place only accepts its own kind: a gig never shows in the product list, a job never shows in either, and a
+service cannot be created from the product form.
+
+| | Product | Gig | Job |
+|---|---|---|---|
+| Who creates it | seller or admin | seller or admin | **buyer** or admin |
+| What it is | something to ship | a service a seller offers | work a buyer needs done |
+| Checked by an admin first? | yes (Pending → Approved/Rejected) | yes, same as a product | **no** — live immediately |
+| Priced by | options + stock | packages (one per price type) | the buyer's own budget; sellers then **bid** their own price |
+| How a buyer gets it | buy outright (not built yet) | hire outright (not built yet) | **bidding** — the buyer hires one bidder (built) |
+| Where | **Listings** | **Gigs** | **Jobs** |
+| Full detail | sections 1–11 | section 12 | section 13 |
 
 **The six product formats** (called the *listing type*): General, Used, Village, Retail, Wholesale, and Brand.
 A Brand listing must have a brand chosen.
@@ -368,7 +427,76 @@ seller **cannot delete** a gig. They can hide a package, and an admin can delete
 
 ---
 
-## 13. Quick rules (one page)
+## 13. Jobs (work a buyer asks for, hired through bidding)
+
+A **job** is different from a product or a gig in one big way: it is never bought outright. A **buyer** posts what
+they need done, **sellers compete for it by placing bids**, and the buyer (or an admin) picks one to hire. It has
+its own place in the buyer, seller and admin panels (**Jobs**). Technical reference, every error, every case:
+[`listing-complete-guide.md`](listing-complete-guide.md) section 16.
+
+### 13.1 What a job holds
+
+| Part | What it is |
+|---|---|
+| **Title and description** | The name and the details. Both can also be written in **Bangla**. |
+| **Category** | Must be a **service** category and must be active. |
+| **Budget** | What the buyer is willing to pay — the same price-type idea as a gig's packages (hourly, daily, weekly, monthly, or fixed), but this is the buyer's number, not a seller's. At least one budget option is required. |
+| **Delivery and extras** | Days wanted, urgent or not, when it's needed. |
+| **Place** | Country, state, city, thana (optional). |
+
+A job does **not** go through approval/rejection the way a product or a gig does — it is live and open for bids
+the moment it's posted, by the buyer or by an admin on the buyer's behalf.
+
+### 13.2 Buyer: posting and managing a job
+
+1. The buyer opens **Jobs** and chooses **Post a job**.
+2. They pick a **service category**, write the title and description, and set a **budget** (at least one price
+   option).
+3. They save. The job is live immediately, open for sellers to bid on.
+4. They can **edit** the job, **pause** it (no new bids while paused — existing ones are untouched), **reopen** it,
+   or **cancel** it (this takes every live bid down with it too).
+5. They see every bid placed on the job, and **accept** the one they want — this hires that seller.
+
+An admin can do all of this **on behalf of a buyer** too.
+
+### 13.3 Seller: the job board and bidding
+
+1. The seller opens **Jobs** and browses the **board** — every job currently open for bids, with filters
+   (category, location, budget range, urgent, delivery time).
+2. They open one and place a **bid**: their own price (one or more options, the same price-type idea as a gig's
+   packages), a short message, and optionally when they could start/finish.
+3. A seller can have only **one live bid** on the same job at a time — they cannot bid twice while a bid is
+   pending or accepted. If they cancel a bid, they can place a fresh one.
+4. They can **edit** a bid (while it's still pending) or **cancel** it.
+5. **My bids** lists everything they've bid on; **My jobs** (`?won=true`) narrows that down to only the jobs they
+   actually got hired for.
+
+### 13.4 What happens when a bid is accepted
+
+The moment the buyer (or an admin) accepts a bid:
+
+- That bid is marked **hired**; every other pending bid on the job is marked **lost** (not withdrawn — it simply
+  didn't win).
+- The job itself moves to **In Progress** — nothing about it can be changed any more except marking it complete
+  (only an admin can still cancel it from here, and must give a reason).
+- An **order** is created right away to record the hire — there is no cart step for a job, unlike buying a
+  product.
+- When the work is done, marking the job **Complete** marks the hired bid and its order complete too.
+- If the job is **cancelled** instead (by the buyer before it's hired, or by an admin at any point with a
+  reason), every live bid on it — pending or hired — is marked **cancelled**, and any order already created for
+  it is cancelled too.
+
+### 13.5 Admin: overseeing jobs and bids
+
+An admin can do everything a buyer or a seller can: post a job for a buyer, place or edit a bid for a seller,
+accept a bid on the buyer's behalf, and — uniquely to admins — **undo an already-accepted hire** without
+cancelling the whole job (the job reopens for other sellers to bid on; the bid that is undone is marked
+**rejected**, not cancelled, since it genuinely was judged). An admin is also the only one who can cancel a job
+once it's already been hired (In Progress) — a buyer cannot do this themselves, and a reason is required.
+
+---
+
+## 14. Quick rules (one page)
 
 | Topic | Rule |
 |---|---|
@@ -399,7 +527,7 @@ seller **cannot delete** a gig. They can hide a package, and an admin can delete
 
 ---
 
-## 14. Questions we often get (for support and operations)
+## 15. Questions we often get (for support and operations)
 
 **A seller says: "I cannot create a listing."**
 They must be **Verified and Active**. If they are pending or rejected, they can only edit their profile. If they were
@@ -463,32 +591,32 @@ Products and gigs are separate lists. Open the **Gigs** list.
 
 ---
 
-## 15. Not available yet
+## 16. Not available yet
 
 Please do not promise these to sellers yet.
 
 - **Messages to sellers** (email, SMS or app) when a listing is approved, rejected or sent back.
-- **Buyers browsing and buying** from listings. The buyer side is not built yet.
+- **Buyers buying** a product outright (browsing, cart and wishlist are built — see `public-api-guide.md`, `buyer-api-guide.md`).
 - **Sellers deleting or hiding** their own listings.
 - **Saving a draft** before sending. A seller's new listing always goes straight to Pending.
 - **Restoring** a deleted listing.
 - **Uploading many listings at once.**
 - **Sellers seeing the change history** of their listings.
 - **Creating a listing with its files in one step.** Files are added after the listing is saved.
-- **Buyers browsing, buying or hiring a gig** (the buyer side, cart and payment are not built).
-- **The seller's hire requests** (accepting, declining, delivering) and the **job board and bidding**: the next steps.
+- **Buyers hiring a gig directly** (browsing is built; checkout and payment for a gig are not).
+- **The seller's hire requests on a gig** (accepting, declining, delivering): the next step. (The **job board and bidding** — a
+  separate, buyer-posted kind of work — is already built: see [`listing-complete-guide.md`](listing-complete-guide.md) section 16.)
 - **Different delivery times for each package** (delivery days belongs to the gig).
-- **Buyer requests created by buyers.** Admins can create them for now.
 
 ---
 
-## 16. Words used in this guide
+## 17. Words used in this guide
 
 | Word | Meaning |
 |---|---|
 | **Listing** | One product for sale (gigs and jobs are the same kind of record but have their own screens). |
 | **Gig** | Work a seller offers (section 12). |
-| **Job** | Work a buyer asks for. Admins manage it for now. |
+| **Job** | Work a buyer asks for. Sellers bid on it; the buyer (or an admin) hires one. |
 | **Package** | One way of charging for a gig (price type and price). Technically a SKU. |
 | **Price type** | What a gig's price is for: hourly, daily, weekly, monthly or fixed. |
 | **Duration** | How many price-type units the buyer chooses when ordering (3 hours, 2 weeks). Kept on the order, not on the package. |
