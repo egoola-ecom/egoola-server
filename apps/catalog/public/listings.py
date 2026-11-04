@@ -23,8 +23,7 @@ from apps.accounts.public.serializers import PublicSellerBriefSerializer
 from apps.accounts.public.views import public_seller_listings_q
 from apps.core.pagination import BuyerPagePagination
 
-from .models import Category, Listing, ListingMedia, ListingPriceTier, ListingSku, ListingSkuVariant
-
+from ..models import Category, Listing, ListingMedia, ListingPriceTier, ListingSku, ListingSkuVariant
 PRODUCT_SCOPE = Q(catalog_type=Listing.CatalogType.PRODUCT) & ~Q(posted_by_role=Listing.PostedByRole.BUYER_REQUEST)
 GIG_SCOPE = Q(catalog_type=Listing.CatalogType.SERVICE, posted_by_role=Listing.PostedByRole.SELLER_OFFER)
 

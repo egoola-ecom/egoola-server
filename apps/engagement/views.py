@@ -15,7 +15,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from apps.authentication.permissions import IsAdminActor
-from apps.catalog.public_listings import buyer_visible_listings
+from apps.catalog.public.listings import buyer_visible_listings
 from apps.core.pagination import DefaultCursorPagination
 
 from .filters import FavouriteFilter

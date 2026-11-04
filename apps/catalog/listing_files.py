@@ -45,9 +45,9 @@ from apps.authentication.permissions import IsActiveVerifiedSellerActor, IsAdmin
 from apps.core.models import ActorType
 from config.storage import delete_upload, infer_media_type, save_upload
 
+from .common_serializers import ListingMediaSerializer
 from .listing_log import record_listing_changes, snapshot
 from .models import Listing, ListingMedia
-from .serializers import ListingMediaSerializer
 
 THUMBNAIL_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 THUMBNAIL_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}

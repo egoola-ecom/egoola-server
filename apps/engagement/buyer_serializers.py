@@ -6,7 +6,7 @@ See buyer_views.py and docs/buyer/buyer-api-guide.md.
 from rest_framework import serializers
 
 from apps.catalog.models import Listing
-from apps.catalog.public_listings import PublicGigListSerializer, PublicProductListSerializer, buyer_visible_listings
+from apps.catalog.public.listings import PublicGigListSerializer, PublicProductListSerializer, buyer_visible_listings
 
 from .models import Favourite
 

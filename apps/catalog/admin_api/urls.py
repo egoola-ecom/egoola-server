@@ -1,10 +1,9 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .admin_job_views import AdminJobViewSet
-from .listing_files import AdminListingFilesView
-
+from ..listing_files import AdminListingFilesView
 from .views import (
+    AdminJobViewSet,
     AttributeValueViewSet,
     AttributeViewSet,
     BrandViewSet,

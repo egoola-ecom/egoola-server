@@ -1,7 +1,14 @@
+"""
+Every admin view for Categories, Brands, Attributes, Measurements,
+Listings (products), Gigs, and the admin Job panel
+(`/api/v1/catalog/{categories,brands,attributes,attribute-values,
+measurements,listings,gigs,jobs}/...`).
+"""
+
 from collections import defaultdict
 
 from django.db import transaction
-from django.db.models import ProtectedError, Q
+from django.db.models import Count, ProtectedError, Prefetch, Q
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from django_filters.rest_framework import DjangoFilterBackend
@@ -17,9 +24,12 @@ from apps.core.pagination import DefaultCursorPagination
 
 from config.storage import delete_upload
 
+from ..models import Attribute, AttributeValue, Brand, Category, Listing, ListingSku, ListingStatusChangeLog, Measurement
 from .filters import GigFilter, ListingFilter
-from .models import Attribute, AttributeValue, Brand, Category, Listing, ListingStatusChangeLog, Measurement
 from .serializers import (
+    AdminJobDetailSerializer,
+    AdminJobListSerializer,
+    AdminJobWriteSerializer,
     AttributeSerializer,
     AttributeValueSerializer,
     BrandSerializer,
@@ -31,7 +41,6 @@ from .serializers import (
     ListingSerializer,
     MeasurementSerializer,
 )
-
 
 class _InUseDeleteMixin:
     """409 instead of a crash when the row is still referenced by something
@@ -472,3 +481,57 @@ class GigViewSet(_AdminListingViewSet):
     list_serializer_class = GigListSerializer
     filterset_class = GigFilter
     search_fields = ["title", "title_bn", "skus__sku"]
+
+
+class AdminJobViewSet(
+    mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, mixins.ListModelMixin,
+    viewsets.GenericViewSet,
+):
+    permission_classes = [IsAdminActor]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = ListingFilter
+    search_fields = ["title", "title_bn", "description", "buyer__name", "buyer__phone"]
+    ordering_fields = ["created_at", "updated_at", "id"]
+    ordering = ["-created_at", "-id"]
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return AdminJobListSerializer
+        if self.action in ("create", "update", "partial_update"):
+            return AdminJobWriteSerializer
+        return AdminJobDetailSerializer
+
+    def _base_queryset(self):
+        return Listing.all_objects.filter(posted_by_role=Listing.PostedByRole.BUYER_REQUEST)
+
+    def _detail_queryset(self):
+        return self._base_queryset().select_related(
+            "category", "buyer", "country", "state", "city", "thana",
+        ).prefetch_related("skus", "bids", "bids__accepted_price_tier").annotate(bid_count=Count("bids"))
+
+    def get_queryset(self):
+        if self.action == "list":
+            return self._base_queryset().select_related("category", "buyer").prefetch_related(
+                Prefetch("skus", queryset=ListingSku.objects.filter(is_active=True)),
+            ).annotate(bid_count=Count("bids"))
+        if self.action in ("update", "partial_update"):
+            return self._base_queryset().select_for_update(of=("self",))
+        return self._detail_queryset()
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        job = serializer.save()
+        detail = self._detail_queryset().get(pk=job.pk)
+        return Response(AdminJobDetailSerializer(detail, context=self.get_serializer_context()).data, status=201)
+
+    def update(self, request, *args, **kwargs):
+        with transaction.atomic():
+            partial = kwargs.pop("partial", False)
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=request.data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            job_id = instance.pk
+        detail = self._detail_queryset().get(pk=job_id)
+        return Response(AdminJobDetailSerializer(detail, context=self.get_serializer_context()).data)

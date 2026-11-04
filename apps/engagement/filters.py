@@ -2,7 +2,7 @@ import django_filters
 from django.db.models import Exists, OuterRef
 
 from apps.catalog.models import Listing
-from apps.catalog.public_listings import buyer_visible_listings
+from apps.catalog.public.listings import buyer_visible_listings
 
 from .models import Favourite
 

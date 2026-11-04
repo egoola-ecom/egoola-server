@@ -1,7 +1,8 @@
 """
 The seller's own listing endpoints (`/api/v1/seller/listings/` for products,
-`/api/v1/seller/gigs/` for gigs) and the read-only
-lookups a seller needs to fill the listing form (`/api/v1/seller/lookups/...`).
+`/api/v1/seller/gigs/` for gigs), the job board (`/api/v1/seller/jobs/...`),
+and the read-only lookups a seller needs to fill the listing form
+(`/api/v1/seller/lookups/...`).
 
 Only a seller who can operate (verified AND active) may use them — see
 IsActiveVerifiedSellerActor. A seller sees and changes only their own
@@ -9,24 +10,31 @@ listings. There is no delete: only an admin can delete a listing.
 """
 
 from django.db import transaction
-from django.db.models import Q
-from rest_framework import mixins, serializers, viewsets
+from django.db.models import Count, Q
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import mixins, viewsets
+from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.parsers import JSONParser
 
-from django_filters.rest_framework import DjangoFilterBackend
-
 from apps.authentication.permissions import IsActiveVerifiedSellerActor
+from apps.bidding.models import Bid
 from apps.core.mixins import AuditedViewSetMixin
-from apps.core.pagination import LargeListPagination
+from apps.core.pagination import DefaultCursorPagination, LargeListPagination
 
-from .filters import SellerGigFilter, SellerListingFilter
-from .models import Attribute, AttributeValue, Brand, Category, Listing, Measurement
+from ..models import Attribute, Brand, Category, Listing, Measurement
+from .filters import SellerGigFilter, SellerJobFilter, SellerListingFilter
 from .serializers import (
+    SellerAttributeLookupSerializer,
+    SellerBrandLookupSerializer,
+    SellerCategoryLookupSerializer,
     SellerGigListSerializer,
     SellerGigSerializer,
+    SellerJobDetailSerializer,
+    SellerJobListSerializer,
     SellerListingListSerializer,
     SellerListingSerializer,
+    SellerMeasurementLookupSerializer,
 )
 
 
@@ -102,6 +110,56 @@ class SellerGigViewSet(_SellerListingBaseViewSet):
     search_fields = ["title", "title_bn", "skus__sku"]
 
 
+# ------------------------------------------------------------------ job board
+
+
+class SellerJobViewSet(mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
+    """`GET /seller/jobs/` — the job board: open jobs only, filtered by
+    SellerJobFilter. `GET /seller/jobs/{id}/` — a job I can see (open, or one
+    I've bid on), with my own bids on it embedded. `GET /seller/jobs/mine/` —
+    jobs I've bid on, any status; add `?won=true` for only the ones where my
+    own bid is currently accepted or completed (the jobs I actually got)."""
+
+    permission_classes = [IsActiveVerifiedSellerActor]
+    pagination_class = DefaultCursorPagination
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = SellerJobFilter
+    ordering_fields = ["created_at", "id"]
+    ordering = ["-created_at", "-id"]
+
+    def get_serializer_class(self):
+        return SellerJobDetailSerializer if self.action == "retrieve" else SellerJobListSerializer
+
+    def _scoped(self, extra):
+        seller = self.request.user
+        return Listing.objects.filter(
+            posted_by_role=Listing.PostedByRole.BUYER_REQUEST,
+        ).filter(extra).select_related("category").prefetch_related(
+            "skus", "bids", "bids__price_tiers",
+        ).annotate(
+            bid_count=Count("bids", distinct=True),
+            my_bid_count=Count("bids", filter=Q(bids__bidder=seller), distinct=True),
+        ).distinct()
+
+    def get_queryset(self):
+        seller = self.request.user
+        if self.action == "mine":
+            mine = Q(bids__bidder=seller)
+            if self.request.query_params.get("won") in ("true", "1"):
+                mine &= Q(bids__status__in=(Bid.Status.ACCEPTED, Bid.Status.COMPLETED))
+            return self._scoped(mine)
+        if self.action == "retrieve":
+            return self._scoped(Q(status=Listing.Status.OPEN_FOR_BIDDING) | Q(bids__bidder=seller))
+        return self._scoped(Q(status=Listing.Status.OPEN_FOR_BIDDING))
+
+    @action(detail=False, methods=["get"])
+    def mine(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
+
+
 # ------------------------------------------------------------------ lookups
 
 
@@ -109,12 +167,6 @@ class _LookupViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsActiveVerifiedSellerActor]
     pagination_class = LargeListPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
-
-
-class SellerCategoryLookupSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Category
-        fields = ["id", "type", "parent", "name", "name_bn", "slug", "sort_order"]
 
 
 class SellerCategoryLookupViewSet(_LookupViewSet):
@@ -126,46 +178,16 @@ class SellerCategoryLookupViewSet(_LookupViewSet):
     search_fields = ["name", "name_bn"]
 
 
-class SellerBrandLookupSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Brand
-        fields = ["id", "name", "slug"]
-
-
 class SellerBrandLookupViewSet(_LookupViewSet):
     queryset = Brand.objects.filter(is_active=True)
     serializer_class = SellerBrandLookupSerializer
     search_fields = ["name"]
 
 
-class SellerMeasurementLookupSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Measurement
-        fields = ["id", "name", "slug", "symbol"]
-
-
 class SellerMeasurementLookupViewSet(_LookupViewSet):
     queryset = Measurement.objects.all()
     serializer_class = SellerMeasurementLookupSerializer
     search_fields = ["name", "symbol"]
-
-
-class SellerAttributeValueLookupSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AttributeValue
-        fields = ["id", "name", "name_bn"]
-
-
-class SellerAttributeLookupSerializer(serializers.ModelSerializer):
-    values = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Attribute
-        fields = ["id", "name", "name_bn", "values"]
-
-    def get_values(self, attribute):
-        active = [value for value in attribute.values.all() if value.is_active]
-        return SellerAttributeValueLookupSerializer(active, many=True).data
 
 
 class SellerAttributeLookupViewSet(_LookupViewSet):

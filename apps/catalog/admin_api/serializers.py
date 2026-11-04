@@ -1,30 +1,37 @@
+"""
+Every admin serializer for Categories, Brands, Attributes, Measurements,
+Listings (products), Gigs, and the admin Job panel
+(`/api/v1/catalog/{categories,brands,attributes,attribute-values,
+measurements,listings,gigs,jobs}/...`). See admin_api/views.py.
+"""
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework import serializers
 
+from apps.accounts.models import User
 from apps.core.location import LocationConsistencyMixin
 from apps.core.models import ActorType
 from config.storage import save_upload
 
-from . import kinds
-from .listing_log import record_listing_changes, snapshot
-from .models import (
+from .. import kinds
+from ..common_serializers import ListingFromPriceMixin, ListingMediaSerializer
+from ..job_services import _ALLOWED_NEXT, create_job, update_job
+from ..listing_log import record_listing_changes, snapshot
+from ..models import (
     Attribute,
     AttributeValue,
     Brand,
     Category,
     Listing,
     ListingInfoChangeLog,
-    ListingMedia,
     ListingPriceTier,
     ListingSku,
     ListingSkuVariant,
     ListingStatusChangeLog,
     Measurement,
 )
-
 
 class CategorySerializer(serializers.ModelSerializer):
     """Client sends `type`, `name`, and optionally `parent`/`image`/
@@ -316,15 +323,6 @@ class ListingPriceTierSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class ListingMediaSerializer(serializers.ModelSerializer):
-    """Read-only — shown on a Listing's detail page. Gallery files are written
-    through the listing-files APIs (apps.catalog.listing_files)."""
-
-    class Meta:
-        model = ListingMedia
-        fields = ["id", "media_type", "media_path", "media_url"]
-
-
 class ListingSkuVariantSerializer(serializers.ModelSerializer):
     """One option of a SKU. Client sends `attribute` and `attribute_value`
     (ids); the names are for display."""
@@ -378,33 +376,6 @@ SKU_SHORTCUT_FIELDS = (
     "price", "discounted_price", "discount_start_date", "discount_end_date", "stock_qty", "sku",
     "price_type",
 )  # (A SKU's own `description` / `description_bn` go through `skus`: the listing has fields of the same name.)
-
-
-def _cheapest_sku(listing):
-    """The active SKU with the lowest price right now — what a listing page
-    shows as "from ...". For a gig this is the lowest rate; `price_type` says
-    what the rate is for (an hour, a day, a week, a month, or a fixed price).
-    Uses prefetched SKUs when available."""
-    active = [sku for sku in listing.skus.all() if sku.is_active]
-    return min(active, key=lambda sku: (sku.effective_price(), sku.price)) if active else None
-
-
-class ListingFromPriceMixin:
-    """Read-only `price` / `discounted_price` on a listing: the original and
-    the currently charged price of its cheapest active SKU (null when there is
-    none). The real prices live on `skus`."""
-
-    def get_price(self, obj):
-        sku = _cheapest_sku(obj)
-        return str(sku.price) if sku else None
-
-    def get_discounted_price(self, obj):
-        sku = _cheapest_sku(obj)
-        return str(sku.effective_price()) if sku else None
-
-    def get_price_type(self, obj):
-        sku = _cheapest_sku(obj)
-        return sku.price_type if sku else None
 
 
 class ListingListSerializer(ListingFromPriceMixin, serializers.ModelSerializer):
@@ -1020,99 +991,6 @@ class ListingSerializer(ListingFromPriceMixin, LocationConsistencyMixin, seriali
         return instance
 
 
-class SellerListingListSerializer(ListingFromPriceMixin, serializers.ModelSerializer):
-    """A seller's own product list: what they need to see at a glance."""
-
-    price = serializers.SerializerMethodField()
-    discounted_price = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Listing
-        fields = [
-            "id", "title", "title_bn", "slug", "catalog_type", "listing_type",
-            "category", "brand", "price", "discounted_price", "image_url",
-            "status", "note", "requested_at", "created_at", "updated_at",
-        ]
-
-
-class SellerGigListSerializer(ListingFromPriceMixin, serializers.ModelSerializer):
-    """A seller's own gig list (see GigListSerializer for the price fields)."""
-
-    price = serializers.SerializerMethodField()
-    discounted_price = serializers.SerializerMethodField()
-    price_type = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Listing
-        fields = [
-            "id", "title", "title_bn", "slug", "category", "price", "discounted_price", "price_type",
-            "image_url", "status", "note", "requested_at", "created_at", "updated_at",
-        ]
-
-
-class SellerStatusLogSerializer(serializers.ModelSerializer):
-    """The status history as a seller sees it: what happened, why and when, and
-    whether the seller or an admin did it, but not which admin."""
-
-    class Meta:
-        model = ListingStatusChangeLog
-        fields = ["id", "status", "note", "creator_type", "created_at"]
-
-
-class SellerListingMixin:
-    """What makes a listing serializer a seller's own (`/seller/listings/`,
-    `/seller/gigs/`): the moderation parts are taken away from the seller.
-
-    - The owner is always the logged-in seller and the listing is always a
-      `seller_offer`: `seller`, `buyer` and `posted_by_role` are not accepted.
-    - `status` is read-only. A new listing is always `pending`. Saving a
-      `rejected` or `changes_requested` listing sends it back to `pending`
-      (and to the admin's pending list as the newest request). Saving an
-      `approved` or `pending` listing leaves its status alone.
-    - `note` is the admin's reason when the listing was rejected. A note sent
-      while saving a rejected / changes-requested listing becomes the seller's
-      message to the reviewer; in any other state a note is ignored.
-    - The seller sees the status history but not the info change log."""
-
-    duplicate_title_message = "You already have a listing with this title. Update the existing listing instead."
-
-    def validate(self, attrs):
-        if self.instance is None:
-            attrs["seller"] = self.context["request"].user
-            attrs["posted_by_role"] = Listing.PostedByRole.SELLER_OFFER
-            attrs.pop("note", None)  # a new listing has no reason to explain yet
-        return super().validate(attrs)
-
-    def update(self, instance, validated_data):
-        # A listing an admin left as a draft is submitted the same way.
-        if instance.status in Listing.RESUBMIT_STATUSES:
-            validated_data["status"] = Listing.Status.PENDING
-            validated_data["note"] = validated_data.get("note") or None
-        else:
-            validated_data.pop("note", None)
-        return super().update(instance, validated_data)
-
-
-_SELLER_HIDDEN_FIELDS = ("seller", "buyer", "posted_by_role", "info_change_logs")
-
-
-class SellerListingSerializer(SellerListingMixin, ListingSerializer):
-    """A seller's own product (`/seller/listings/`). Service fields are not
-    part of a product; a seller's service offer is a gig (SellerGigSerializer)."""
-
-    scope = kinds.PRODUCT
-    foreign_fields = kinds.SERVICE_ONLY_FIELDS
-    status_change_logs = SellerStatusLogSerializer(many=True, read_only=True)
-
-    class Meta(ListingSerializer.Meta):
-        fields = [
-            name for name in ListingSerializer.Meta.fields
-            if name not in _SELLER_HIDDEN_FIELDS and name not in kinds.SERVICE_ONLY_FIELDS
-        ]
-        read_only_fields = ListingSerializer.Meta.read_only_fields + ["status"]
-        extra_kwargs = {**ListingSerializer.Meta.extra_kwargs, "catalog_type": {"required": False}}
-
-
 _GIG_HIDDEN_FIELDS = kinds.PRODUCT_ONLY_FIELDS + ("brand_name", "price_tiers", "buyer")
 
 
@@ -1134,11 +1012,150 @@ class GigSerializer(ListingSerializer):
         }
 
 
-class SellerGigSerializer(SellerListingMixin, GigSerializer):
-    """A seller's own gig (`/seller/gigs/`)."""
+class BuyerJobSkuSerializer(ListingSkuSerializer):
+    """A job's budget: reuses the same SKU shape a product/gig uses, minus
+    the parts that only make sense for something actually for sale."""
 
-    status_change_logs = SellerStatusLogSerializer(many=True, read_only=True)
+    class Meta(ListingSkuSerializer.Meta):
+        fields = [f for f in ListingSkuSerializer.Meta.fields if f not in ("variants", "stock_qty", "reserved_qty")]
 
-    class Meta(GigSerializer.Meta):
-        fields = [name for name in GigSerializer.Meta.fields if name not in _SELLER_HIDDEN_FIELDS]
-        read_only_fields = GigSerializer.Meta.read_only_fields + ["status"]
+
+class _CategoryBrief(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ["id", "name", "name_bn", "slug"]
+
+
+_ADMIN_ALLOWED_NEXT = {
+    **_ALLOWED_NEXT,
+    Listing.Status.IN_PROGRESS: _ALLOWED_NEXT[Listing.Status.IN_PROGRESS] | {Listing.Status.CANCELLED},
+}
+
+
+class _BuyerBrief(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "name", "phone", "email"]
+
+
+class AdminJobListSerializer(serializers.ModelSerializer):
+    category = _CategoryBrief(read_only=True)
+    buyer = _BuyerBrief(read_only=True)
+    budget = serializers.SerializerMethodField()
+    bid_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Listing
+        fields = [
+            "id", "title", "title_bn", "slug", "category", "buyer", "status", "budget", "bid_count",
+            "delivery_days", "urgent", "created_at", "updated_at",
+        ]
+
+    def get_budget(self, obj):
+        skus = [s for s in obj.skus.all() if s.is_active]
+        if not skus:
+            return None
+        cheapest = min(skus, key=lambda s: s.effective_price())
+        return {"price": str(cheapest.effective_price()), "price_type": cheapest.price_type}
+
+
+class AdminJobDetailSerializer(AdminJobListSerializer):
+    skus = BuyerJobSkuSerializer(many=True, read_only=True)
+    accepted_bid = serializers.SerializerMethodField()
+    location = serializers.SerializerMethodField()
+
+    class Meta(AdminJobListSerializer.Meta):
+        fields = AdminJobListSerializer.Meta.fields + [
+            "description", "description_bn", "package_includes", "package_includes_bn",
+            "available_from", "available_to", "location", "skus", "accepted_bid", "note",
+        ]
+
+    def get_location(self, obj):
+        return {
+            level: ({"id": getattr(obj, f"{level}_id"), "name": getattr(obj, level).name} if getattr(obj, f"{level}_id") else None)
+            for level in ("country", "state", "city", "thana")
+        }
+
+    def get_accepted_bid(self, obj):
+        # Imported here to avoid a hard import cycle between catalog and bidding.
+        from apps.bidding.buyer.serializers import BuyerBidBriefSerializer
+
+        bid = next((b for b in obj.bids.all() if b.status == b.Status.ACCEPTED), None)
+        return BuyerBidBriefSerializer(bid).data if bid else None
+
+
+class AdminJobWriteSerializer(LocationConsistencyMixin, serializers.ModelSerializer):
+    skus = BuyerJobSkuSerializer(many=True, required=False)
+
+    class Meta:
+        model = Listing
+        fields = [
+            "id", "buyer", "category", "title", "title_bn", "description", "description_bn",
+            "delivery_days", "urgent", "package_includes", "package_includes_bn",
+            "available_from", "available_to", "country", "state", "city", "thana",
+            "status", "note", "skus",
+        ]
+        extra_kwargs = {
+            "buyer": {"required": False},  # required on create only — see validate()
+            "title_bn": {"required": False, "allow_null": True, "allow_blank": True},
+            "description_bn": {"required": False, "allow_null": True, "allow_blank": True},
+            "status": {"required": False},
+        }
+
+    def validate_category(self, value):
+        if value.type != Category.CatalogType.SERVICE:
+            raise serializers.ValidationError("A job needs a service category.")
+        if value.status != Category.Status.ACTIVE:
+            raise serializers.ValidationError("This category is inactive.")
+        return value
+
+    def validate_skus(self, value):
+        seen = set()
+        for row in value:
+            price_type = row.get("price_type") or ListingSku.PriceType.FIXED
+            if price_type in seen:
+                raise serializers.ValidationError(f"Two budget options use the same price type ({price_type}).")
+            seen.add(price_type)
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        instance = self.instance
+
+        if instance is None:
+            if not attrs.get("buyer"):
+                raise serializers.ValidationError({"buyer": "Say which buyer this job is for."})
+            if not attrs.get("skus"):
+                raise serializers.ValidationError({"skus": "A job needs at least one budget option."})
+            attrs.pop("status", None)  # always starts open_for_bidding, never client-chosen
+            return attrs
+
+        attrs.pop("buyer", None)  # never reassigned after creation
+        current = instance.status
+        new_status = attrs.get("status", current)
+        if current not in _ADMIN_ALLOWED_NEXT:
+            raise serializers.ValidationError(
+                {"status": "This job can no longer be edited (it's completed or cancelled)."}
+            )
+        if new_status not in _ADMIN_ALLOWED_NEXT[current]:
+            raise serializers.ValidationError(
+                {"status": f"Cannot move a job from '{current}' to '{new_status}'."}
+            )
+        if current == Listing.Status.IN_PROGRESS and new_status == Listing.Status.CANCELLED and not attrs.get("note"):
+            raise serializers.ValidationError({"note": "A reason is required to cancel a hired job."})
+        if current == Listing.Status.IN_PROGRESS and new_status not in (Listing.Status.COMPLETED, Listing.Status.CANCELLED):
+            non_status_fields = set(attrs) - {"status"}
+            if non_status_fields:
+                raise serializers.ValidationError(
+                    "This job has been hired — only status changes (complete/cancel) are allowed now."
+                )
+        return attrs
+
+    def create(self, validated_data):
+        buyer = validated_data.pop("buyer")
+        actor = self.context["request"].user
+        return create_job(buyer=buyer, actor=actor, validated_data=validated_data)
+
+    def update(self, instance, validated_data):
+        actor = self.context["request"].user
+        return update_job(instance, actor, validated_data)

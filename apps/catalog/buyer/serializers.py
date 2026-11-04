@@ -1,49 +1,37 @@
 """
-Serializers for the admin job panel (`/api/v1/catalog/jobs/...`). Same job
-shape and state machine as a buyer's own `/buyer/jobs/` (see
-buyer_job_serializers.py, whose `create_job`/`update_job`/`_ALLOWED_NEXT`
-this reuses) — "admin can do everything" here means: create/edit a job on
-any buyer's behalf, and one extra transition only an admin may make:
-`in_progress -> cancelled` (with a mandatory reason), since normally only
-`completed` is reachable from there.
+Serializers for a buyer's own job postings (`/api/v1/buyer/jobs/...`). A job
+is a `Listing` with `catalog_type=service`, `posted_by_role=buyer_request`,
+`buyer=<the poster>`, `seller=None` — see `apps.catalog.kinds` and
+`Listing.Status`'s docstring for the full state machine. See
+docs/buyer/buyer-api-guide.md.
+
+Unlike a product or a gig, a job skips admin moderation entirely (no
+draft/pending/approved/rejected/changes_requested review) — it goes straight
+to `open_for_bidding`. `draft`/`pending` are reused here only for the job's
+own pause/reopen cycle, not for moderation.
 """
 
 from rest_framework import serializers
 
-from apps.accounts.models import User
 from apps.core.location import LocationConsistencyMixin
 
-from .buyer_job_serializers import (
-    BuyerJobSkuSerializer,
-    _ALLOWED_NEXT,
-    _CategoryBrief,
-    create_job,
-    update_job,
+from ..admin_api.serializers import BuyerJobSkuSerializer, _CategoryBrief
+from ..job_services import _ALLOWED_NEXT, create_job, update_job
+from ..models import Category, Listing, ListingSku
+
+SERVICE_FIELDS = (
+    "delivery_days", "urgent", "package_includes", "package_includes_bn", "available_from", "available_to",
 )
-from .models import Category, Listing, ListingSku
 
-_ADMIN_ALLOWED_NEXT = {
-    **_ALLOWED_NEXT,
-    Listing.Status.IN_PROGRESS: _ALLOWED_NEXT[Listing.Status.IN_PROGRESS] | {Listing.Status.CANCELLED},
-}
-
-
-class _BuyerBrief(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ["id", "name", "phone", "email"]
-
-
-class AdminJobListSerializer(serializers.ModelSerializer):
+class BuyerJobListSerializer(serializers.ModelSerializer):
     category = _CategoryBrief(read_only=True)
-    buyer = _BuyerBrief(read_only=True)
     budget = serializers.SerializerMethodField()
     bid_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Listing
         fields = [
-            "id", "title", "title_bn", "slug", "category", "buyer", "status", "budget", "bid_count",
+            "id", "title", "title_bn", "slug", "category", "status", "budget", "bid_count",
             "delivery_days", "urgent", "created_at", "updated_at",
         ]
 
@@ -55,13 +43,13 @@ class AdminJobListSerializer(serializers.ModelSerializer):
         return {"price": str(cheapest.effective_price()), "price_type": cheapest.price_type}
 
 
-class AdminJobDetailSerializer(AdminJobListSerializer):
+class BuyerJobDetailSerializer(BuyerJobListSerializer):
     skus = BuyerJobSkuSerializer(many=True, read_only=True)
     accepted_bid = serializers.SerializerMethodField()
     location = serializers.SerializerMethodField()
 
-    class Meta(AdminJobListSerializer.Meta):
-        fields = AdminJobListSerializer.Meta.fields + [
+    class Meta(BuyerJobListSerializer.Meta):
+        fields = BuyerJobListSerializer.Meta.fields + [
             "description", "description_bn", "package_includes", "package_includes_bn",
             "available_from", "available_to", "location", "skus", "accepted_bid", "note",
         ]
@@ -80,19 +68,18 @@ class AdminJobDetailSerializer(AdminJobListSerializer):
         return BuyerBidBriefSerializer(bid).data if bid else None
 
 
-class AdminJobWriteSerializer(LocationConsistencyMixin, serializers.ModelSerializer):
+class BuyerJobWriteSerializer(LocationConsistencyMixin, serializers.ModelSerializer):
     skus = BuyerJobSkuSerializer(many=True, required=False)
 
     class Meta:
         model = Listing
         fields = [
-            "id", "buyer", "category", "title", "title_bn", "description", "description_bn",
+            "id", "category", "title", "title_bn", "description", "description_bn",
             "delivery_days", "urgent", "package_includes", "package_includes_bn",
             "available_from", "available_to", "country", "state", "city", "thana",
             "status", "note", "skus",
         ]
         extra_kwargs = {
-            "buyer": {"required": False},  # required on create only — see validate()
             "title_bn": {"required": False, "allow_null": True, "allow_blank": True},
             "description_bn": {"required": False, "allow_null": True, "allow_blank": True},
             "status": {"required": False},
@@ -119,38 +106,33 @@ class AdminJobWriteSerializer(LocationConsistencyMixin, serializers.ModelSeriali
         instance = self.instance
 
         if instance is None:
-            if not attrs.get("buyer"):
-                raise serializers.ValidationError({"buyer": "Say which buyer this job is for."})
             if not attrs.get("skus"):
                 raise serializers.ValidationError({"skus": "A job needs at least one budget option."})
             attrs.pop("status", None)  # always starts open_for_bidding, never client-chosen
             return attrs
 
-        attrs.pop("buyer", None)  # never reassigned after creation
         current = instance.status
         new_status = attrs.get("status", current)
-        if current not in _ADMIN_ALLOWED_NEXT:
+        if current not in _ALLOWED_NEXT:
             raise serializers.ValidationError(
                 {"status": "This job can no longer be edited (it's completed or cancelled)."}
             )
-        if new_status not in _ADMIN_ALLOWED_NEXT[current]:
+        if new_status not in _ALLOWED_NEXT[current]:
             raise serializers.ValidationError(
                 {"status": f"Cannot move a job from '{current}' to '{new_status}'."}
             )
-        if current == Listing.Status.IN_PROGRESS and new_status == Listing.Status.CANCELLED and not attrs.get("note"):
-            raise serializers.ValidationError({"note": "A reason is required to cancel a hired job."})
-        if current == Listing.Status.IN_PROGRESS and new_status not in (Listing.Status.COMPLETED, Listing.Status.CANCELLED):
+        if current == Listing.Status.IN_PROGRESS and new_status != Listing.Status.COMPLETED:
+            # Only the complete action is allowed here; every other field is admin-only once hired.
             non_status_fields = set(attrs) - {"status"}
             if non_status_fields:
                 raise serializers.ValidationError(
-                    "This job has been hired — only status changes (complete/cancel) are allowed now."
+                    "This job has been hired — only an admin can edit it now (you may still mark it complete)."
                 )
         return attrs
 
     def create(self, validated_data):
-        buyer = validated_data.pop("buyer")
         actor = self.context["request"].user
-        return create_job(buyer=buyer, actor=actor, validated_data=validated_data)
+        return create_job(buyer=actor, actor=actor, validated_data=validated_data)
 
     def update(self, instance, validated_data):
         actor = self.context["request"].user

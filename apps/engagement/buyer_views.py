@@ -16,7 +16,7 @@ from rest_framework.views import APIView
 
 from apps.authentication.permissions import IsBuyerActor
 from apps.catalog.models import Listing, ListingSku
-from apps.catalog.public_listings import buyer_visible_listings
+from apps.catalog.public.listings import buyer_visible_listings
 from apps.core.pagination import BuyerPagePagination
 
 from .buyer_serializers import AddFavouriteSerializer, FavouriteSerializer

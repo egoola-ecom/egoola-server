@@ -1,7 +1,7 @@
 from django.urls import path
 
-from .public_listings import PublicGigDetailView, PublicGigListView, PublicProductDetailView, PublicProductListView
-from .public_views import PublicCategoryListView
+from .listings import PublicGigDetailView, PublicGigListView, PublicProductDetailView, PublicProductListView
+from .views import PublicCategoryListView
 
 urlpatterns = [
     path("categories/", PublicCategoryListView.as_view(), name="public-category-list"),

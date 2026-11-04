@@ -1,5 +1,5 @@
 """
-Public, read-only catalog lists for the Buyer Panel (browsing needs no login).
+Public, read-only category list for the Buyer Panel (browsing needs no login).
 
 Like the public geography lists these are separate from the admin endpoints:
 they carry no audit columns and accept only GET. `authentication_classes = []`
@@ -7,35 +7,14 @@ so a stale or expired token never turns a public read into a 401.
 """
 
 from django.db.models import Exists, OuterRef, Q
-from rest_framework import serializers
 from rest_framework.exceptions import NotFound
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny
 
 from apps.core.pagination import BuyerPagePagination
 
-from .models import Category
-
-
-class PublicCategorySerializer(serializers.ModelSerializer):
-    """One category for browsing. `has_children` says whether there is anything
-    to drill into (an active sub-category), so the app can show an arrow."""
-
-    has_children = serializers.BooleanField(read_only=True)
-
-    class Meta:
-        model = Category
-        fields = ["id", "parent", "type", "name", "name_bn", "slug", "image_url", "sort_order", "has_children"]
-
-
-class CategoryListQuerySerializer(serializers.Serializer):
-    """The query string of the category list: validated, with its defaults."""
-
-    parent_id = serializers.IntegerField(required=False, min_value=1)
-    search = serializers.CharField(required=False, allow_blank=True, max_length=100, trim_whitespace=True)
-    type = serializers.ChoiceField(required=False, choices=Category.CatalogType.choices)
-    page = serializers.IntegerField(required=False, min_value=1)
-    page_size = serializers.IntegerField(required=False, min_value=1, max_value=BuyerPagePagination.max_page_size)
+from ..models import Category
+from .serializers import CategoryListQuerySerializer, PublicCategorySerializer
 
 
 def _hidden_category_ids():

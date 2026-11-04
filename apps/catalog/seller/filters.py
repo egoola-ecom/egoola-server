@@ -1,6 +1,6 @@
 import django_filters
 
-from .models import Listing, ListingSku
+from ..models import Listing, ListingSku
 
 
 class _ListingDateFilters(django_filters.FilterSet):
@@ -12,14 +12,6 @@ class _ListingDateFilters(django_filters.FilterSet):
     created_to = django_filters.DateFilter(field_name="created_at", lookup_expr="date__lte")
     requested_from = django_filters.DateFilter(field_name="requested_at", lookup_expr="date__gte")
     requested_to = django_filters.DateFilter(field_name="requested_at", lookup_expr="date__lte")
-
-
-class ListingFilter(_ListingDateFilters):
-    """Admin product list and pending list."""
-
-    class Meta:
-        model = Listing
-        fields = ["status", "catalog_type", "listing_type", "category", "brand", "seller", "buyer"]
 
 
 class SellerListingFilter(_ListingDateFilters):
@@ -39,14 +31,6 @@ class _GigPriceTypeFilter(django_filters.FilterSet):
 
     def filter_price_type(self, queryset, name, value):
         return queryset.filter(skus__price_type=value, skus__is_active=True).distinct()
-
-
-class GigFilter(_GigPriceTypeFilter, _ListingDateFilters):
-    """Admin gig list and pending gig list."""
-
-    class Meta:
-        model = Listing
-        fields = ["status", "category", "seller"]
 
 
 class SellerGigFilter(_GigPriceTypeFilter, _ListingDateFilters):

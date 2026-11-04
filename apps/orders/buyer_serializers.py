@@ -6,7 +6,7 @@ buyer_views.py and docs/buyer/buyer-api-guide.md.
 from rest_framework import serializers
 
 from apps.catalog.models import Listing, ListingSku
-from apps.catalog.public_listings import buyer_visible_listings
+from apps.catalog.public.listings import buyer_visible_listings
 
 from .models import Cart, CartItem
 
