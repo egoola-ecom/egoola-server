@@ -94,13 +94,41 @@ def infer_media_type(uploaded_file):
     return "document"
 
 
+# Global per-kind size ceiling — every app's upload funnels through
+# save_upload() below, so this is the one place the limit has to live; no
+# serializer needs (or should keep) its own copy of these numbers. A
+# call site may still enforce something *stricter* of its own (an extra
+# per-request or per-listing cap, say) — this is only ever a backstop.
+IMAGE_MAX_BYTES = 2 * 1024 * 1024
+VIDEO_MAX_BYTES = 10 * 1024 * 1024
+OTHER_MAX_BYTES = 30 * 1024 * 1024
+
+_MAX_BYTES_BY_MEDIA_TYPE = {"image": IMAGE_MAX_BYTES, "video": VIDEO_MAX_BYTES}
+
+
+def validate_upload_size(uploaded_file):
+    """Raises a DRF 400 if `uploaded_file` is over its kind's global cap
+    (image 2 MB, video 10 MB, anything else — PDF, doc, ... — 30 MB).
+    Classified the same way `infer_media_type` classifies it for storage,
+    so the two never disagree on what kind a file is."""
+    media_type = infer_media_type(uploaded_file)
+    max_bytes = _MAX_BYTES_BY_MEDIA_TYPE.get(media_type, OTHER_MAX_BYTES)
+    if uploaded_file.size > max_bytes:
+        from rest_framework.exceptions import ValidationError
+
+        raise ValidationError(
+            f"{uploaded_file.name}: {media_type} files must be {max_bytes // (1024 * 1024)} MB or smaller."
+        )
+
+
 def save_upload(uploaded_file, *path_parts):
     """Saves through the project's configured default storage (the local
     bucket stand-in while DJANGO_ENV=local, real S3 otherwise — STORAGES
     above) under a random, collision-proof name, and returns
     (media_path, media_url) — the storage key and the URL it's reachable
-    at.
+    at. Enforces the global size cap (validate_upload_size) first.
     """
+    validate_upload_size(uploaded_file)
     ext = os.path.splitext(uploaded_file.name)[1]
     storage_path = "/".join([*path_parts, f"{uuid.uuid4().hex}{ext}"])
     saved_name = default_storage.save(storage_path, uploaded_file)
