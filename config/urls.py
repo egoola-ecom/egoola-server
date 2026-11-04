@@ -50,6 +50,7 @@ API_V1 = [
     path("engagement/", include("apps.engagement.urls")),
     path("notifications/", include("apps.notifications.urls")),
     path("cms/", include("apps.cms.urls")),
+    path("dashboard/", include("apps.dashboard.urls")),
 ]
 
 urlpatterns = [
