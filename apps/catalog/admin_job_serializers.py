@@ -74,7 +74,7 @@ class AdminJobDetailSerializer(AdminJobListSerializer):
 
     def get_accepted_bid(self, obj):
         # Imported here to avoid a hard import cycle between catalog and bidding.
-        from apps.bidding.buyer_serializers import BuyerBidBriefSerializer
+        from apps.bidding.buyer.serializers import BuyerBidBriefSerializer
 
         bid = next((b for b in obj.bids.all() if b.status == b.Status.ACCEPTED), None)
         return BuyerBidBriefSerializer(bid).data if bid else None

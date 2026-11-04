@@ -2,7 +2,7 @@
 Seller's job board (`/api/v1/seller/jobs/...`): browse open jobs, see one in
 full (with my own bids on it), and "jobs I've bid on". See
 docs/buyer/buyer-api-guide.md / seller-api-guide.md for the full contract. Bidding
-itself is apps.bidding.seller_views.
+itself is apps.bidding.seller.views.
 """
 
 from django.db.models import Count, Q

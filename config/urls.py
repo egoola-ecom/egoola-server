@@ -30,7 +30,7 @@ API_V1 = [
     path("seller/", include("apps.catalog.seller_urls")),
     # The seller's job board (open jobs, my bids) and bidding.
     path("seller/", include("apps.catalog.seller_job_urls")),
-    path("seller/", include("apps.bidding.seller_urls")),
+    path("seller/", include("apps.bidding.seller.urls")),
     # The seller's own orders (accept, reject, in_progress, shipped, delivered).
     path("seller/", include("apps.orders.seller_urls")),
     # Login (one endpoint per actor table) + token refresh — see
@@ -39,13 +39,13 @@ API_V1 = [
     # Buyer records" are different concerns.
     path("auth/", include("apps.authentication.urls")),
     path("catalog/", include("apps.catalog.urls")),
-    path("bidding/", include("apps.bidding.urls")),
+    path("bidding/", include("apps.bidding.admin_api.urls")),
     path("orders/", include("apps.orders.urls")),
     # The logged-in buyer's own cart, wishlist, and job postings.
     path("buyer/", include("apps.orders.buyer_urls")),
     path("buyer/", include("apps.engagement.buyer_urls")),
     path("buyer/", include("apps.catalog.buyer_job_urls")),
-    path("buyer/", include("apps.bidding.buyer_urls")),
+    path("buyer/", include("apps.bidding.buyer.urls")),
     path("inquiries/", include("apps.inquiries.urls")),
     path("messaging/", include("apps.messaging.urls")),
     path("engagement/", include("apps.engagement.urls")),

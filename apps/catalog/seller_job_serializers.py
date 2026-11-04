@@ -54,7 +54,7 @@ class SellerJobDetailSerializer(SellerJobListSerializer):
 
     def get_my_bids(self, obj):
         # Imported here to avoid a hard import cycle between catalog and bidding.
-        from apps.bidding.seller_serializers import SellerBidListSerializer
+        from apps.bidding.seller.serializers import SellerBidListSerializer
 
         seller = self.context["request"].user
         mine = [b for b in obj.bids.all() if b.bidder_id == seller.id]

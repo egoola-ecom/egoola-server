@@ -12,11 +12,63 @@ from django.utils import timezone
 from apps.catalog.models import Listing
 from apps.orders.models import Order, OrderItem
 
-from .models import Bid
+from .models import Bid, BidPriceTier
 
 
 def _stamp(instance, actor):
     instance.updated_by, instance.updater_type, instance.updater_name = actor.id, actor.actor_type, actor.name
+
+
+def create_bid(job, bidder, actor, validated_data):
+    """Shared by the seller's own create (`bidder == actor`) and the admin
+    endpoint's create-on-a-seller's-behalf (`actor` is the admin, stamped as
+    creator; `bidder` is whoever the bid is actually for)."""
+    tiers_data = validated_data.pop("price_tiers")
+    with transaction.atomic():
+        bid = Bid.objects.create(
+            **validated_data, listing=job, bidder=bidder,
+            created_by=actor.id, creator_type=actor.actor_type, creator_name=actor.name,
+        )
+        for row in tiers_data:
+            row.pop("id", None)
+            row["price_type"] = row.get("price_type") or BidPriceTier.PriceType.FIXED
+            BidPriceTier.objects.create(
+                bid=bid, **row,
+                created_by=actor.id, creator_type=actor.actor_type, creator_name=actor.name,
+            )
+    return bid
+
+
+def update_bid(instance, actor, validated_data):
+    """Shared by the seller's own edit and the admin endpoint's edit — the
+    bidder a bid belongs to is never reassigned, so both only ever need
+    `actor` (who's making the change, for the audit stamp)."""
+    tiers_data = validated_data.pop("price_tiers", None)
+
+    with transaction.atomic():
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.updated_by, instance.updater_type, instance.updater_name = actor.id, actor.actor_type, actor.name
+        instance.save()
+
+        if tiers_data is not None:
+            existing = {tier.id: tier for tier in instance.price_tiers.all()}
+            for row in tiers_data:
+                tier_id = row.pop("id", None)
+                if tier_id and tier_id in existing:
+                    tier = existing[tier_id]
+                    for field, value in row.items():
+                        setattr(tier, field, value)
+                    tier.updated_by, tier.updater_type, tier.updater_name = actor.id, actor.actor_type, actor.name
+                    tier.save()
+                else:
+                    row["price_type"] = row.get("price_type") or BidPriceTier.PriceType.FIXED
+                    BidPriceTier.objects.create(
+                        bid=instance, **row,
+                        created_by=actor.id, creator_type=actor.actor_type, creator_name=actor.name,
+                    )
+            # An existing tier not mentioned is left as-is (never deleted).
+    return instance
 
 
 def accept_bid(job, bid, price_tier, actor):
