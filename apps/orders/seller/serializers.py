@@ -1,15 +1,15 @@
 """
 Serializers for the seller's own orders (`/api/v1/seller/orders/...`). See
-seller_order_views.py and docs/seller/seller-api-guide.md.
+seller/views.py and docs/seller/seller-order-api-guide.md.
 """
 
 from rest_framework import serializers
 
 from apps.accounts.admin_api.serializers import BuyerListSerializer
 
-from .buyer_order_serializers import OrderAddressSerializer, OrderItemSerializer, OrderStatusHistorySerializer, PaymentSerializer
-from .models import Order
-from .services import SELLER_TRANSITIONS
+from ..common_serializers import OrderAddressSerializer, OrderItemSerializer, OrderStatusHistorySerializer, PaymentSerializer
+from ..models import Order
+from ..services import SELLER_TRANSITIONS
 
 
 class SellerOrderListSerializer(serializers.ModelSerializer):
@@ -55,5 +55,5 @@ class SellerOrderStatusSerializer(serializers.Serializer):
         return attrs
 
     def update(self, instance, validated_data):
-        from .services import seller_set_status
+        from ..services import seller_set_status
         return seller_set_status(instance, validated_data["status"], self.context["request"].user, validated_data.get("reason"))

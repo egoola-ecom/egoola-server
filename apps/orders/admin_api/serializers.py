@@ -1,7 +1,8 @@
 """
-Admin, read-only oversight of buyers' carts (`/api/v1/orders/carts/...`).
-Buyers manage their own cart through `apps.orders.buyer_views` instead —
-nothing here ever writes to a cart. See docs/admin/cart-wishlist-admin-guide.md.
+Every admin serializer for carts, Payment Gateways, and orders
+(`/api/v1/orders/carts|payment-gateways|orders/...`). See admin_api/views.py,
+docs/admin/cart-wishlist-admin-guide.md, docs/admin/admin-payment-gateway-api-guide.md,
+and docs/admin/admin-order-api-guide.md.
 """
 
 from rest_framework import serializers
@@ -9,9 +10,11 @@ from rest_framework import serializers
 from apps.accounts.admin_api.serializers import BuyerListSerializer
 from config.storage import delete_upload, save_upload
 
-from .buyer_serializers import CartItemListingSerializer, CartItemSkuSerializer
-from .models import Cart, CartItem, PaymentGateway, _generate_gateway_slug
+from ..buyer.serializers import CartItemListingSerializer, CartItemSkuSerializer
+from ..common_serializers import OrderAddressSerializer, OrderItemSerializer, OrderSellerSerializer, OrderStatusHistorySerializer, PaymentSerializer
+from ..models import Cart, CartItem, Order, PaymentGateway, _generate_gateway_slug
 
+# --- Carts ----------------------------------------------------------------
 
 class AdminCartItemSerializer(serializers.ModelSerializer):
     listing = CartItemListingSerializer(read_only=True)
@@ -80,6 +83,8 @@ class AdminCartDetailSerializer(AdminCartListSerializer):
         ]
 
 
+# --- Payment Gateways -------------------------------------------------------
+
 class PaymentGatewaySerializer(serializers.ModelSerializer):
     """`slug` is always server-generated from `name` (on create, and again on
     a rename) — never taken from the client. `icon` is optional; sending one
@@ -115,3 +120,43 @@ class PaymentGatewaySerializer(serializers.ModelSerializer):
         if icon is not None:
             self._apply_icon(instance, icon)
         return instance
+
+
+# --- Orders ------------------------------------------------------------------
+
+class AdminOrderListSerializer(serializers.ModelSerializer):
+    buyer = BuyerListSerializer(read_only=True)
+    seller = OrderSellerSerializer(read_only=True)
+
+    class Meta:
+        model = Order
+        fields = [
+            "id", "order_type", "buyer", "seller", "status", "payment_status", "subtotal", "delivery_cost",
+            "discount", "total", "payable", "created_at", "updated_at",
+        ]
+
+
+class AdminOrderDetailSerializer(AdminOrderListSerializer):
+    items = OrderItemSerializer(many=True, read_only=True)
+    address = OrderAddressSerializer(read_only=True)
+    payment = PaymentSerializer(read_only=True)
+    status_histories = OrderStatusHistorySerializer(many=True, read_only=True)
+
+    class Meta(AdminOrderListSerializer.Meta):
+        fields = AdminOrderListSerializer.Meta.fields + [
+            "items", "address", "payment", "status_histories",
+            "expected_delivery_at", "completed_at", "cancelled_reason", "rejected_reason",
+            "created_by", "creator_type", "creator_name", "updated_by", "updater_type", "updater_name",
+        ]
+
+
+class AdminOrderStatusSerializer(serializers.Serializer):
+    """`{"status": "...", "reason": "..."}` — admin can move an order to
+    any status at any time, no transition check."""
+
+    status = serializers.ChoiceField(choices=Order.Status.choices)
+    reason = serializers.CharField(required=False, allow_blank=True)
+
+    def update(self, instance, validated_data):
+        from ..services import admin_set_status
+        return admin_set_status(instance, validated_data["status"], self.context["request"].user, validated_data.get("reason"))

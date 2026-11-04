@@ -1,15 +1,21 @@
 """
-Serializers for the buyer's own cart (`/api/v1/buyer/cart/...`). See
-buyer_views.py and docs/buyer/buyer-api-guide.md.
+Every serializer for the buyer's own cart, saved addresses, and orders
+(`/api/v1/buyer/cart|addresses|orders/...`). See buyer/views.py and
+docs/buyer/buyer-api-guide.md.
 """
 
 from rest_framework import serializers
 
 from apps.catalog.models import Listing, ListingSku
 from apps.catalog.public.listings import buyer_visible_listings
+from apps.core.location import LocationConsistencyMixin, LocationNamesMixin
 
-from .models import Cart, CartItem
+from ..common_serializers import OrderAddressSerializer, OrderItemSerializer, OrderSellerSerializer, OrderStatusHistorySerializer, PaymentSerializer
+from ..models import Address, Cart, CartItem, Order, PaymentGateway
+from ..services import BUYER_CANCELLABLE_FROM, buyer_cancel, create_order_from_cart
 
+
+# --- Cart -------------------------------------------------------------------
 
 def _variant_value(sku, name_fragment):
     """Best-effort text snapshot of one of this SKU's variants (e.g. its
@@ -172,3 +178,90 @@ class UpdateCartItemSerializer(serializers.Serializer):
             setattr(instance, field, value)
         instance.save()
         return instance
+
+
+# --- Addresses ---------------------------------------------------------------
+
+class BuyerAddressSerializer(LocationConsistencyMixin, LocationNamesMixin, serializers.ModelSerializer):
+    class Meta:
+        model = Address
+        fields = [
+            "id", "name", "phone",
+            "country", "country_name", "state", "state_name", "city", "city_name", "thana", "thana_name",
+            "address_line1", "address_line2", "zip", "created_at", "updated_at",
+        ]
+        read_only_fields = ["created_at", "updated_at"]
+
+
+# --- Orders -------------------------------------------------------------------
+
+class BuyerOrderListSerializer(serializers.ModelSerializer):
+    seller = OrderSellerSerializer(read_only=True)
+
+    class Meta:
+        model = Order
+        fields = [
+            "id", "order_type", "seller", "status", "payment_status", "subtotal", "delivery_cost", "discount",
+            "total", "payable", "created_at", "updated_at",
+        ]
+
+
+class BuyerOrderDetailSerializer(BuyerOrderListSerializer):
+    items = OrderItemSerializer(many=True, read_only=True)
+    address = OrderAddressSerializer(read_only=True)
+    payment = PaymentSerializer(read_only=True)
+    status_histories = OrderStatusHistorySerializer(many=True, read_only=True)
+
+    class Meta(BuyerOrderListSerializer.Meta):
+        fields = BuyerOrderListSerializer.Meta.fields + [
+            "items", "address", "payment", "status_histories",
+            "expected_delivery_at", "completed_at", "cancelled_reason", "rejected_reason",
+        ]
+
+
+class CheckoutSerializer(serializers.Serializer):
+    """`{"cart": <id>, "address": <id>, "payment_gateway": <id>}` — order,
+    order items and the payment are all created in this one call."""
+
+    cart = serializers.PrimaryKeyRelatedField(queryset=Cart.objects.filter(is_active=True))
+    address = serializers.PrimaryKeyRelatedField(queryset=Address.objects.all())
+    payment_gateway = serializers.PrimaryKeyRelatedField(queryset=PaymentGateway.objects.filter(is_active=True))
+
+    def validate(self, attrs):
+        actor = self.context["request"].user
+        cart, address = attrs["cart"], attrs["address"]
+        if cart.buyer_id != actor.id:
+            raise serializers.ValidationError({"cart": "Not your cart."})
+        if address.addressable_type != Address.AddressableType.USER or address.addressable_id != actor.id:
+            raise serializers.ValidationError({"address": "Not your saved address."})
+        return attrs
+
+    def create(self, validated_data):
+        actor = self.context["request"].user
+        try:
+            return create_order_from_cart(
+                validated_data["cart"], validated_data["address"], validated_data["payment_gateway"], actor,
+            )
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
+
+
+class BuyerOrderStatusSerializer(serializers.Serializer):
+    """`{"status": "cancelled", "reason": "..."}` — the only move a buyer
+    can make for now; more may come later."""
+
+    status = serializers.ChoiceField(choices=Order.Status.choices)
+    reason = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_status(self, status):
+        if status != Order.Status.CANCELLED:
+            raise serializers.ValidationError("A buyer can currently only move an order to cancelled.")
+        return status
+
+    def validate(self, attrs):
+        if self.instance.status not in BUYER_CANCELLABLE_FROM:
+            raise serializers.ValidationError({"status": "This order can no longer be cancelled."})
+        return attrs
+
+    def update(self, instance, validated_data):
+        return buyer_cancel(instance, self.context["request"].user, validated_data.get("reason"))

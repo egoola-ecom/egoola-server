@@ -1,9 +1,7 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .buyer_address_views import BuyerAddressViewSet
-from .buyer_order_views import BuyerOrderViewSet
-from .buyer_views import CartItemDetailView, CartItemsView, CartSummaryView, CartView
+from .views import BuyerAddressViewSet, BuyerOrderViewSet, CartItemDetailView, CartItemsView, CartSummaryView, CartView
 
 router = DefaultRouter()
 router.register("addresses", BuyerAddressViewSet, basename="buyer-address")

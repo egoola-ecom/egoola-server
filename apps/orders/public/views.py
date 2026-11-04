@@ -12,16 +12,11 @@ rows carry audit columns and accept writes, and also list inactive gateways
 never turn a public read into a 401.
 """
 
-from rest_framework import mixins, serializers, viewsets
+from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny
 
-from .models import PaymentGateway
-
-
-class PublicPaymentGatewaySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PaymentGateway
-        fields = ["id", "name", "slug", "icon_url"]
+from ..models import PaymentGateway
+from .serializers import PublicPaymentGatewaySerializer
 
 
 class PublicPaymentGatewayViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):

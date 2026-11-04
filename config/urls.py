@@ -22,7 +22,7 @@ API_V1 = [
     path("public/catalog/", include("apps.catalog.public.urls")),
     path("public/sellers/", include("apps.accounts.public.urls")),
     # Read-only active-gateway list for the checkout form: no login.
-    path("public/orders/", include("apps.orders.public_urls")),
+    path("public/orders/", include("apps.orders.public.urls")),
     path("accounts/", include("apps.accounts.admin_api.urls")),
     # The logged-in seller's own endpoints (profile, resubmit, password).
     path("seller/", include("apps.accounts.seller.urls")),
@@ -31,7 +31,7 @@ API_V1 = [
     path("seller/", include("apps.catalog.seller.urls")),
     path("seller/", include("apps.bidding.seller.urls")),
     # The seller's own orders (accept, reject, in_progress, shipped, delivered).
-    path("seller/", include("apps.orders.seller_urls")),
+    path("seller/", include("apps.orders.seller.urls")),
     # Login (one endpoint per actor table) + token refresh — see
     # apps.authentication. Kept as its own app/urls.py rather than
     # apps.accounts, since "prove who you are" and "manage Admin/Seller/
@@ -39,9 +39,9 @@ API_V1 = [
     path("auth/", include("apps.authentication.urls")),
     path("catalog/", include("apps.catalog.admin_api.urls")),
     path("bidding/", include("apps.bidding.admin_api.urls")),
-    path("orders/", include("apps.orders.urls")),
+    path("orders/", include("apps.orders.admin_api.urls")),
     # The logged-in buyer's own cart, wishlist, and job postings.
-    path("buyer/", include("apps.orders.buyer_urls")),
+    path("buyer/", include("apps.orders.buyer.urls")),
     path("buyer/", include("apps.engagement.buyer_urls")),
     path("buyer/", include("apps.catalog.buyer.urls")),
     path("buyer/", include("apps.bidding.buyer.urls")),

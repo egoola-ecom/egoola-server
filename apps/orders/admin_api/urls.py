@@ -1,7 +1,6 @@
 from rest_framework.routers import DefaultRouter
 
-from .admin_order_views import AdminOrderViewSet
-from .views import AdminCartViewSet, AdminPaymentGatewayViewSet
+from .views import AdminCartViewSet, AdminOrderViewSet, AdminPaymentGatewayViewSet
 
 router = DefaultRouter()
 router.register("carts", AdminCartViewSet, basename="admin-cart")

@@ -1,34 +1,34 @@
 """
-The buyer's own cart(s) (`/api/v1/buyer/cart/...`). See docs/buyer/buyer-api-guide.md.
-
-A buyer has at most one *active* cart per (type, seller) — see Cart.CatalogType
-and the model docstring for why a cart never spans sellers. GET/DELETE are pure
-lookups, never creating anything: `?type=` picks which kind, and `?seller=` (if
-given) picks that seller's cart; left out, they act on whichever active cart of
-that type was touched most recently. Either returns `null`/no-ops if there is
-none. Adding an item is the only thing that ever creates a cart, picking it
-automatically from the listing's own type and seller — the buyer never states
-either directly, so neither can ever mismatch.
+Every view for the buyer's own cart, saved addresses, and orders
+(`/api/v1/buyer/cart|addresses|orders/...`). See docs/buyer/buyer-api-guide.md.
 """
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from rest_framework import status
+from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.authentication.permissions import IsBuyerActor
+from apps.core.pagination import BuyerPagePagination
 
-from .buyer_serializers import (
+from ..models import Address, Cart, CartItem, Order
+from .serializers import (
     AddCartItemSerializer,
+    BuyerAddressSerializer,
+    BuyerOrderDetailSerializer,
+    BuyerOrderListSerializer,
+    BuyerOrderStatusSerializer,
     CartItemSerializer,
     CartSerializer,
     CartSummarySerializer,
+    CheckoutSerializer,
     UpdateCartItemSerializer,
     variant_snapshot,
 )
-from .models import Cart, CartItem
+
+# --- Cart ---------------------------------------------------------------------
 
 ITEM_PREFETCH = (
     "items__listing",
@@ -171,3 +171,78 @@ class CartItemDetailView(APIView):
         item.delete()
         _touch(cart)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# --- Addresses -----------------------------------------------------------------
+
+class BuyerAddressViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsBuyerActor]
+    serializer_class = BuyerAddressSerializer
+    pagination_class = None  # a buyer never has enough saved addresses to paginate
+
+    def get_queryset(self):
+        return Address.objects.filter(
+            addressable_type=Address.AddressableType.USER, addressable_id=self.request.user.id,
+        ).select_related("country", "state", "city", "thana").order_by("-created_at")
+
+    def perform_create(self, serializer):
+        actor = self.request.user
+        serializer.save(
+            addressable_type=Address.AddressableType.USER, addressable_id=actor.id,
+            created_by=actor.id, creator_type=actor.actor_type, creator_name=actor.name,
+        )
+
+    def perform_update(self, serializer):
+        actor = self.request.user
+        serializer.save(updated_by=actor.id, updater_type=actor.actor_type, updater_name=actor.name)
+
+
+# --- Orders ---------------------------------------------------------------------
+
+class BuyerOrderViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """`GET /buyer/orders/` (page-paginated) — my product orders, newest
+    first. `GET /buyer/orders/{id}/` — detail, with the seller, every item,
+    the payment and both status histories. `POST /buyer/orders/` —
+    checkout. `PATCH /buyer/orders/{id}/` — for now, only `{"status":
+    "cancelled"}`, any time before the seller has shipped it."""
+
+    permission_classes = [IsBuyerActor]
+    pagination_class = BuyerPagePagination
+
+    def get_queryset(self):
+        qs = Order.objects.filter(buyer=self.request.user, order_type=Order.OrderType.PRODUCT)
+        if self.action == "retrieve":
+            return qs.select_related(
+                "seller", "address", "address__country", "address__state", "address__city", "address__thana",
+                "payment",
+            ).prefetch_related(
+                "items", "status_histories", "payment__status_histories",
+            )
+        return qs.select_related("seller")
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return CheckoutSerializer
+        if self.action in ("update", "partial_update"):
+            return BuyerOrderStatusSerializer
+        if self.action == "retrieve":
+            return BuyerOrderDetailSerializer
+        return BuyerOrderListSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = CheckoutSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        order = serializer.save()
+        return Response(BuyerOrderDetailSerializer(order).data, status=201)
+
+    def update(self, request, *args, **kwargs):
+        order = self.get_object()
+        serializer = BuyerOrderStatusSerializer(
+            order, data=request.data, partial=kwargs.get("partial", False), context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        order = serializer.save()
+        return Response(BuyerOrderDetailSerializer(order).data)

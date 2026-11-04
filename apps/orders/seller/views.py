@@ -1,6 +1,6 @@
 """
 The seller's own orders (`/api/v1/seller/orders/...`). See
-docs/seller/seller-api-guide.md.
+docs/seller/seller-order-api-guide.md.
 """
 
 from rest_framework import mixins, viewsets
@@ -9,9 +9,9 @@ from rest_framework.response import Response
 from apps.authentication.permissions import IsActiveVerifiedSellerActor
 from apps.core.pagination import DefaultCursorPagination
 
+from ..models import Order
 from .filters import SellerOrderFilter
-from .models import Order
-from .seller_order_serializers import SellerOrderDetailSerializer, SellerOrderListSerializer, SellerOrderStatusSerializer
+from .serializers import SellerOrderDetailSerializer, SellerOrderListSerializer, SellerOrderStatusSerializer
 
 
 class SellerOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
