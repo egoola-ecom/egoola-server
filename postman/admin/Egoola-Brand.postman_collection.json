@@ -1,0 +1,327 @@
+{
+  "info": {
+    "name": "Egoola API — Brand",
+    "_postman_id": "9d3a7c5e-1f6b-4a2d-9e8c-egoola-brand",
+    "description": "Admin-managed Brand reference data under the Listing module — a Listing picks a brand from here instead of typing a free-text name. Create, Update, List, Delete. No Retrieve (405) — the list row already carries every field there is.\n\n`slug` is always server-generated from `name`, unique across the whole project (not scoped per-type like Category). `is_active` defaults to true; a brand still referenced by a listing can't be hard-deleted (409) — deactivate it instead.\n\n`image` is optional, write-only, multipart only — same pattern as Category. Replacing it on update is a plain re-send of the field; the global upload size cap applies (images > 2 MB are rejected with 400, see config/storage.py).\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run **Auth > Admin Login** first — its \"Tests\" script saves the access/refresh tokens into collection variables automatically.\n3. Run **Brands > Create Brand** — its \"Tests\" script saves the new row's id into `brand_id`.\n4. The Update requests below reuse `brand_id`.\n5. When a 401 says the token expired, run **Auth > Refresh Token**.\n\nFor Category (which this mirrors), see the separate Egoola API — Category collection and `docs/admin/admin-category-api-guide.md`. Full Brand reference: `docs/admin/admin-brand-api-guide.md`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{access_token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" },
+    { "key": "brand_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/admin/login/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "admin", "login", ""]
+            },
+            "description": "Public endpoint — no token needed to call this. Returns access + refresh JWTs carrying actor_type=admin. Every Brand endpoint below is Admin-only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    pm.collectionVariables.set('refresh_token', body.refresh);",
+                  "    console.log('Saved admin access/refresh tokens.');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "body": { "mode": "raw", "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/token/refresh/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "token", "refresh", ""]
+            },
+            "description": "Exchanges the saved refresh token for a new access token. Run this instead of logging in again once the access token expires."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('access_token', pm.response.json().access);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Brands",
+      "item": [
+        {
+          "name": "List Brands",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/?name=&is_active=&search=",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "catalog", "brands", ""],
+              "query": [
+                { "key": "name", "value": "", "description": "case-insensitive substring match on name" },
+                { "key": "is_active", "value": "", "description": "true | false" },
+                { "key": "search", "value": "", "description": "alternative name search (same field)" }
+              ]
+            },
+            "description": "Paginated (limit/offset)."
+          }
+        },
+        {
+          "name": "List Brands — no token (expect 401)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "catalog", "brands", ""]
+            }
+          }
+        },
+        {
+          "name": "Retrieve Brand — not implemented (expect 405)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/{{brand_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "catalog", "brands", "{{brand_id}}", ""]
+            },
+            "description": "No detail route on this resource — the list row already carries every field there is."
+          }
+        },
+        {
+          "name": "Create Brand",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Demo Brand {{$timestamp}}\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "catalog", "brands", ""]
+            },
+            "description": "Only `name` is required. `slug` is generated from the name and is unique across the whole project. `is_active` defaults to true even on a multipart create with the field omitted (declared explicitly on the serializer for that reason — see admin-brand-api-guide.md)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('brand_id', pm.response.json().id); }",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('is_active defaults true', () => pm.expect(pm.response.json().is_active).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Brand — with image (multipart)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "Demo Brand With Logo {{$timestamp}}", "type": "text" },
+                { "key": "image", "type": "file", "description": "optional — brand logo, <= 2 MB (global image cap)" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "catalog", "brands", ""]
+            },
+            "description": "Multipart create. `image` is write-only; the response carries `image_path`/`image_url` instead. Omitting `image` entirely is fine (JSON or multipart, either way)."
+          }
+        },
+        {
+          "name": "Create Brand — oversized image (expect 400)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "Demo Brand Big Logo {{$timestamp}}", "type": "text" },
+                { "key": "image", "type": "file", "description": "attach a file > 2 MB to trigger this" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "catalog", "brands", ""]
+            },
+            "description": "Global upload cap (config/storage.py): any image over 2 MB is rejected — \"<filename>: image files must be 2 MB or smaller.\""
+          }
+        },
+        {
+          "name": "Create Brand — inactive",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Demo Inactive Brand {{$timestamp}}\",\n  \"is_active\": false\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "catalog", "brands", ""]
+            },
+            "description": "A listing may not pick an inactive brand."
+          }
+        },
+        {
+          "name": "Create Brand — duplicate name (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Demo Brand Duplicate\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "catalog", "brands", ""]
+            },
+            "description": "Run this request twice in a row — the second call hits \"A brand with this name already exists.\" (unlike Category, this is checked globally, not per-type)."
+          }
+        },
+        {
+          "name": "Create Brand — missing name (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "catalog", "brands", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Brand — rename",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Demo Brand Renamed {{$timestamp}}\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/{{brand_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "catalog", "brands", "{{brand_id}}", ""]
+            },
+            "description": "The slug is regenerated from the new name."
+          }
+        },
+        {
+          "name": "Update Brand — replace image (multipart)",
+          "request": {
+            "method": "PATCH",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "image", "type": "file", "description": "new logo, replaces the old one" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/{{brand_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "catalog", "brands", "{{brand_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Brand — deactivate",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"is_active\": false\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/{{brand_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "catalog", "brands", "{{brand_id}}", ""]
+            },
+            "description": "Soft way to retire a brand that listings still use (a used brand cannot be deleted)."
+          }
+        },
+        {
+          "name": "Update Brand — reactivate",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"is_active\": true\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/{{brand_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "catalog", "brands", "{{brand_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Brand — unknown id (expect 404)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Does not matter\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/999999999/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "catalog", "brands", "999999999", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cleanup",
+      "item": [
+        {
+          "name": "Delete Brand — unused (expect 204)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/brands/{{brand_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "catalog", "brands", "{{brand_id}}", ""]
+            },
+            "description": "204, and deletes the uploaded image file from storage if one was ever attached. A brand still referenced by a listing gets 409 instead (see Egoola — Listing collection for that scenario, built against this same endpoint)."
+          }
+        }
+      ]
+    }
+  ]
+}

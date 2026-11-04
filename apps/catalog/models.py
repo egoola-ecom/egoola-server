@@ -79,6 +79,8 @@ class Brand(AuditedModel):
 
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True)
+    image_path = models.CharField(db_column="imagePath", max_length=255, null=True, blank=True)
+    image_url = models.URLField(db_column="imageUrl", max_length=500, null=True, blank=True)
     is_active = models.BooleanField(db_column="isActive", default=True)
 
     class Meta:

@@ -170,14 +170,32 @@ class MeasurementSerializer(serializers.ModelSerializer):
 
 
 class BrandSerializer(serializers.ModelSerializer):
-    """Client sends `name` (and optionally `is_active`) — `slug` is always
-    server-generated from `name`, unique across the whole project, so a
-    duplicate name is rejected the same way Measurement does it."""
+    """Client sends `name` (and optionally `is_active`/`image`) — `slug` is
+    always server-generated from `name`, unique across the whole project, so
+    a duplicate name is rejected the same way Measurement does it. `image` is
+    write-only, same as Category: the actual upload lands in
+    image_path/image_url, which stay read-only from the client's point of
+    view.
+
+    `is_active` is declared explicitly (default=True), not left to
+    ModelSerializer's auto-build: on a multipart create (this resource takes
+    one, for `image`), DRF treats a BooleanField missing from form data as an
+    unchecked HTML checkbox and sends `False`, not "use the model default" —
+    auto-build never copies the model's `default=True` onto the field, so
+    without this, a create that omits `is_active` would silently save it
+    `False`. Declaring it here is what makes DRF fall back to `True` for a
+    missing key instead."""
+
+    image = serializers.ImageField(write_only=True, required=False)
+    is_active = serializers.BooleanField(default=True)
 
     class Meta:
         model = Brand
-        fields = ["id", "name", "slug", "is_active", "created_by", "creator_name", "creator_type"]
-        read_only_fields = ["slug", "created_by", "creator_name", "creator_type"]
+        fields = [
+            "id", "name", "slug", "image", "image_path", "image_url",
+            "is_active", "created_by", "creator_name", "creator_type",
+        ]
+        read_only_fields = ["slug", "image_path", "image_url", "created_by", "creator_name", "creator_type"]
 
     def validate_name(self, name):
         clash = Brand.objects.filter(slug=slugify(name))
@@ -187,14 +205,28 @@ class BrandSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("A brand with this name already exists.")
         return name
 
+    def _apply_image(self, instance, image):
+        path, url = save_upload(image, "brands")
+        instance.image_path = path
+        instance.image_url = url
+        instance.save(update_fields=["image_path", "image_url"])
+
     def create(self, validated_data):
+        image = validated_data.pop("image", None)
         validated_data["slug"] = slugify(validated_data["name"])
-        return super().create(validated_data)
+        instance = super().create(validated_data)
+        if image is not None:
+            self._apply_image(instance, image)
+        return instance
 
     def update(self, instance, validated_data):
+        image = validated_data.pop("image", None)
         if "name" in validated_data:
             validated_data["slug"] = slugify(validated_data["name"])
-        return super().update(instance, validated_data)
+        instance = super().update(instance, validated_data)
+        if image is not None:
+            self._apply_image(instance, image)
+        return instance
 
 
 class AttributeValueBriefSerializer(serializers.ModelSerializer):
