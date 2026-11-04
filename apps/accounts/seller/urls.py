@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .seller_views import SellerChangePasswordView, SellerMeView, SellerResubmitView
+from .views import SellerChangePasswordView, SellerMeView, SellerResubmitView
 
 urlpatterns = [
     path("me/", SellerMeView.as_view(), name="seller-me"),

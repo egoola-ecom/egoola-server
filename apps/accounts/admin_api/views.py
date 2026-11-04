@@ -9,8 +9,8 @@ from apps.authentication.permissions import IsAdminActor, IsSuperAdminActor
 from apps.core.mixins import AuditedViewSetMixin
 from apps.core.pagination import DefaultCursorPagination
 
+from ..models import Admin, Seller, User
 from .filters import BuyerFilter, SellerFilter
-from .models import Admin, Seller, User
 from .serializers import (
     AdminListSerializer,
     AdminSerializer,

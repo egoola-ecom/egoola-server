@@ -2,7 +2,7 @@ import django_filters
 
 from apps.core.models import ActorType
 
-from .models import Seller, User
+from ..models import Seller, User
 
 
 class SellerFilter(django_filters.FilterSet):

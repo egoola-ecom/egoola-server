@@ -16,8 +16,8 @@ from rest_framework.views import APIView
 from apps.authentication.permissions import IsSellerActor
 from apps.core.models import ActorType
 
-from .models import Seller, SellerVerificationLog
-from .profile_log import record_profile_changes, snapshot
+from ..models import Seller, SellerVerificationLog
+from ..profile_log import record_profile_changes, snapshot
 from .serializers import SellerChangePasswordSerializer, SellerResubmitSerializer, SellerSelfSerializer
 
 

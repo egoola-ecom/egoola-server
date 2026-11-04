@@ -5,7 +5,7 @@ admin_order_views.py and docs/admin/admin-management-guide.md.
 
 from rest_framework import serializers
 
-from apps.accounts.serializers import BuyerListSerializer
+from apps.accounts.admin_api.serializers import BuyerListSerializer
 
 from .buyer_order_serializers import (
     OrderAddressSerializer, OrderItemSerializer, OrderSellerSerializer, OrderStatusHistorySerializer, PaymentSerializer,

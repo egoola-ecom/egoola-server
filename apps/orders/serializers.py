@@ -6,7 +6,7 @@ nothing here ever writes to a cart. See docs/admin/cart-wishlist-admin-guide.md.
 
 from rest_framework import serializers
 
-from apps.accounts.serializers import BuyerListSerializer
+from apps.accounts.admin_api.serializers import BuyerListSerializer
 from config.storage import delete_upload, save_upload
 
 from .buyer_serializers import CartItemListingSerializer, CartItemSkuSerializer

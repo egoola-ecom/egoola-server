@@ -6,7 +6,7 @@ nothing here ever writes to a favourite. See docs/admin/cart-wishlist-admin-guid
 
 from rest_framework import serializers
 
-from apps.accounts.serializers import BuyerListSerializer
+from apps.accounts.admin_api.serializers import BuyerListSerializer
 from apps.catalog.models import Listing
 
 from .models import Favourite

@@ -20,12 +20,12 @@ API_V1 = [
     path("public/geography/", include("apps.geography.public_urls")),
     # Read-only catalog lists for browsing (the Buyer Panel): no login.
     path("public/catalog/", include("apps.catalog.public_urls")),
-    path("public/sellers/", include("apps.accounts.public_urls")),
+    path("public/sellers/", include("apps.accounts.public.urls")),
     # Read-only active-gateway list for the checkout form: no login.
     path("public/orders/", include("apps.orders.public_urls")),
-    path("accounts/", include("apps.accounts.urls")),
+    path("accounts/", include("apps.accounts.admin_api.urls")),
     # The logged-in seller's own endpoints (profile, resubmit, password).
-    path("seller/", include("apps.accounts.seller_urls")),
+    path("seller/", include("apps.accounts.seller.urls")),
     # The seller's own listings and the lookups for the listing form.
     path("seller/", include("apps.catalog.seller_urls")),
     # The seller's job board (open jobs, my bids) and bidding.

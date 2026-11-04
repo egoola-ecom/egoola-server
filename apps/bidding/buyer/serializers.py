@@ -7,7 +7,7 @@ docs/buyer/buyer-api-guide.md.
 
 from rest_framework import serializers
 
-from apps.accounts.public_views import PublicSellerBriefSerializer
+from apps.accounts.public.serializers import PublicSellerBriefSerializer
 
 from ..models import Bid, BidPriceTier
 

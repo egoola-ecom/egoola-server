@@ -19,7 +19,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import Admin, Seller, User
-from apps.accounts.serializers import BuyerRegistrationSerializer, SellerRegistrationSerializer
+from apps.accounts.public.serializers import BuyerRegistrationSerializer, SellerRegistrationSerializer
 from apps.core.models import ActorType
 
 from .tokens import tokens_for_actor

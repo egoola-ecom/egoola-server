@@ -19,7 +19,8 @@ from rest_framework.exceptions import NotFound
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import AllowAny
 
-from apps.accounts.public_views import PublicSellerBriefSerializer, public_seller_listings_q
+from apps.accounts.public.serializers import PublicSellerBriefSerializer
+from apps.accounts.public.views import public_seller_listings_q
 from apps.core.pagination import BuyerPagePagination
 
 from .models import Category, Listing, ListingMedia, ListingPriceTier, ListingSku, ListingSkuVariant

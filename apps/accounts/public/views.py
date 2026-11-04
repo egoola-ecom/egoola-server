@@ -10,11 +10,11 @@ phone, address, documents, balance or verification notes.
 """
 
 from django.db.models import Q
-from rest_framework import serializers
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import AllowAny
 
-from .models import Seller
+from ..models import Seller
+from .serializers import PublicSellerSerializer
 
 
 def public_sellers():
@@ -32,63 +32,6 @@ def public_seller_listings_q(prefix="seller"):
             f"{prefix}__status": Seller.Status.ACTIVE,
         }
     )
-
-
-class PublicSellerBriefSerializer(serializers.ModelSerializer):
-    """The seller block on a listing: enough to show the name and link to the profile."""
-
-    class Meta:
-        model = Seller
-        fields = ["id", "name", "profile_pic_url"]
-
-
-class PublicSellerSerializer(serializers.ModelSerializer):
-    """The seller's public page."""
-
-    member_since = serializers.DateTimeField(source="created_at", read_only=True)
-    location = serializers.SerializerMethodField()
-    business = serializers.SerializerMethodField()
-    contact = serializers.SerializerMethodField()
-    product_count = serializers.IntegerField(read_only=True)
-    gig_count = serializers.IntegerField(read_only=True)
-
-    class Meta:
-        model = Seller
-        fields = [
-            "id", "name", "profile_pic_url", "member_since", "location", "business", "contact",
-            "skills", "education", "experience", "product_count", "gig_count",
-        ]
-
-    def get_location(self, obj):
-        info = getattr(obj, "info", None)
-        place = info if info is not None and (info.country_id or info.city_id) else obj
-        return {
-            "country": place.country.name if place.country_id else None,
-            "state": place.state.name if place.state_id else None,
-            "city": place.city.name if place.city_id else None,
-            "thana": place.thana.name if place.thana_id else None,
-        }
-
-    def get_business(self, obj):
-        info = getattr(obj, "info", None)
-        if info is None:
-            return None
-        return {
-            "business_type": info.business_type,
-            "main_product": info.main_product,
-            "description": info.description,
-            "established_year": info.established_year,
-            "employees_range": info.employees_range,
-        }
-
-    def get_contact(self, obj):
-        info = getattr(obj, "info", None)
-        if info is None:
-            return None
-        return {
-            "public_email": info.public_email, "whatsapp": info.whatsapp, "facebook": info.facebook,
-            "wechat": info.wechat, "skype": info.skype,
-        }
 
 
 class PublicSellerDetailView(RetrieveAPIView):
