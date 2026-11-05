@@ -1,0 +1,1117 @@
+{
+	"info": {
+		"name": "Egoola API \u2014 Buyer (admin)",
+		"_postman_id": "9d3e7c1a-5f42-4b8e-9a6d-egoola-buyer",
+		"description": "The admin side of buyers: buyer management (create, edit, documents, delete). Read docs/admin/buyer-management-guide.md alongside it. There is no separate buyer-facing self-service collection yet (the buyer's own endpoints \u2014 /buyer/addresses/, /buyer/orders/, /buyer/jobs/, /buyer/cart/... \u2014 live in the main Egoola.postman_collection.json).\n\nRun top to bottom. The profile-picture/media requests need a real JPG/PNG/WEBP chosen in the Postman app.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{access_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://127.0.0.1:8000",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "buyer_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "buyer_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "full_buyer_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "buyer_media_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "buyer_login_phone",
+			"value": "+8801711000222",
+			"type": "string"
+		},
+		{
+			"key": "buyer_login_password",
+			"value": "Buy@12345",
+			"type": "string"
+		},
+		{
+			"key": "buyer_with_order_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Admin Login",
+					"request": {
+						"method": "POST",
+						"auth": {
+							"type": "noauth"
+						},
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/admin/login/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"admin",
+								"login",
+								""
+							]
+						},
+						"description": "Public endpoint \u2014 no token needed. Returns access + refresh JWTs carrying actor_type=admin. Every Buyer Management endpoint below is Admin-only."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const body = pm.response.json();",
+									"    pm.collectionVariables.set('access_token', body.access);",
+									"    pm.collectionVariables.set('refresh_token', body.refresh);",
+									"    console.log('Saved admin access/refresh tokens.');",
+									"}",
+									"pm.test('Status is 200', () => pm.response.to.have.status(200));"
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Buyer management (create, edit, documents, delete)",
+			"item": [
+				{
+					"name": "List Buyers",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/?search=&status=&country=&state=&city=&thana=&email_verified=&phone_verified=&created_from=&created_to=",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								""
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": ""
+								},
+								{
+									"key": "status",
+									"value": ""
+								},
+								{
+									"key": "country",
+									"value": ""
+								},
+								{
+									"key": "state",
+									"value": ""
+								},
+								{
+									"key": "city",
+									"value": ""
+								},
+								{
+									"key": "thana",
+									"value": ""
+								},
+								{
+									"key": "email_verified",
+									"value": ""
+								},
+								{
+									"key": "phone_verified",
+									"value": ""
+								},
+								{
+									"key": "created_from",
+									"value": ""
+								},
+								{
+									"key": "created_to",
+									"value": ""
+								}
+							]
+						},
+						"description": "Admin-only. List rows use BuyerListSerializer \u2014 id, name, email, phone, profile_pic_url, wallet_balance, status. Full record only on Retrieve."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 200', () => pm.response.to.have.status(200));",
+									"pm.test('paginated list', () => pm.expect(pm.response.json()).to.have.all.keys('count','next','previous','results'));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Create Buyer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Mahin Rahman\",\n  \"email\": \"mahin.postman@example.com\",\n  \"phone\": \"{{buyer_login_phone}}\",\n  \"password\": \"{{buyer_login_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								""
+							]
+						},
+						"description": "Minimal create. password is required on create (not on update). Saves buyer_id for the requests below."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    pm.collectionVariables.set('buyer_id', pm.response.json().id);",
+									"    console.log('Saved buyer_id.');",
+									"}",
+									"pm.test('Status is 201', () => pm.response.to.have.status(201));",
+									"pm.test('password not in response', () => pm.expect(pm.response.json()).to.not.have.property('password'));",
+									"pm.test('status defaults to active', () => pm.expect(pm.response.json().status).to.eql('active'));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Create Buyer \u2014 with profile",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Full Profile Buyer\",\n  \"email\": \"full.buyer.postman@example.com\",\n  \"phone\": \"+8801711000333\",\n  \"password\": \"Buy@12345\",\n  \"description\": \"Interior designer\",\n  \"skills\": [\n    \"design\"\n  ],\n  \"address_line\": \"Road 1, Gulshan\",\n  \"country\": 1,\n  \"state\": 1,\n  \"city\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								""
+							]
+						},
+						"description": "country/state/city are example ids \u2014 replace with real geography ids from your dev data before running (wrong ones answer 400, see the location-consistency test below)."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    pm.collectionVariables.set('full_buyer_id', pm.response.json().id);",
+									"    console.log('Saved full_buyer_id.');",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Create Buyer \u2014 missing password (expect 400)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"No Password Buyer\",\n  \"phone\": \"+8801711000444\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								""
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 400', () => pm.response.to.have.status(400));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Create Buyer \u2014 weak password (expect 400)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Weak Password Buyer\",\n  \"phone\": \"+8801711000555\",\n  \"password\": \"1234\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								""
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 400', () => pm.response.to.have.status(400));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Create Buyer \u2014 location mismatch (expect 400)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Bad Location Buyer\",\n  \"phone\": \"+8801711000666\",\n  \"password\": \"Buy@12345\",\n  \"country\": 1,\n  \"state\": 1,\n  \"city\": 999999\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								""
+							]
+						},
+						"description": "999999 does not belong to state 1 \u2014 swap in a real mismatched id if your dev data differs."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 400', () => pm.response.to.have.status(400));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Retrieve Buyer",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/{{buyer_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								"{{buyer_id}}",
+								""
+							]
+						},
+						"description": "Full record, including media. Unknown id \u2192 404."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 200', () => pm.response.to.have.status(200));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Buyer Login (for the permission-boundary test below)",
+					"request": {
+						"method": "POST",
+						"auth": {
+							"type": "noauth"
+						},
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"{{buyer_login_phone}}\",\n  \"password\": \"{{buyer_login_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/buyer/login/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"buyer",
+								"login",
+								""
+							]
+						},
+						"description": "Needs 'Create Buyer' above to have run first (same phone/password). Saves buyer_token, used by the 403/401 checks further down."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    pm.collectionVariables.set('buyer_token', pm.response.json().access);",
+									"    console.log('Saved buyer_token.');",
+									"}",
+									"pm.test('Status is 200', () => pm.response.to.have.status(200));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Buyer actor forbidden from Buyers management (expect 403)",
+					"request": {
+						"method": "GET",
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{buyer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								""
+							]
+						},
+						"description": "Runs while the buyer is still active (before the suspend step below). Every endpoint in this collection is Admin-only (IsAdminActor) \u2014 a valid Buyer token still gets 403, not 401, since the token itself is valid, just for the wrong actor type."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 403', () => pm.response.to.have.status(403));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Update Buyer (partial \u2014 PATCH)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Mahin Rahman Jr.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/{{buyer_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								"{{buyer_id}}",
+								""
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 200', () => pm.response.to.have.status(200));",
+									"pm.test('name updated', () => pm.expect(pm.response.json().name).to.eql('Mahin Rahman Jr.'));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Update Buyer \u2014 Change Password",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"password\": \"NewBuy@12345\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/{{buyer_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								"{{buyer_id}}",
+								""
+							]
+						},
+						"description": "Old password stops working immediately \u2014 see apps/authentication/backends.py (re-validated on every request, not just login)."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 200', () => pm.response.to.have.status(200));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Update Buyer \u2014 Upload Media & Profile Picture",
+					"request": {
+						"method": "PATCH",
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "profile_pic",
+									"type": "file",
+									"src": [],
+									"description": "Pick a real JPG/PNG/WEBP, <=2MB."
+								},
+								{
+									"key": "media_for",
+									"value": "nid",
+									"type": "text"
+								},
+								{
+									"key": "media_file",
+									"type": "file",
+									"src": [],
+									"description": "Same count and order as media_for."
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/{{buyer_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								"{{buyer_id}}",
+								""
+							]
+						},
+						"description": "multipart/form-data. nid | birth_certificate | profile_document | other (BuyerMedia.MediaFor)."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 200 && pm.response.json().media.length) {",
+									"    pm.collectionVariables.set('buyer_media_id', pm.response.json().media[0].id);",
+									"    console.log('Saved buyer_media_id.');",
+									"}",
+									"pm.test('Status is 200', () => pm.response.to.have.status(200));",
+									"pm.test('profile_pic_url set', () => pm.expect(pm.response.json().profile_pic_url).to.not.be.null);"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Update Buyer \u2014 Remove Profile Picture",
+					"request": {
+						"method": "PATCH",
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "remove_profile_pic",
+									"value": "true",
+									"type": "text",
+									"description": "Clears profile_pic_path/profile_pic_url back to null. Update only \u2014 a profile_pic in the same request wins over this."
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/{{buyer_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								"{{buyer_id}}",
+								""
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 200', () => pm.response.to.have.status(200));",
+									"pm.test('profile_pic_url cleared', () => pm.expect(pm.response.json().profile_pic_url).to.be.null);"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Update Buyer \u2014 Remove Media",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"media_delete_ids\": [\n    \"{{buyer_media_id}}\"\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/{{buyer_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								"{{buyer_id}}",
+								""
+							]
+						},
+						"description": "Removes the document added above by id."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 200', () => pm.response.to.have.status(200));",
+									"pm.test('media empty', () => pm.expect(pm.response.json().media).to.eql([]));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Update Buyer \u2014 email of another buyer (expect 400)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"full.buyer.postman@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/{{buyer_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								"{{buyer_id}}",
+								""
+							]
+						},
+						"description": "Needs 'Create Buyer \u2014 with profile' above to have run first (same email)."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 400', () => pm.response.to.have.status(400));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Suspend Buyer",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"suspended\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/{{buyer_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								"{{buyer_id}}",
+								""
+							]
+						},
+						"description": "Buyer can no longer log in (binary active/suspended \u2014 no three-tier access model like Seller; see Seller.can_operate/can_edit_profile for that)."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 200', () => pm.response.to.have.status(200));",
+									"pm.test('status suspended', () => pm.expect(pm.response.json().status).to.eql('suspended'));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Suspended buyer's earlier token is rejected (expect 401)",
+					"request": {
+						"method": "GET",
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{buyer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								""
+							]
+						},
+						"description": "The buyer was just suspended above. Their access token is still validly signed and unexpired, but the account is re-checked on every request, so it now gets 401 instead of the 403 an active buyer gets."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 401', () => pm.response.to.have.status(401));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Reactivate Buyer",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"active\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/{{buyer_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								"{{buyer_id}}",
+								""
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 200', () => pm.response.to.have.status(200));",
+									"pm.test('status active', () => pm.expect(pm.response.json().status).to.eql('active'));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "List Buyers \u2014 filters",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/?status=active&email_verified=false&phone_verified=false&created_from=2020-01-01&created_to=2030-12-31",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								""
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "active"
+								},
+								{
+									"key": "email_verified",
+									"value": "false"
+								},
+								{
+									"key": "phone_verified",
+									"value": "false"
+								},
+								{
+									"key": "created_from",
+									"value": "2020-01-01"
+								},
+								{
+									"key": "created_to",
+									"value": "2030-12-31"
+								}
+							]
+						},
+						"description": "Filters combine. email_verified/phone_verified are true/false flags over the *_verified_at timestamps."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 200', () => pm.response.to.have.status(200));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Delete Buyer \u2014 has an order (expect 409)",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/{{buyer_with_order_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								"{{buyer_with_order_id}}",
+								""
+							]
+						},
+						"description": "Order.buyer is a PROTECT foreign key. A buyer with at least one order can't be hard-deleted: 409 {\"detail\": \"This buyer has one or more orders. Suspend the account instead of deleting.\"} \u2014 suspend instead. Set buyer_with_order_id to a buyer id that has an order (e.g. from the Orders admin collection) before running this."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 409', () => pm.response.to.have.status(409));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Delete Buyer",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/{{buyer_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								"{{buyer_id}}",
+								""
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 204', () => pm.response.to.have.status(204));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Delete Buyer \u2014 already deleted (expect 404)",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/{{buyer_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								"{{buyer_id}}",
+								""
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 404', () => pm.response.to.have.status(404));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Delete Buyer \u2014 profile buyer",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/buyers/{{full_buyer_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"buyers",
+								"{{full_buyer_id}}",
+								""
+							]
+						},
+						"description": "Cleans up the 'Create Buyer \u2014 with profile' row."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status is 204', () => pm.response.to.have.status(204));"
+								]
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}

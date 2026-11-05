@@ -11,7 +11,8 @@ Header: `Authorization: Bearer <admin access token>`.
 | buyer or seller token | `403` |
 | admin | allowed |
 
-Postman: **Buyers** folder in `postman/admin/Egoola.postman_collection.json`.
+Postman: `postman/admin/Egoola-Buyer.postman_collection.json` (also present as the
+**Buyers** folder in `postman/admin/Egoola.postman_collection.json`).
 
 ---
 
@@ -37,6 +38,7 @@ Postman: **Buyers** folder in `postman/admin/Egoola.postman_collection.json`.
 | phone | string | **required**, unique |
 | password | string | **required on create**, write only, stored hashed; optional on update. Must be at least 8 characters, not a very common password and not all digits |
 | profile_pic | image file | write only (multipart); read back as `profile_pic_path` / `profile_pic_url` |
+| remove_profile_pic | bool | write only; clears it back to empty (update only; a `profile_pic` in the same request wins over this) |
 | description | text | optional |
 | skills, experiences, interests, educations | JSON, optional | |
 | address_line | string | optional |
@@ -44,7 +46,7 @@ Postman: **Buyers** folder in `postman/admin/Egoola.postman_collection.json`.
 | status | `active` \| `suspended` | default `active`; a suspended buyer cannot log in |
 | email_verified_at, phone_verified_at | datetime | read only |
 | wallet_balance | decimal | read only (changed by the wallet flow, never here) |
-| media | list | read only on retrieve; add files with `media_for` + `media_file`, remove with `media_delete_ids` |
+| media | list | read only on retrieve; add files with `media_for` + `media_file` (paired by position; `media_for` is one of `nid`, `birth_certificate`, `profile_document`, `other`), remove with `media_delete_ids` |
 
 The creator/updater (`created_by`, `creator_type`, `creator_name`, `updated_*`)
 are stamped from the admin token automatically (not part of the response).
@@ -105,6 +107,7 @@ Full
 | Re-activate | `{"status": "active"}` | `200` |
 | Change password | `{"password": "New@12345"}` | `200` — old password stops working |
 | Profile picture | multipart `profile_pic=@photo.png` (must be a real image) | `200`, `profile_pic_url` set |
+| Remove profile picture | `{"remove_profile_pic": true}` | `200`, `profile_pic_path`/`profile_pic_url` back to `null` |
 | Add media | multipart `media_for=...`, `media_file=@file` (same count, same order) | `200` |
 | Remove media | `{"media_delete_ids": [3]}` | `200` |
 | Email of another buyer | `{"email": "other@example.com"}` | `400` |
@@ -134,7 +137,9 @@ Filters combine, e.g. `/buyers/?status=suspended&city=8&created_from=2026-10-01`
 
 ## 5. Delete — `DELETE /buyers/{id}/`
 
-`204`. Deleting again → `404`.
+`204`. Deleting again → `404`. A buyer with any order (`Order.buyer` is
+`PROTECT`) → `409` `{"detail": "This buyer has one or more orders. Suspend the
+account instead of deleting."}` — suspend instead.
 
 ## Testing
 
@@ -142,3 +147,7 @@ Filters combine, e.g. `/buyers/?status=suspended&city=8&created_from=2026-10-01`
 password change and login, profile picture, every list filter, 401/403, creator
 stamping, delete). Run with `scripts/smoke/buyer_smoke.sh` against the dev server (see
 `scripts/smoke/README.md`). Test data was removed afterwards.
+
+Delete's `409` on a buyer with an order was verified separately, live: a buyer
+with a PROTECTed order answers `409` with the message above; deleting the
+order first then the buyer answers `204` as normal.
