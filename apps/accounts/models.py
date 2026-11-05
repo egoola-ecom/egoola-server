@@ -135,6 +135,12 @@ class Seller(AuditedModel):
     # time a rejected seller resubmits. The queue sorts on this, so a
     # resubmission shows up as new instead of sitting at its old sign-up date.
     requested_at = models.DateTimeField(db_column="requestedAt", null=True, blank=True)
+    # Once true, stays true forever — set the moment verification_status is
+    # ever saved as `verified`. A seller who earns that trust once can later
+    # move to unverified/pending (and back to verified), but can never be
+    # moved to `rejected` again, from any status, even after the status that
+    # made it true has itself moved on. See SellerSerializer.validate().
+    was_ever_verified = models.BooleanField(db_column="wasEverVerified", default=False)
 
     skills = models.JSONField(null=True, blank=True)
     education = models.JSONField(null=True, blank=True)
@@ -162,11 +168,12 @@ class Seller(AuditedModel):
     last_logged_at = models.DateTimeField(db_column="lastLoggedAt", null=True, blank=True)
 
     # Two separate switches. `verification_status` is the KYC decision ("approved"
-    # = verified). `status` is the account switch: an inactive seller (a new
-    # sign-up, or an approved seller an admin paused) may log in but only manage
-    # their own profile until an admin makes them active. A suspended seller may
-    # not log in at all.
-    LOGIN_STATUSES = (Status.ACTIVE, Status.INACTIVE)
+    # = verified). `status` is the account switch. Every status can log in —
+    # what a logged-in seller may actually *do* is a separate, three-tier
+    # question (see can_operate / can_edit_profile below), not a login-time
+    # gate: a suspended seller still needs to log in to see why they're
+    # locked, and a rejected one needs to log in to fix and resubmit.
+    LOGIN_STATUSES = (Status.ACTIVE, Status.INACTIVE, Status.SUSPENDED)
 
     class Meta:
         db_table = "sellers"
@@ -182,12 +189,38 @@ class Seller(AuditedModel):
     @property
     def can_operate(self):
         """Allowed to use the full seller features (listings, orders, wallet):
-        verified (approved) AND active. Every other seller — still pending or
-        rejected, or approved but inactive — may only edit their own profile."""
+        verified (approved) AND active. Every other seller is held to
+        can_edit_profile below instead."""
         return (
             self.verification_status == self.VerificationStatus.VERIFIED
             and self.status == self.Status.ACTIVE
         )
+
+    @property
+    def can_edit_profile(self):
+        """Allowed to view/edit their own profile and documents, change
+        password, and (if rejected) resubmit — the middle tier, below
+        can_operate (full) and above "locked" (logged in, can do nothing,
+        not even this). A seller who can_operate trivially passes this too.
+
+        Locked: `status = suspended`, with one deliberate carve-out —
+        `rejected` is always paired with `suspended` (see
+        SellerSerializer.validate()), but a rejected seller still has to
+        be able to fix their profile/documents and resubmit, or the
+        fix-and-resubmit flow would permanently lock them out. Nothing
+        else is carved out for rejected: every other seller feature stays
+        behind can_operate, same as always.
+
+        Also locked: `verified` seller whose `status` isn't `active` —
+        an admin pausing an already-approved seller (to `inactive`) locks
+        them out entirely, unlike pausing an unverified/pending one."""
+        if self.verification_status == self.VerificationStatus.REJECTED:
+            return True
+        if self.status == self.Status.SUSPENDED:
+            return False
+        if self.verification_status == self.VerificationStatus.VERIFIED and self.status != self.Status.ACTIVE:
+            return False
+        return True
 
 
 class SellerMedia(AuditedModel):

@@ -133,14 +133,15 @@ class SellerLoginView(BaseActorLoginView):
     invalid_message = "Invalid phone number or password."
 
     def extra_login_fields(self, actor):
-        # A seller who cannot operate yet (pending, rejected, or approved but
-        # paused) can log in but only edit their profile; these tell the app
-        # which screens to show.
+        # Every seller can log in now, including a locked one (see
+        # Seller.can_edit_profile) — these tell the app which of the three
+        # tiers (full / profile-only / locked) to show.
         return {
             "phone": actor.phone,
             "verification_status": actor.verification_status,
             "status": actor.status,
             "can_operate": actor.can_operate,
+            "can_edit_profile": actor.can_edit_profile,
         }
 
 

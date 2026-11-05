@@ -44,12 +44,27 @@ class IsSuperAdminActor(_IsActor):
 
 
 class IsSellerActor(_IsActor):
-    """Passes for any logged-in Seller (active or inactive, approved or not) — used for the
-    seller's own profile (`/seller/me/`). Features that need an approved
-    seller use IsActiveVerifiedSellerActor instead."""
+    """Passes for any logged-in Seller — every status, even a locked one, can
+    log in and reach a GET of their own profile. Writing to it, or anything
+    further, needs IsProfileEditableSellerActor or IsActiveVerifiedSellerActor
+    instead (see both, and Seller.can_edit_profile/can_operate)."""
 
     actor_type = ActorType.SELLER
     message = "Only an authenticated Seller can access this endpoint."
+
+
+class IsProfileEditableSellerActor(IsSellerActor):
+    """A Seller allowed to edit their own profile/documents, change password,
+    or (if rejected) resubmit — `SellerMeView.patch`, `SellerResubmitView`,
+    `SellerChangePasswordView`. Broader than IsActiveVerifiedSellerActor (full
+    operate), narrower than IsSellerActor (any logged-in seller — used only
+    for the read-only GET of this same profile). A "locked" seller fails
+    this: see Seller.can_edit_profile for exactly which combinations do."""
+
+    message = "Your seller account is locked. Contact support."
+
+    def has_permission(self, request, view):
+        return super().has_permission(request, view) and request.user.can_edit_profile
 
 
 class IsActiveVerifiedSellerActor(IsSellerActor):
@@ -66,11 +81,15 @@ class IsActiveVerifiedSellerActor(IsSellerActor):
         seller = request.user
         if seller.can_operate:
             return True
-        # Say which of the two switches is holding the seller back.
-        if seller.verification_status != seller.VerificationStatus.VERIFIED:
-            self.message = "Your seller application is not approved yet. You can only edit your profile until an admin approves it."
+        # Only two ways to fail can_operate while still reaching here: locked
+        # (can_edit_profile is False — this covers verified+inactive too,
+        # since can_edit_profile already excludes that combination, so there
+        # is no third "verified but not active" branch left to report) or
+        # simply not verified yet.
+        if not seller.can_edit_profile:
+            self.message = "Your seller account is locked. Contact support."
         else:
-            self.message = "Your seller account is inactive. You can only edit your profile until an admin makes it active."
+            self.message = "Your seller application is not approved yet. You can only edit your profile until an admin approves it."
         return False
 
 

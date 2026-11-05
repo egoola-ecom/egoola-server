@@ -31,6 +31,7 @@ class SellerSelfSerializer(
     change is written to the profile change log."""
 
     profile_pic = serializers.ImageField(write_only=True, required=False)
+    remove_profile_pic = serializers.BooleanField(write_only=True, required=False, default=False)
     media = SellerMediaSerializer(many=True, read_only=True)
     media_for = serializers.ListField(
         child=serializers.ChoiceField(choices=[(item.value, item.label) for item in KYC_MEDIA_FOR]),
@@ -41,6 +42,7 @@ class SellerSelfSerializer(
     info = serializers.JSONField(write_only=True, required=False)
     business_info = SellerInfoSerializer(source="info", read_only=True)
     can_operate = serializers.BooleanField(read_only=True)
+    can_edit_profile = serializers.BooleanField(read_only=True)
 
     media_model = SellerMedia
     media_fk_name = "seller"
@@ -49,11 +51,12 @@ class SellerSelfSerializer(
         model = Seller
         fields = [
             "id", "name", "email", "phone",
-            "profile_pic", "profile_pic_url",
+            "profile_pic", "remove_profile_pic", "profile_pic_url",
             "present_address", "permanent_address", "country", "state", "city", "thana",
             "skills", "education", "experience", "interest",
             "media", "media_for", "media_file", "media_delete_ids", "info", "business_info",
-            "verification_status", "verification_note", "status", "is_seller_request", "can_operate",
+            "verification_status", "verification_note", "status", "is_seller_request",
+            "can_operate", "can_edit_profile",
             "created_at", "requested_at",
         ]
         read_only_fields = [

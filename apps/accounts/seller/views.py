@@ -1,8 +1,9 @@
 """
-The seller's own endpoints (`/api/v1/seller/...`). Open to any logged-in seller
-(not suspended) — a seller who cannot operate yet (still pending or rejected, or
-approved but inactive) can log in but may only use these: edit their profile,
-change password, resubmit a rejected application.
+The seller's own endpoints (`/api/v1/seller/...`). Every seller can log in,
+even a locked one (suspended, or an approved seller an admin paused) — GET
+here always works (IsSellerActor). Writing — PATCH, resubmit, change password —
+needs can_edit_profile too (IsProfileEditableSellerActor): a locked seller can
+log in and see their own status, but can't change anything, not even this.
 Every other seller feature must use IsActiveVerifiedSellerActor.
 """
 
@@ -13,7 +14,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.authentication.permissions import IsSellerActor
+from apps.authentication.permissions import IsProfileEditableSellerActor, IsSellerActor
 from apps.core.models import ActorType
 
 from ..models import Seller, SellerVerificationLog
@@ -36,6 +37,11 @@ class SellerMeView(APIView):
 
     permission_classes = [IsSellerActor]
 
+    def get_permissions(self):
+        if self.request.method == "PATCH":
+            return [IsProfileEditableSellerActor()]
+        return super().get_permissions()
+
     def get(self, request):
         return Response(SellerSelfSerializer(_own_profile(request.user.pk)).data)
 
@@ -53,7 +59,7 @@ class SellerResubmitView(APIView):
     application back for review: status becomes `pending`, the seller joins the
     admin's Seller Request queue again, and the history gets an entry."""
 
-    permission_classes = [IsSellerActor]
+    permission_classes = [IsProfileEditableSellerActor]
 
     def post(self, request):
         seller = _own_profile(request.user.pk)
@@ -66,6 +72,13 @@ class SellerResubmitView(APIView):
         note = body.validated_data.get("note") or None
         with transaction.atomic():
             seller.verification_status = Seller.VerificationStatus.PENDING
+            # `pending` always forces `status` to `inactive` (see
+            # SellerSerializer.validate()) — restated here since this view
+            # writes the model directly rather than going through that
+            # serializer. Without it the seller would stay `suspended`
+            # (carried over from `rejected`) and come out of resubmit still
+            # locked, unable to do anything while awaiting review.
+            seller.status = Seller.Status.INACTIVE
             # The note on the row is for the current status: here, the seller's
             # message to the reviewer (the rejection reason stays in the history).
             seller.verification_note = note
@@ -87,7 +100,7 @@ class SellerResubmitView(APIView):
 class SellerChangePasswordView(APIView):
     """The seller changes their own password; the current one is required."""
 
-    permission_classes = [IsSellerActor]
+    permission_classes = [IsProfileEditableSellerActor]
 
     def post(self, request):
         seller = _own_profile(request.user.pk)
