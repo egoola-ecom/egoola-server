@@ -39,10 +39,13 @@ same bearer token as everything else on that resource.
 | `verification_status` | `sellers` | Writable. One of `unverified`, `pending`, `verified`, `rejected`. |
 | `verification_note` | `sellers` | Writable. Always mirrors the note for the seller's *current* status — see "How verification_note behaves" below. |
 | `verification_logs` | `sellers` (detail only) | Read-only. Full status-change history, newest first. Never send this — it's server-written. |
-| `status` | `sellers` | `active`, `inactive` or `suspended`. `inactive` = the seller can log in but can only edit their own profile until an admin sets `active` (a new sign-up, or an approved seller you paused). `suspended` = cannot log in. Independent of `verification_status`. |
+| `status` | `sellers` | `active`, `inactive` or `suspended`. **Every value can log in now** — `status` gates what a seller can *do*, not whether they can log in. See "Login and the three access tiers" below. **Partly derived from `verification_status`** — see "Transition and status rules" below; only free to pick when `verification_status` is `verified`. |
+| `was_ever_verified` | `sellers` (detail only) | Read-only. `true` forever once `verification_status` is ever saved as `verified`. Blocks any future move to `rejected`. Not on the list row — same as `verification_logs`/`profile_change_logs`. |
+| `can_operate`, `can_edit_profile` | `sellers` (detail only) | Read-only. The two booleans that report which of the three access tiers a seller is in — see "Login and the three access tiers" below. Not on the list row. |
 | `is_seller_request` | `sellers` | Read-only. `true` while the seller waits in the Seller Request queue. |
 | `requested_at` | `sellers` | Read-only. When the seller joined the queue: sign-up, or the latest resubmit. |
 | `profile_change_logs` | `sellers` (detail only) | Read-only. Every change to the seller's profile, before and after. See "Profile change log" below. |
+| `remove_profile_pic` | `sellers` | Write-only, boolean, default `false`. `true` clears `profile_pic_path`/`profile_pic_url` back to `null` and deletes the file. Update only — a `profile_pic` sent in the same request always wins over it. |
 
 ## Default verification_status on create
 
@@ -67,10 +70,16 @@ the full seller features. They are separate switches on purpose. After both, the
 
 ### Pausing an approved seller
 
-`PATCH /accounts/sellers/{id}/ {"status": "inactive"}` pauses a seller. They stay `verified` (still approved) and can still
-log in and edit their profile, but cannot use the seller features until you set `status: "active"` again. Pausing does
-not put them back in the Seller Request queue (only a real sign-up or resubmit does). Use `suspended` instead to block
-login completely.
+`PATCH /accounts/sellers/{id}/ {"status": "inactive"}` pauses a seller. They stay `verified` (still approved), can
+still log in, but are **fully locked** — not just down to profile-only: `can_operate` and `can_edit_profile` are
+both `false`. Pausing an already-verified seller is stricter than pausing one who was never verified (see "Transition
+and status rules" below, `verified + inactive`) — there's no "edit profile but not features" middle ground for them.
+Set `status: "active"` again to restore full access. Pausing does not put them back in the Seller Request queue
+(only a real sign-up or resubmit does).
+
+**Every status can log in now, including `suspended`.** `suspended` no longer blocks login — it's a post-login
+access tier, same as pausing: `can_operate` and `can_edit_profile` both `false` (except a `rejected` seller, see
+below). Use it to lock a seller out of everything while still letting them see their own account status.
 
 ### When does a seller leave the Seller Request queue?
 
@@ -87,11 +96,16 @@ signs up or **resubmits** (below). Sellers an admin creates directly are never r
 
 ### Rejected sellers fix and resubmit
 
-A rejected seller keeps `status: inactive` and **can still log in**: they read your rejection note, fix their
-profile and documents, and press **Resubmit**. That sets `verification_status` to `pending`, puts them back in the
-queue (`is_seller_request: true`, `requested_at` = now, so they appear as the newest request), and adds a history
-entry made by the seller (`creator_type: "seller"`) with their optional message as the note. Your rejection reason
-stays in `verification_logs`. You review again and approve or reject as usual.
+A rejected seller's `status` is forced to `suspended` (see "Transition and status rules"), but they're a
+**deliberate carve-out**: `can_edit_profile` stays `true` for them specifically, so they can still log in, read your
+rejection note, fix their profile and documents, and press **Resubmit**. Nothing else is carved out — they stay
+`403` on every full-feature endpoint, same as any other non-operating seller.
+
+Resubmitting sets `verification_status` to `pending` (which forces `status` back to `inactive`, so they land in the
+profile-only tier, not locked), puts them back in the queue (`is_seller_request: true`, `requested_at` = now, so
+they appear as the newest request), and adds a history entry made by the seller (`creator_type: "seller"`) with
+their optional message as the note. Your rejection reason stays in `verification_logs`. You review again and
+approve or reject as usual.
 
 While the seller is not approved (unverified, pending or rejected) they can add, delete and replace **any** of their
 documents, NID included, so they can fix what you asked for. A rejected seller keeps at least one NID at all times.
@@ -123,6 +137,59 @@ PATCH /api/v1/accounts/sellers/{id}/
 { "verification_note": ["A verification note is required when rejecting a seller."] }
 ```
 `400 Bad Request`
+
+## Transition and status rules
+
+Two rules on top of the basic field, both enforced in `SellerSerializer.validate()`:
+
+**1. `rejected` only moves forward to `pending`.** You cannot PATCH a `rejected` seller straight
+to `unverified` or `verified` — only to `pending` (review again from there):
+```json
+{ "verification_status": ["A rejected seller can only be moved to pending next."] }
+```
+`400`. Every other pair among `unverified`/`pending`/`verified` is open in both directions.
+
+**2. Once ever verified, never `rejected` again — from any status, forever.** The first time a
+seller's `verification_status` is saved as `verified`, `was_ever_verified` flips to `true` and
+never flips back, even after the seller later moves to `unverified` or `pending`. Any later
+attempt to set `verification_status: "rejected"` on that seller, from any status, fails:
+```json
+{ "verification_status": ["A seller who has ever been verified can never be rejected."] }
+```
+`400`. Practical effect: the "fix and resubmit" flow (see "Rejected sellers fix and resubmit"
+above) only ever applies to a seller who has never once been verified — a seller who was
+verified, then paused/demoted, cannot end up back in `rejected`.
+
+**3. `status` is forced or restricted by the resulting `verification_status`**, in the same
+request — this applies even if you only send `status` and don't touch `verification_status` at
+all, because it's evaluated against whatever the seller's `verification_status` will be after
+the request:
+
+| Resulting `verification_status` | What happens to `status` |
+|---|---|
+| `pending` | Forced to `inactive` — whatever `status` you sent (or didn't) is silently overridden. |
+| `rejected` | Forced to `suspended` — same, silently overridden. |
+| `unverified` | Restricted: must be `inactive` or `suspended`. Sending (or leaving it resolved as) `active` is `400`: `{"status": ["A seller with verification_status=unverified cannot be active."]}` |
+| `verified` | Free — `active`, `inactive` or `suspended`, your choice (this is how "Pausing an approved seller" and "Approving a self-registered seller" above work). |
+
+`POST /seller/me/resubmit/` (the seller's own resubmit action, not an admin PATCH) restates rule 3's `pending`
+forcing manually, since that endpoint writes the model directly rather than going through `SellerSerializer`.
+
+## Login and the three access tiers
+
+**Every status can log in** — `status` no longer gates login at all (it used to block `suspended`; it doesn't any
+more). What a logged-in seller can actually *do* is one of three tiers, both reported as booleans on the seller row
+(and in the seller's own login response):
+
+| Tier | `can_operate` | `can_edit_profile` | Can do |
+|---|---|---|---|
+| Full | `true` | `true` | Everything. |
+| Profile-only | `false` | `true` | Only their own profile/documents, change password, and (if `rejected`) resubmit. |
+| Locked | `false` | `false` | Nothing — not even their own profile. Still able to `GET` it, just not change it. |
+
+Which `(verification_status, status)` pair lands where — see the table in "What each reachable state falls into"
+in [`../seller/seller-api-guide.md`](../seller/seller-api-guide.md) §1 for the full breakdown (this is the seller's
+own view of the same three tiers your `PATCH`es here drive).
 
 ## How `verification_note` behaves
 
@@ -326,31 +393,45 @@ never edited or deleted. Show it in the seller detail as a timeline: who, when, 
 
 ## Deleting a seller
 
-`DELETE /accounts/sellers/{id}/` returns `204` and removes the seller, their history and their documents. Their uploaded
-files (identity documents and profile photo) are **deleted from storage too**. Deleting a single document with
-`media_delete_ids`, or replacing a photo, removes that file as well. The same applies to buyers and admins.
+`DELETE /accounts/sellers/{id}/` returns `204` and removes the seller, their history and their documents, if nothing
+protects the row. **A seller with any order cannot be hard-deleted** — `Order.seller` is a `PROTECT` foreign key, so this
+now returns `409` instead: `{"detail": "This seller has one or more orders. Deactivate or suspend the account instead
+of deleting."}`. Deactivate (`status: "inactive"`) or suspend (`status: "suspended"`) instead.
+
+A seller with **no** orders deletes cleanly, and their uploaded files (identity documents and profile photo) are
+deleted from storage too. Deleting a single document with `media_delete_ids`, or replacing/clearing a photo
+(`profile_pic`/`remove_profile_pic` — see "What's new" above), removes that file as well. The same cascade applies to
+buyers and admins — but note neither of those resources has an order-style `PROTECT` guard, so this 409 is Seller-only
+for now.
 
 ## Full walkthrough
 
-**1. Admin creates a seller, no note given — verified by default, note null:**
+**Note on the default:** creating a seller with **no** `verification_status` in the payload defaults it to
+`verified` (admin-created) immediately — see "Default verification_status on create" above. That seller could
+never be rejected afterward (rule 2 below), so this walkthrough creates seller #13 explicitly `unverified` instead,
+to show reject → re-verify → the lock that follows.
+
+**1. Admin creates a seller explicitly `unverified` + `inactive`, no note given:**
 ```
 POST /api/v1/accounts/sellers/
-{ "name": "Rafiq Traders", "email": "info@rafiqtraders.com", "phone": "+8801711000111", "password": "..." }
+{ "name": "Rafiq Traders", "email": "info@rafiqtraders.com", "phone": "+8801711000111", "password": "...",
+  "verification_status": "unverified", "status": "inactive" }
 ```
 ```json
 {
   "id": 13,
-  "verification_status": "verified",
+  "verification_status": "unverified",
   "verification_note": null,
+  "was_ever_verified": false,
   "verification_logs": [
-    { "id": 5, "verification_status": "verified", "verification_note": null,
+    { "id": 5, "verification_status": "unverified", "verification_note": null,
       "created_by": 10, "creator_type": "admin", "creator_name": "Test Admin",
       "created_at": "2026-09-28T08:26:18.680000+06:00" }
   ]
 }
 ```
 
-**2. Admin rejects with a note:**
+**2. Admin rejects with a note** (legal — this seller has never been verified):
 ```
 PATCH /api/v1/accounts/sellers/13/
 { "verification_status": "rejected", "verification_note": "Bad NID scan." }
@@ -359,29 +440,36 @@ PATCH /api/v1/accounts/sellers/13/
 {
   "verification_status": "rejected",
   "verification_note": "Bad NID scan.",
+  "status": "suspended",
+  "was_ever_verified": false,
   "verification_logs": [
     { "id": 6, "verification_status": "rejected", "verification_note": "Bad NID scan.", "...": "..." },
-    { "id": 5, "verification_status": "verified", "verification_note": null, "...": "..." }
+    { "id": 5, "verification_status": "unverified", "verification_note": null, "...": "..." }
   ]
 }
 ```
+`status` is forced to `suspended`; `can_edit_profile` is still `true` for this seller specifically (the rejected
+carve-out), so they can log in and fix things.
 
 **3. Admin re-verifies later *without* resending a note — note clears to null, it does not keep "Bad NID scan.":**
 ```
 PATCH /api/v1/accounts/sellers/13/
-{ "verification_status": "verified" }
+{ "verification_status": "verified", "status": "active" }
 ```
 ```json
 {
   "verification_status": "verified",
   "verification_note": null,
+  "status": "active",
+  "was_ever_verified": true,
   "verification_logs": [
     { "id": 7, "verification_status": "verified", "verification_note": null, "...": "..." },
     { "id": 6, "verification_status": "rejected", "verification_note": "Bad NID scan.", "...": "..." },
-    { "id": 5, "verification_status": "verified", "verification_note": null, "...": "..." }
+    { "id": 5, "verification_status": "unverified", "verification_note": null, "...": "..." }
   ]
 }
 ```
+`was_ever_verified` flips to `true` here, and never flips back.
 
 **4. An unrelated update (no `verification_status`) — note and log are untouched:**
 ```
@@ -389,4 +477,15 @@ PATCH /api/v1/accounts/sellers/13/
 { "status": "suspended" }
 ```
 `verification_note` and `verification_logs` come back exactly as they were in step 3 — no new
-log entry is written.
+log entry is written. (This now also locks the seller: `verified + suspended` is the locked tier.)
+
+**5. Trying to reject this seller now fails — the lock from step 3 is permanent:**
+```
+PATCH /api/v1/accounts/sellers/13/
+{ "verification_status": "rejected", "verification_note": "trying anyway" }
+```
+```json
+{ "verification_status": ["A seller who has ever been verified can never be rejected."] }
+```
+`400`. It doesn't matter that `verification_status` is currently `verified` and not literally "rejected" already —
+`was_ever_verified` (set permanently in step 3) is what's checked, not the current value.

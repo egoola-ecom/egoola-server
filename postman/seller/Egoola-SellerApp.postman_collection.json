@@ -2787,7 +2787,7 @@
                 ""
               ]
             },
-            "description": "Approved (`verified`) but `inactive`: login works, `can_operate` is false.",
+            "description": "Approved (`verified`) but `inactive`: login still works, but this is now the **locked** tier, not profile-only — `can_operate` and `can_edit_profile` are both false.",
             "auth": {
               "type": "noauth"
             },
@@ -2803,15 +2803,14 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test(\"verified but cannot operate\", () => { const b = pm.response.json(); pm.expect(b.verification_status).to.eql('verified'); pm.expect(b.status).to.eql('inactive'); pm.expect(b.can_operate).to.eql(false); });",
-                  "if (pm.response.code < 300) { pm.collectionVariables.set('own_token', String(pm.response.json().access)); }"
+                  "pm.test(\"verified but locked\", () => { const b = pm.response.json(); pm.expect(b.verification_status).to.eql('verified'); pm.expect(b.status).to.eql('inactive'); pm.expect(b.can_operate).to.eql(false); pm.expect(b.can_edit_profile).to.eql(false); });"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Paused seller can still edit the profile",
+          "name": "Paused seller CANNOT edit the profile (expect 403, locked)",
           "request": {
             "method": "PATCH",
             "header": [
@@ -2833,7 +2832,7 @@
                 ""
               ]
             },
-            "description": "",
+            "description": "verified + inactive is now the locked tier (an admin pausing an already-approved seller locks them out entirely, not just down to profile-only).",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"present_address\": \"Edited while paused\"\n}"
@@ -2855,8 +2854,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test(\"saved\", () => { pm.expect(pm.response.json().present_address).to.eql('Edited while paused'); });"
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test(\"locked message\", () => { pm.expect(pm.response.json().detail).to.include('locked'); });"
                 ]
               }
             }
@@ -2880,7 +2879,7 @@
                 ""
               ]
             },
-            "description": "Approved but `inactive`: the seller can still log in and edit the profile, but listings are closed until an admin makes them active.",
+            "description": "verified + inactive is locked, not profile-only: listings (and everything else outside GET /seller/me/) stay closed, same as before, but the message changed.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2899,7 +2898,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 403', () => pm.response.to.have.status(403));",
-                  "pm.test(\"says inactive\", () => { pm.expect(pm.response.json().detail).to.include('inactive'); });"
+                  "pm.test(\"says locked\", () => { pm.expect(pm.response.json().detail).to.include('locked'); });"
                 ]
               }
             }
@@ -6676,7 +6675,7 @@
                 ""
               ]
             },
-            "description": "Rejected sellers log in (profile only) so they can read the reason, fix their details and resubmit.",
+            "description": "Rejected sellers log in and keep can_edit_profile=true (a deliberate carve-out — status is suspended for a rejected seller, but they still need to fix their profile/documents and resubmit).",
             "auth": {
               "type": "noauth"
             },
@@ -6692,7 +6691,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test(\"rejected, not approved\", () => { const b = pm.response.json(); pm.expect(b.verification_status).to.eql('rejected'); pm.expect(b.can_operate).to.eql(false); });",
+                  "pm.test(\"rejected, suspended, but still profile-editable (carve-out)\", () => { const b = pm.response.json(); pm.expect(b.verification_status).to.eql('rejected'); pm.expect(b.status).to.eql('suspended'); pm.expect(b.can_operate).to.eql(false); pm.expect(b.can_edit_profile).to.eql(true); });",
                   "if (pm.response.code < 300) { pm.collectionVariables.set('full_token', String(pm.response.json().access)); }"
                 ]
               }
@@ -6841,7 +6840,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test(\"pending, back in the queue, not approved\", () => { const b = pm.response.json(); pm.expect(b.verification_status).to.eql('pending'); pm.expect(b.is_seller_request).to.eql(true); pm.expect(b.can_operate).to.eql(false); });",
+                  "pm.test(\"pending, back in the queue, not approved, still profile-editable\", () => { const b = pm.response.json(); pm.expect(b.verification_status).to.eql('pending'); pm.expect(b.is_seller_request).to.eql(true); pm.expect(b.can_operate).to.eql(false); pm.expect(b.status).to.eql('inactive'); pm.expect(b.can_edit_profile).to.eql(true); });",
                   "pm.test(\"note is the seller's message\", () => { pm.expect(pm.response.json().verification_note).to.eql('Replaced the NID with a clear scan'); });"
                 ]
               }
@@ -6924,7 +6923,7 @@
                 ""
               ]
             },
-            "description": "A suspended seller cannot log in and their token stops working at once.",
+            "description": "A suspended seller can still log in (see the next requests) — status no longer gates login at all. It gates what they can do once in: locked, except a rejected seller (carve-out).",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"suspended\"\n}"
@@ -6944,7 +6943,7 @@
           ]
         },
         {
-          "name": "Suspended seller's token is rejected (expect 401)",
+          "name": "Suspended seller's token: GET /seller/me/ still works",
           "request": {
             "method": "GET",
             "header": [],
@@ -6961,7 +6960,7 @@
                 ""
               ]
             },
-            "description": "",
+            "description": "Reads stay open even when locked — only writes (PATCH here, and resubmit/change-password) are blocked.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6979,14 +6978,66 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Suspended seller cannot log in (expect 401)",
+          "name": "Suspended seller's PATCH /seller/me/ is blocked (expect 403, locked)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/seller/me/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "seller",
+                "me",
+                ""
+              ]
+            },
+            "description": "Locked: not even profile editing, unlike the rejected carve-out above.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"present_address\": \"Should not save\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{full_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test(\"locked message\", () => { pm.expect(pm.response.json().detail).to.include('locked'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suspended seller can still log in, but is locked",
           "request": {
             "method": "POST",
             "header": [
@@ -7009,7 +7060,7 @@
                 ""
               ]
             },
-            "description": "",
+            "description": "Every status can log in now. can_operate and can_edit_profile are both false for a suspended, never-rejected seller.",
             "auth": {
               "type": "noauth"
             },
@@ -7024,8 +7075,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
-                  "pm.test(\"message\", () => { pm.expect(pm.response.json().detail).to.eql('This account is not active.'); });"
+                  "if (pm.response.code === 200) { pm.collectionVariables.set('full_token', pm.response.json().access); }",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"locked\", () => { const b = pm.response.json(); pm.expect(b.can_operate).to.eql(false); pm.expect(b.can_edit_profile).to.eql(false); });"
                 ]
               }
             }

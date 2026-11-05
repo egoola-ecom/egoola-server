@@ -98,6 +98,11 @@
       "key": "request_next",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "seller_with_order_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -1383,7 +1388,7 @@
                 ""
               ]
             },
-            "description": "A suspended seller cannot log in and their token stops working at once.",
+            "description": "Every status can log in now — suspended no longer blocks login. It gates what the seller can do once in instead: locked (can_operate=false, can_edit_profile=false), except a rejected seller, which is a deliberate carve-out (can_edit_profile stays true so they can fix and resubmit).",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"suspended\"\n}"
@@ -1766,7 +1771,7 @@
                 ""
               ]
             },
-            "description": "Includes `business_info` (the validated SellerInfo row, or null), `media[]`, and `verification_logs[]` — the full verification-status change history for this seller, newest first. `verification_logs` only appears here, never on List."
+            "description": "Includes `business_info` (the validated SellerInfo row, or null), `media[]`, and `verification_logs[]` — the full verification-status change history for this seller, newest first. `verification_logs` only appears here, never on List.\n\nIncludes was_ever_verified (read-only, true forever once verification_status has ever been saved as verified) — use it to tell whether rejecting this seller is even allowed before trying."
           },
           "event": [
             {
@@ -1928,6 +1933,38 @@
           }
         },
         {
+          "name": "Update Seller — Remove Profile Picture",
+          "request": {
+            "method": "PATCH",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "remove_profile_pic",
+                  "value": "true",
+                  "type": "text",
+                  "description": "Clears profile_pic_path/profile_pic_url back to null and deletes the stored file. Update only — ignored on create. A profile_pic sent in the same request would win over this."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{seller_id}}",
+                ""
+              ]
+            },
+            "description": "multipart/form-data. Same ProfilePicUploadMixin as Admin/Buyer."
+          }
+        },
+        {
           "name": "Update Seller — Reject (missing note, expect 400)",
           "request": {
             "method": "PATCH",
@@ -2058,6 +2095,160 @@
           ]
         },
         {
+          "name": "Create Seller — unverified + active (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bad Combo Seller\",\n  \"email\": \"bad.combo.{{$timestamp}}@example.com\",\n  \"phone\": \"+880170{{$timestamp}}\",\n  \"password\": \"Sel@12345\",\n  \"verification_status\": \"unverified\",\n  \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                ""
+              ]
+            },
+            "description": "unverified can only ever be paired with inactive or suspended — active is rejected: {\"status\": [\"A seller with verification_status=unverified cannot be active.\"]}"
+          }
+        },
+        {
+          "name": "Update Seller — pending forces status to inactive",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_status\": \"pending\",\n  \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{seller_id}}",
+                ""
+              ]
+            },
+            "description": "status=active sent here is silently overridden — the response comes back status: inactive regardless. Run against a seller currently verified/active, e.g. seller_id."
+          }
+        },
+        {
+          "name": "Update Seller — Reject (with note), status forces to suspended",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_status\": \"rejected\",\n  \"verification_note\": \"Docs unreadable.\",\n  \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{seller_id}}",
+                ""
+              ]
+            },
+            "description": "Duplicate of the existing 'Reject (with note)' request, but also proves status is force-set to suspended even though active was sent."
+          }
+        },
+        {
+          "name": "Update Seller — rejected straight to unverified (expect 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_status\": \"unverified\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{seller_id}}",
+                ""
+              ]
+            },
+            "description": "A rejected seller can only move to pending next, never straight to unverified or verified: {\"verification_status\": [\"A rejected seller can only be moved to pending next.\"]}. Run right after the reject request above, on the same seller_id."
+          }
+        },
+        {
+          "name": "Update Seller — once verified, reject is permanently blocked (expect 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_status\": \"rejected\",\n  \"verification_note\": \"trying anyway\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{seller_id}}",
+                ""
+              ]
+            },
+            "description": "Run this against a seller whose was_ever_verified is already true (check via Retrieve Seller — e.g. one that went through \"Approve\" earlier in this collection), even if its current verification_status is back to unverified/pending/paused — was_ever_verified stays true forever, so this always 400s: {\"verification_status\": [\"A seller who has ever been verified can never be rejected.\"]}"
+          }
+        },
+        {
           "name": "Seller actor forbidden from Sellers management (expect 403)",
           "request": {
             "method": "GET",
@@ -2178,6 +2369,38 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Seller — has an order (expect 409)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/sellers/{{seller_with_order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "sellers",
+                "{{seller_with_order_id}}",
+                ""
+              ]
+            },
+            "description": "Order.seller is a PROTECT foreign key. A seller with at least one order can't be hard-deleted: 409 {\"detail\": \"This seller has one or more orders. Deactivate or suspend the account instead of deleting.\"} — deactivate/suspend instead. Set seller_with_order_id to a seller id that has an order (e.g. from the Orders admin collection) before running this."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));"
                 ]
               }
             }

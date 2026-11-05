@@ -75,6 +75,9 @@ stateDiagram-v2
     Approved --> [*]: Full seller features (verified + active)
 ```
 
+Every state in this diagram can log in — `status`/`verification_status` decide what the seller can *do* once
+logged in (the three tiers below), not whether they can log in at all.
+
 ### Two switches, not one
 
 A seller has two separate fields. Do not mix them up:
@@ -82,25 +85,38 @@ A seller has two separate fields. Do not mix them up:
 | Field | Values | Meaning |
 |---|---|---|
 | `verification_status` | `unverified`, `pending`, `verified`, `rejected` | The **KYC decision**. A seller is **approved** when this is `verified`. |
-| `status` | `active`, `inactive`, `suspended` | The **account switch**. `inactive` = the seller cannot do anything except edit their profile, for the time being, until an admin sets `active`. It is used for a brand-new sign-up **and** for an approved seller an admin has paused. `suspended` = blocked completely. |
+| `status` | `active`, `inactive`, `suspended` | The **account switch**. **Every value can log in** (see "Three tiers" below — `status` no longer gates login by itself). `status` is partly derived from `verification_status`: `pending` and `rejected` force it (see the admin guide's "Transition and status rules"); `unverified` can only be `inactive`/`suspended`; `verified` is free. |
 
-`can_operate` = `verified` **and** `active`. Only a seller who can operate may use the full seller features
-(listings, orders, wallet...). Every other seller is limited to their own profile.
+`can_operate` = `verified` **and** `active` — the **full** tier (listings, orders, wallet...). Every seller who isn't
+there falls into one of two narrower tiers below, both reported on the seller row as booleans so the app never has
+to re-derive them.
 
-### What each state can do
+### Three tiers, not two
 
-| Seller state | Can log in? | Can edit own profile? | Full seller features? |
+There used to be a simple "can operate / can't" split. There are now three tiers, reported as two booleans:
+
+| Tier | `can_operate` | `can_edit_profile` | What they can do |
 |---|---|---|---|
-| Just signed up: `unverified` + `inactive` | yes | yes | **no** |
-| `pending` (resubmitted) + `inactive` | yes | yes | **no** |
-| `rejected` + `inactive` | yes | yes (to fix and resubmit) | **no** |
-| `verified` + `active` (**can operate**) | yes | yes (identity documents locked) | **yes** |
-| `verified` + `inactive` (approved but **paused** by an admin) | yes | yes (identity documents locked) | **no**, until an admin makes them `active` |
-| `suspended` (any `verification_status`) | **no** (`401`) | no | no |
+| **Full** | `true` | `true` | Everything — listings, orders, wallet, and their own profile. |
+| **Profile-only** | `false` | `true` | Only `/seller/me/...` — read/edit their profile and documents, change password, (if `rejected`) resubmit. Everything else is `403`. |
+| **Locked** | `false` | `false` | Logged in, can read `GET /seller/me/`, but every write — including editing their own profile — is `403`. |
 
-The server loads the seller fresh on every request, so an approval, a pause or a suspension works immediately, not
-when the token expires. Every future seller feature (listings, orders, wallet...) is built behind a "can operate"
-check, so a seller who cannot operate gets `403` there, with a message that says why (section 6).
+### What each reachable state falls into
+
+| `verification_status` + `status` | Can log in? | Tier |
+|---|---|---|
+| `unverified` + `inactive` (just signed up) | yes | Profile-only |
+| `unverified` + `suspended` | yes | **Locked** |
+| `pending` + `inactive` (resubmitted, awaiting review) | yes | Profile-only |
+| `rejected` + `suspended` | yes | **Profile-only — deliberate carve-out.** `rejected` always comes with `status: suspended` (forced), but a rejected seller still has to fix their profile/documents and resubmit, or they'd be locked out forever. Nothing else is carved out: full-feature endpoints stay `403`. |
+| `verified` + `active` (**can operate**) | yes | **Full** |
+| `verified` + `inactive` (approved, then **paused** by an admin) | yes | **Locked** — pausing an already-approved seller locks them out entirely, not just down to profile-only. |
+| `verified` + `suspended` | yes | **Locked** |
+
+The server loads the seller fresh on every request, so a change to either field takes effect immediately, not when
+the token expires. Every seller feature (listings, orders, wallet...) is built behind a `can_operate` check (full
+tier only); `/seller/me/...`'s writes are behind a `can_edit_profile` check (profile-only or full); its `GET` is
+open to any logged-in seller, even a locked one.
 
 ### The seller-facing endpoints
 
@@ -277,8 +293,8 @@ phone number is exactly the one given at sign-up (the server ignores spaces arou
 is `400 {"phone": ["This field is required."]}`. Because the phone number is the login, an admin who changes a seller's
 phone number changes how that seller logs in: the old number stops working at once.
 
-A seller who **cannot operate yet** (still waiting, rejected, or approved but paused) can log in. The response tells
-the app which screens to show:
+**Every seller can log in, including a locked one.** The response tells the app which of the three tiers (above) to
+show:
 
 ```json
 {
@@ -291,18 +307,21 @@ the app which screens to show:
   "phone": "+8801700096001",
   "verification_status": "unverified",
   "status": "inactive",
-  "can_operate": false
+  "can_operate": false,
+  "can_edit_profile": true
 }
 ```
 
 What to do in the app:
 
 - `can_operate: true` → the normal seller app.
-- `can_operate: false` → profile screens only (profile form, documents, change password). Choose the message from the two switches:
-  - `verification_status` is `unverified` or `pending` → "Your application is under review."
-  - `verification_status` is `rejected` → show the reason (`GET /seller/me/` → `verification_note`) and a **Resubmit** button.
-  - `verification_status` is `verified` and `status` is `inactive` → "Your account is paused. An admin has to make it active again."
-- A **suspended** seller gets `401 {"detail": "This account is not active."}`.
+- `can_operate: false`, `can_edit_profile: true` → profile screens only (profile form, documents, change password).
+  Choose the message from `verification_status`:
+  - `unverified` or `pending` → "Your application is under review."
+  - `rejected` → show the reason (`GET /seller/me/` → `verification_note`) and a **Resubmit** button.
+- `can_operate: false`, `can_edit_profile: false` → **locked**: show `GET /seller/me/`'s data read-only, no edit
+  screens at all. "Your account is suspended. Contact support." (this is `verified + inactive`, i.e. a paused
+  approved seller, or `suspended` under any `verification_status` other than `rejected`).
 - A wrong password **or an unknown phone number** is `401 {"detail": "Invalid phone number or password."}` (the same message
   for both, so nobody can find out which numbers are registered).
 
@@ -313,8 +332,9 @@ Tokens, refresh and error shapes are the same as everywhere else: see
 
 ## 5. The seller's own profile — `/api/v1/seller/me/`
 
-Open to any logged-in seller who is not suspended (whether or not they can operate). Send `Authorization: Bearer <access>`.
-An admin or buyer token gets `403`.
+`GET` is open to any logged-in seller, including a **locked** one. `PATCH` (and 5.4/5.5 below) need
+`can_edit_profile: true` — a locked seller gets `403 {"detail": "Your seller account is locked. Contact support."}`.
+Send `Authorization: Bearer <access>`. An admin or buyer token gets `403`.
 
 ### 5.1 Read — `GET /api/v1/seller/me/`
 
@@ -345,6 +365,7 @@ An admin or buyer token gets `403`.
   "status": "inactive",
   "is_seller_request": true,
   "can_operate": false,
+  "can_edit_profile": true,
   "created_at": "2026-10-11T22:38:52.250133+06:00",
   "requested_at": "2026-10-11T22:38:51.947603+06:00"
 }
@@ -370,9 +391,10 @@ when a file is included.
 | `info` | yes | The business profile. Send the whole object; six fields required (section 3). Read back as `business_info`. |
 | `media_for` + `media_file`, `media_delete_ids` | yes | Documents (5.3). |
 | `email`, `phone` | **no, for now** | The same value is accepted; a different one is `400`: `{"email": ["Email cannot be changed."]}`. |
-| `verification_status`, `verification_note`, `status`, `is_seller_request`, `can_operate`, `created_at`, `requested_at` | **never** | Read-only. Sending them changes nothing: a seller cannot approve themselves. |
+| `verification_status`, `verification_note`, `status`, `is_seller_request`, `can_operate`, `can_edit_profile`, `created_at`, `requested_at` | **never** | Read-only. Sending them changes nothing: a seller cannot approve themselves. |
 
-Returns `200` with the same body as `GET /seller/me/`.
+Returns `200` with the same body as `GET /seller/me/`. A **locked** seller never reaches this far — `403` before
+validation even runs (see the tier table above).
 
 Every real change is written to a **profile change log** that admins read on the seller detail (the seller does
 not see it). Sending the same values again writes nothing.
@@ -428,7 +450,9 @@ What happens:
 - The seller's `note` becomes `verification_note` (the note on the row always belongs to
   the current status). The admin's rejection reason stays in `verification_logs`.
 - A history entry is added, made by the seller (`creator_type: "seller"`).
-- `status` stays `inactive`. An admin still has to approve with `verified` + `active`.
+- `status`, which was `suspended` while `rejected`, becomes `inactive` — `pending` always forces that (same as an
+  admin setting `pending` directly). The seller comes out of resubmit back in the **profile-only** tier, not locked.
+  An admin still has to approve with `verified` + `active` to reach full.
 
 Only a **rejected** seller can resubmit; anyone else gets
 `400 {"detail": "Only a rejected application can be resubmitted."}` (this includes a
@@ -453,10 +477,10 @@ One shared set of endpoints for **every product format** (`general`, `used`, `vi
 **services are gigs**: they are on `/seller/gigs/` (section 6b), and a service sent here is `400`. Admin-side rules, SKUs and the full field
 reference are in [`../listing-complete-guide.md`](../listing-complete-guide.md); the plain-language version is `../Egoola_Listing_Guide.md`.
 
-**Who can use it.** Only a seller who **can operate** (verified **and** active). Everyone else gets `403` with a message that says why:
+**Who can use it.** Only a seller who **can operate** (verified **and** active). Everyone else gets `403` with a message that says why (section 7):
 
 - not approved yet: `{"detail": "Your seller application is not approved yet. You can only edit your profile until an admin approves it."}`
-- approved but inactive: `{"detail": "Your seller account is inactive. You can only edit your profile until an admin makes it active."}`
+- locked: `{"detail": "Your seller account is locked. Contact support."}`
 
 A seller sees and changes **only their own, non-deleted products**. Another seller's listing, an admin-owned listing, a buyer request and the
 seller's own gigs are `404` here. **A seller cannot delete a listing** (`DELETE` is `405`).
@@ -712,12 +736,12 @@ can make), the seller may place a fresh one on the same job — a new historical
 ## 7. What a seller who cannot operate can NOT do
 
 Everything outside `/seller/me/...`. Products (section 6), gigs (section 6b) and the job board/bidding (section 6c) need a seller who **can operate** (verified **and** active), and so will orders, wallet and
-withdrawals when they are built. Everyone else gets `403` with a message that says which switch is holding them back:
+withdrawals when they are built. Everyone else gets `403` with a message that says which tier is holding them back:
 
-- not verified yet (unverified, pending, rejected):
+- locked (`can_edit_profile: false` — `verified + inactive`, or `suspended` under anything except `rejected`):
+  `{"detail": "Your seller account is locked. Contact support."}`
+- not verified yet (profile-only: unverified, pending, or the `rejected` carve-out):
   `{"detail": "Your seller application is not approved yet. You can only edit your profile until an admin approves it."}`
-- verified but `inactive`:
-  `{"detail": "Your seller account is inactive. You can only edit your profile until an admin makes it active."}`
 
 Admin endpoints (`/accounts/...`) are always `403` for a seller, whatever their state.
 
@@ -733,8 +757,8 @@ Admin endpoints (`/accounts/...`) are always `403` for a seller, whatever their 
 | Email unique ignoring case; phone unique | server |
 | Country / state / city / thana must match each other | server (everywhere) |
 | Password: 8+ characters, not common, not all digits | server |
-| Sellers who cannot operate (pending, rejected, or approved but inactive) can log in but only use `/seller/me/...`; full features need verified AND active | `IsSellerActor` / `IsActiveVerifiedSellerActor` |
-| Suspended sellers cannot log in and their token stops working | login + every request |
+| Three tiers: full (`can_operate`) can use everything; profile-only (`can_edit_profile`, not `can_operate`) can only use `/seller/me/...`; locked (neither) can only `GET /seller/me/` | `IsSellerActor` / `IsProfileEditableSellerActor` / `IsActiveVerifiedSellerActor` |
+| Every status can log in now, including `suspended` — it's a post-login tier (above), not a login-time block | login + every request |
 | A seller logs in with **phone number + password** (not email); an admin changing the phone changes the login | login |
 | Email and phone cannot be changed by the seller (for now) | `/seller/me/` |
 | Identity documents (NID, birth certificate) locked once `verified`; at least one NID always | `/seller/me/` |
