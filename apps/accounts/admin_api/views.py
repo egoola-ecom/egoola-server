@@ -1,3 +1,4 @@
+from django.db.models import ProtectedError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
 from rest_framework.decorators import action
@@ -97,6 +98,15 @@ class SellerViewSet(AuditedViewSetMixin, ModelViewSet):
         serializer = self.get_serializer(page, many=True)
         return self.get_paginated_response(serializer.data)
 
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {"detail": "This seller has one or more orders. Deactivate or suspend the account instead of deleting."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
 
 class BuyerViewSet(AuditedViewSetMixin, ModelViewSet):
     """Buyer management — model is `User` (see models.py docstring). Media
@@ -114,3 +124,12 @@ class BuyerViewSet(AuditedViewSetMixin, ModelViewSet):
         if self.action == "list":
             return User.objects.all()
         return User.objects.select_related("country", "state", "city", "thana").prefetch_related("media")
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {"detail": "This buyer has one or more orders. Suspend the account instead of deleting."},
+                status=status.HTTP_409_CONFLICT,
+            )
