@@ -40,7 +40,9 @@ The role is read from the database on each request, so promoting or demoting an
 admin takes effect immediately (even with a token that was issued earlier).
 
 Postman: **Auth > Super-Admin Login**, then the **Admins** folder in
-`postman/admin/Egoola.postman_collection.json`.
+`postman/admin/Egoola.postman_collection.json` (basic CRUD), or the dedicated
+`postman/admin/Egoola-Admin.postman_collection.json` (also covers `profile_pic`/
+`remove_profile_pic` and `media`).
 
 ## Safety rules
 
@@ -61,12 +63,13 @@ Postman: **Auth > Super-Admin Login**, then the **Admins** folder in
 | password | **required on create**, write only, stored hashed; optional on update. Must be at least 8 characters, not a very common password and not all digits |
 | type | **required**: `super_admin` \| `admin` |
 | status | `active` (default) \| `inactive` |
-| profile_pic | image file, write only (multipart) → `profile_pic_url` |
+| profile_pic | image file, write only (multipart) → `profile_pic_path`/`profile_pic_url`. `<= 2 MB` (global upload cap) |
+| remove_profile_pic | write only, boolean, default `false`. `true` clears the current picture (deletes the file, both path/url back to `null`) — update only, ignored on create. A `profile_pic` sent in the same request always wins over this |
 | skills, experiences, interests, educations | JSON, optional |
 | present_address, permanent_address | text, optional |
 | country, state, city, thana | ids, optional. Must match: the state belongs to the country, the city to the state, the thana to the city |
 | last_logged_at | read only |
-| media | read only; add with `media_for` + `media_file`, remove with `media_delete_ids` |
+| media | read only; shows `id, media_type, media_for, media_path, media_url`. Add with `media_for` + `media_file` (paired by position — the Nth `media_for` goes with the Nth `media_file`), remove with `media_delete_ids`. `media_for` is one of `nid`, `birth_certificate`, `profile_document`, `other`. No in-place edit of an existing file — replacing one is delete + re-add |
 
 `created_by`, `creator_type`, `creator_name` (and `updated_*`) are stamped from
 the super-admin's token.

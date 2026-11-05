@@ -1,0 +1,458 @@
+{
+  "info": {
+    "name": "Egoola API — Admin",
+    "_postman_id": "4b8f1d6a-7e2c-4a91-9c3d-egoola-admin",
+    "description": "Admin Management — create, update, list, retrieve, delete other admins. Super-admin only (`IsSuperAdminActor`): a plain `admin` token gets 403 here, though it can still use Seller/Buyer/Listing management elsewhere.\n\nSafety rules: you cannot change your own `type` or `status` (400), and you cannot delete yourself (400) — so there is always at least one active super-admin.\n\n`profile_pic` is write-only (multipart); `remove_profile_pic: true` clears it back to empty (update only — a new `profile_pic` in the same request always wins). `media_for`/`media_file`/`media_delete_ids` manage the `media` list (NID, birth certificate, profile document, other) through this same create/update call — paired by position, no separate media endpoint.\n\nHow to use:\n1. Pick the `Egoola - Local` environment (or edit `base_url`).\n2. Run **Auth > Super-Admin Login** first — its \"Tests\" script saves tokens into collection variables.\n3. Run **Admins > Create Admin** — saves the new row's id into `admin_id`.\n4. The rest of the requests reuse `admin_id`.\n\nFull reference: `docs/admin/admin-management-guide.md`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{access_token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" },
+    { "key": "admin_id", "value": "", "type": "string" },
+    { "key": "plain_admin_token", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Super-Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test.super@egoola.com\",\n  \"password\": \"Test@12345\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/admin/login/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "admin", "login", ""]
+            },
+            "description": "Dev account, super_admin type. Admin Management needs this role — a plain admin token gets 403 on every request below."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.access);",
+                  "    pm.collectionVariables.set('refresh_token', body.refresh);",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Plain Admin Login (for 403 checks)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test.admin@egoola.com\",\n  \"password\": \"Test@12345\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/admin/login/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "admin", "login", ""]
+            },
+            "description": "Dev account, plain admin type. Used only by the 403 checks below."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) { pm.collectionVariables.set('plain_admin_token', pm.response.json().access); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "body": { "mode": "raw", "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/token/refresh/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "token", "refresh", ""]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["if (pm.response.code === 200) { pm.collectionVariables.set('access_token', pm.response.json().access); }"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admins",
+      "item": [
+        {
+          "name": "List Admins",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/?type=&status=&search=",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", ""],
+              "query": [
+                { "key": "type", "value": "", "description": "super_admin | admin" },
+                { "key": "status", "value": "", "description": "active | inactive" },
+                { "key": "search", "value": "", "description": "name, email or mobile" }
+              ]
+            },
+            "description": "Paginated. Rows: id, name, email, mobile, profile_pic_url, type, status, last_logged_at."
+          }
+        },
+        {
+          "name": "List Admins — plain admin token (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{plain_admin_token}}" }],
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", ""]
+            },
+            "description": "A plain admin token can use Seller/Buyer/Listing management, but not this resource."
+          }
+        },
+        {
+          "name": "List Admins — no token (expect 401)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Demo Admin {{$timestamp}}\",\n  \"email\": \"demo.admin.{{$timestamp}}@egoola.com\",\n  \"mobile\": \"+88017{{$timestamp}}\",\n  \"password\": \"Adm@12345\",\n  \"type\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", ""]
+            },
+            "description": "name/email/mobile/password/type required. password hashed, must be >= 8 chars, not common, not all-digits."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('admin_id', pm.response.json().id); }",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('password not returned', () => pm.expect(pm.response.json().password).to.be.undefined);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Admin — with profile pic (multipart)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "Demo Admin With Pic {{$timestamp}}", "type": "text" },
+                { "key": "email", "value": "demo.admin.pic.{{$timestamp}}@egoola.com", "type": "text" },
+                { "key": "mobile", "value": "+88018{{$timestamp}}", "type": "text" },
+                { "key": "password", "value": "Adm@12345", "type": "text" },
+                { "key": "type", "value": "admin", "type": "text" },
+                { "key": "profile_pic", "type": "file", "description": "optional, <= 2 MB (global image cap)" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Admin — with documents (multipart, media_for + media_file)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "Demo Admin With Docs {{$timestamp}}", "type": "text" },
+                { "key": "email", "value": "demo.admin.docs.{{$timestamp}}@egoola.com", "type": "text" },
+                { "key": "mobile", "value": "+88019{{$timestamp}}", "type": "text" },
+                { "key": "password", "value": "Adm@12345", "type": "text" },
+                { "key": "type", "value": "admin", "type": "text" },
+                { "key": "media_for", "value": "profile_document", "type": "text", "description": "paired by position with media_file below" },
+                { "key": "media_file", "type": "file" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", ""]
+            },
+            "description": "media_for is one of: nid, birth_certificate, profile_document, other. Each media_for pairs with the media_file at the same position — send both repeated, in matching order, for more than one file."
+          }
+        },
+        {
+          "name": "Create Admin — missing type (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"No Type\",\n  \"email\": \"no.type.{{$timestamp}}@egoola.com\",\n  \"mobile\": \"+88011{{$timestamp}}\",\n  \"password\": \"Adm@12345\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Admin — weak password (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Weak Pass\",\n  \"email\": \"weak.pass.{{$timestamp}}@egoola.com\",\n  \"mobile\": \"+88012{{$timestamp}}\",\n  \"password\": \"1234567\",\n  \"type\": \"admin\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", ""]
+            },
+            "description": "Too short / too common / all-digits all hit Django's password validators."
+          }
+        },
+        {
+          "name": "Retrieve Admin",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/{{admin_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", "{{admin_id}}", ""]
+            },
+            "description": "Full record, including geography and nested media. Unknown id -> 404."
+          }
+        },
+        {
+          "name": "Update Admin — rename (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Demo Admin Renamed {{$timestamp}}\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/{{admin_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", "{{admin_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Admin — promote to super_admin",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"super_admin\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/{{admin_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", "{{admin_id}}", ""]
+            },
+            "description": "Takes effect immediately — the role is read fresh from the DB every request, not cached in the token."
+          }
+        },
+        {
+          "name": "Update Admin — deactivate",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"inactive\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/{{admin_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", "{{admin_id}}", ""]
+            },
+            "description": "An inactive admin can no longer log in."
+          }
+        },
+        {
+          "name": "Update Admin — reactivate",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"active\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/{{admin_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", "{{admin_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Admin — reset password",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"password\": \"NewAdm@12345\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/{{admin_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", "{{admin_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Admin — set profile pic (multipart)",
+          "request": {
+            "method": "PATCH",
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "profile_pic", "type": "file" }]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/{{admin_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", "{{admin_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Admin — remove profile pic",
+          "request": {
+            "method": "PATCH",
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "remove_profile_pic", "value": "true", "type": "text" }]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/{{admin_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", "{{admin_id}}", ""]
+            },
+            "description": "Clears profile_pic_path/profile_pic_url back to null and deletes the stored file. Update only — ignored on create. A profile_pic sent in the same request would win over this."
+          }
+        },
+        {
+          "name": "Update Admin — remove a media document",
+          "request": {
+            "method": "PATCH",
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "media_delete_ids", "value": "1", "type": "text", "description": "id(s) from this admin's own media list" }]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/{{admin_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", "{{admin_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Admin — bad type (expect 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"moderator\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/{{admin_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", "{{admin_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Admin — unknown id (expect 404)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Does not matter\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/999999999/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", "999999999", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Self-protection",
+      "item": [
+        {
+          "name": "Update own type (expect 400)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/?search=test.super",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", ""],
+              "query": [{ "key": "search", "value": "test.super" }]
+            },
+            "description": "Run this first to find the logged-in super-admin's own id, then PATCH that id with {\"type\": \"admin\"} manually — expect 400 \"You cannot change your own admin type.\" (kept as two steps since the id is this environment's own seeded account, not something this collection can know in advance)."
+          }
+        },
+        {
+          "name": "Delete own account (expect 400)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/?search=test.super",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", ""],
+              "query": [{ "key": "search", "value": "test.super" }]
+            },
+            "description": "Same idea: find your own id above, then DELETE it manually — expect 400 \"You cannot delete your own account.\""
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cleanup",
+      "item": [
+        {
+          "name": "Delete Admin",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/admins/{{admin_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "admins", "{{admin_id}}", ""]
+            },
+            "description": "204. Unknown id -> 404. Your own id -> 400 (see Self-protection folder)."
+          }
+        }
+      ]
+    }
+  ]
+}
