@@ -62,7 +62,13 @@ class PasswordWriteMixin:
 class ProfilePicUploadMixin:
     """The client sends a `profile_pic` file, never a path/URL — this
     uploads it to storage and computes `profile_pic_path`/`profile_pic_url`
-    itself, so those two stay read-only from the client's point of view."""
+    itself, so those two stay read-only from the client's point of view.
+
+    `remove_profile_pic: true` clears it back to empty (deletes the file,
+    sets both path/url to null) — update only, since there's nothing to
+    clear on create. Sending both at once is not a conflict: a new
+    `profile_pic` always wins, same as `remove_thumbnail` vs. a new
+    `thumbnail` on the listing-files endpoint."""
 
     def _apply_profile_pic(self, instance, profile_pic):
         # `media_fk_name` ("admin"/"seller"/"buyer") already exists on the
@@ -78,8 +84,18 @@ class ProfilePicUploadMixin:
             # The replaced picture's file is no longer needed.
             transaction.on_commit(lambda: delete_upload(old_path))
 
+    def _clear_profile_pic(self, instance):
+        old_path = instance.profile_pic_path
+        if not old_path:
+            return
+        instance.profile_pic_path = None
+        instance.profile_pic_url = None
+        instance.save(update_fields=["profile_pic_path", "profile_pic_url"])
+        transaction.on_commit(lambda: delete_upload(old_path))
+
     def create(self, validated_data):
         profile_pic = validated_data.pop("profile_pic", None)
+        validated_data.pop("remove_profile_pic", None)  # nothing to clear yet on create
         instance = super().create(validated_data)
         if profile_pic is not None:
             self._apply_profile_pic(instance, profile_pic)
@@ -87,9 +103,12 @@ class ProfilePicUploadMixin:
 
     def update(self, instance, validated_data):
         profile_pic = validated_data.pop("profile_pic", None)
+        remove_profile_pic = validated_data.pop("remove_profile_pic", False)
         instance = super().update(instance, validated_data)
         if profile_pic is not None:
             self._apply_profile_pic(instance, profile_pic)
+        elif remove_profile_pic:
+            self._clear_profile_pic(instance)
         return instance
 
 

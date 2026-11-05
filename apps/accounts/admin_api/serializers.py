@@ -41,6 +41,7 @@ class AdminSerializer(
 ):
     password = serializers.CharField(write_only=True, required=False, style={"input_type": "password"})
     profile_pic = serializers.ImageField(write_only=True, required=False)
+    remove_profile_pic = serializers.BooleanField(write_only=True, required=False, default=False)
     media = AdminMediaSerializer(many=True, read_only=True)
     media_for = serializers.ListField(
         child=serializers.ChoiceField(choices=AdminMedia.MediaFor.choices),
@@ -60,7 +61,7 @@ class AdminSerializer(
         model = Admin
         fields = [
             "id", "name", "email", "mobile", "password",
-            "profile_pic", "profile_pic_path", "profile_pic_url", "type", "status",
+            "profile_pic", "remove_profile_pic", "profile_pic_path", "profile_pic_url", "type", "status",
             "skills", "experiences", "interests", "educations",
             "present_address", "permanent_address",
             "country", "state", "city", "thana",
@@ -131,6 +132,7 @@ class SellerSerializer(
 ):
     password = serializers.CharField(write_only=True, required=False, style={"input_type": "password"})
     profile_pic = serializers.ImageField(write_only=True, required=False)
+    remove_profile_pic = serializers.BooleanField(write_only=True, required=False, default=False)
     media = SellerMediaSerializer(many=True, read_only=True)
     media_for = serializers.ListField(
         child=serializers.ChoiceField(choices=SellerMedia.MediaFor.choices),
@@ -155,6 +157,8 @@ class SellerSerializer(
     business_info = SellerInfoSerializer(source="info", read_only=True)
     verification_logs = SellerVerificationLogSerializer(many=True, read_only=True)
     profile_change_logs = SellerProfileChangeLogSerializer(many=True, read_only=True)
+    can_operate = serializers.BooleanField(read_only=True)
+    can_edit_profile = serializers.BooleanField(read_only=True)
 
     media_model = SellerMedia
     media_fk_name = "seller"
@@ -163,9 +167,10 @@ class SellerSerializer(
         model = Seller
         fields = [
             "id", "name", "email", "phone", "password",
-            "profile_pic", "profile_pic_path", "profile_pic_url",
+            "profile_pic", "remove_profile_pic", "profile_pic_path", "profile_pic_url",
             "email_verified_at", "phone_verified_at",
-            "verification_status", "verification_note", "is_seller_request",
+            "verification_status", "verification_note", "is_seller_request", "was_ever_verified",
+            "can_operate", "can_edit_profile",
             "skills", "education", "experience", "interest",
             "present_address", "permanent_address",
             "country", "state", "city", "thana",
@@ -177,6 +182,7 @@ class SellerSerializer(
             "email_verified_at": {"read_only": True},
             "phone_verified_at": {"read_only": True},
             "is_seller_request": {"read_only": True},
+            "was_ever_verified": {"read_only": True},
             "wallet_balance": {"read_only": True},
             "bonus_balance": {"read_only": True},
             "last_logged_at": {"read_only": True},
@@ -187,18 +193,59 @@ class SellerSerializer(
         }
 
     def validate(self, attrs):
-        # Only a real move into "rejected" needs a note; re-sending the
-        # unchanged status (e.g. a PUT of the whole form) does not.
+        # Only a real move into a new verification_status needs checking;
+        # re-sending the unchanged value (e.g. a PUT of the whole form)
+        # does not.
         instance = self.instance
         status_changes = "verification_status" in attrs and (
             instance is None or attrs["verification_status"] != instance.verification_status
         )
-        if status_changes and attrs["verification_status"] == Seller.VerificationStatus.REJECTED and not attrs.get(
-            "verification_note"
-        ):
-            raise serializers.ValidationError(
-                {"verification_note": "A verification note is required when rejecting a seller."}
+        if status_changes:
+            new_verification_status = attrs["verification_status"]
+            if new_verification_status == Seller.VerificationStatus.REJECTED and not attrs.get("verification_note"):
+                raise serializers.ValidationError(
+                    {"verification_note": "A verification note is required when rejecting a seller."}
+                )
+            if instance is not None:
+                # A rejected seller's only way forward is back to pending
+                # (fix and resubmit) — not straight to unverified or verified.
+                if (
+                    instance.verification_status == Seller.VerificationStatus.REJECTED
+                    and new_verification_status != Seller.VerificationStatus.PENDING
+                ):
+                    raise serializers.ValidationError(
+                        {"verification_status": "A rejected seller can only be moved to pending next."}
+                    )
+                # Once a seller has ever been verified, that trust is never
+                # retracted as a rejection — from any status, not just from
+                # verified itself. was_ever_verified stays true forever (see
+                # create()/update()), so this still fires after the seller
+                # has since moved back to unverified or pending.
+                if new_verification_status == Seller.VerificationStatus.REJECTED and instance.was_ever_verified:
+                    raise serializers.ValidationError(
+                        {"verification_status": "A seller who has ever been verified can never be rejected."}
+                    )
+
+        # `status` is partly derived from verification_status, not a fully
+        # free field: pending/rejected force it (silently overriding whatever
+        # was sent, same as a DB trigger would), and unverified restricts it.
+        # verified has no restriction of its own.
+        resulting_verification_status = attrs.get(
+            "verification_status", instance.verification_status if instance is not None else None
+        )
+        if resulting_verification_status == Seller.VerificationStatus.PENDING:
+            attrs["status"] = Seller.Status.INACTIVE
+        elif resulting_verification_status == Seller.VerificationStatus.REJECTED:
+            attrs["status"] = Seller.Status.SUSPENDED
+        elif resulting_verification_status == Seller.VerificationStatus.UNVERIFIED:
+            resulting_status = attrs.get(
+                "status", instance.status if instance is not None else Seller.Status.ACTIVE
             )
+            if resulting_status == Seller.Status.ACTIVE:
+                raise serializers.ValidationError(
+                    {"status": "A seller with verification_status=unverified cannot be active."}
+                )
+
         return super().validate(attrs)
 
     def _save_info(self, instance, info_data):
@@ -228,6 +275,10 @@ class SellerSerializer(
         # this keeps create and update symmetric: whatever was (or wasn't)
         # provided for this event is exactly what ends up on the row.
         validated_data["verification_note"] = validated_data.get("verification_note") or None
+        if validated_data["verification_status"] == Seller.VerificationStatus.VERIFIED:
+            # Stays true forever once set — see was_ever_verified's own
+            # docstring on the model and the rejection lock in validate().
+            validated_data["was_ever_verified"] = True
         instance = super().create(validated_data)
         if info_data:
             self._save_info(instance, info_data)
@@ -264,6 +315,8 @@ class SellerSerializer(
             # is nothing to attach it to, so it is ignored — otherwise the
             # row's note could drift from the latest history entry.
             validated_data.pop("verification_note", None)
+        if validated_data.get("verification_status", instance.verification_status) == Seller.VerificationStatus.VERIFIED:
+            validated_data["was_ever_verified"] = True
         instance = super().update(instance, validated_data)
         if info_data:
             self._save_info(instance, info_data)
@@ -310,6 +363,7 @@ class UserSerializer(
 
     password = serializers.CharField(write_only=True, required=False, style={"input_type": "password"})
     profile_pic = serializers.ImageField(write_only=True, required=False)
+    remove_profile_pic = serializers.BooleanField(write_only=True, required=False, default=False)
     media = BuyerMediaSerializer(many=True, read_only=True)
     media_for = serializers.ListField(
         child=serializers.ChoiceField(choices=BuyerMedia.MediaFor.choices),
@@ -329,7 +383,7 @@ class UserSerializer(
         model = User
         fields = [
             "id", "name", "email", "phone", "password",
-            "profile_pic", "profile_pic_path", "profile_pic_url", "description",
+            "profile_pic", "remove_profile_pic", "profile_pic_path", "profile_pic_url", "description",
             "skills", "experiences", "interests", "educations",
             "email_verified_at", "phone_verified_at",
             "address_line", "country", "state", "city", "thana",
