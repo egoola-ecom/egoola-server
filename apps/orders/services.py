@@ -88,8 +88,12 @@ def create_order_from_cart(cart, address, payment_gateway, actor):
     items = list(cart.items.select_related("listing", "listing_sku").all())
     if not items:
         raise ValueError("This cart is empty.")
-    if any(not item.is_available for item in items):
-        raise ValueError("Some items in this cart are no longer available.")
+    problems = [
+        f"{item.listing.title}: {item.unavailable_reason}"
+        for item in items if item.unavailable_reason
+    ]
+    if problems:
+        raise ValueError(" ".join(problems))
 
     with transaction.atomic():
         subtotal = money(sum((item.line_subtotal for item in items), Decimal("0.00")))

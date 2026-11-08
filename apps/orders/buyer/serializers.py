@@ -142,7 +142,7 @@ class AddCartItemSerializer(serializers.Serializer):
                 raise serializers.ValidationError({"duration": "Not used for a product."})
             if attrs.get("qty") is None:
                 raise serializers.ValidationError({"qty": "This field is required."})
-            if sku.stock_qty is not None and sku.stock_qty - sku.reserved_qty < attrs["qty"]:
+            if sku.stock_qty is not None and sku.stock_qty < attrs["qty"]:
                 raise serializers.ValidationError({"qty": "Not enough stock."})
         else:
             if "qty" in attrs:
@@ -164,7 +164,7 @@ class UpdateCartItemSerializer(serializers.Serializer):
             if "qty" not in attrs:
                 raise serializers.ValidationError({"qty": "This field is required."})
             sku = self.instance.listing_sku
-            if sku and sku.stock_qty is not None and sku.stock_qty - sku.reserved_qty < attrs["qty"]:
+            if sku and sku.stock_qty is not None and sku.stock_qty < attrs["qty"]:
                 raise serializers.ValidationError({"qty": "Not enough stock."})
         else:
             if "qty" in attrs:

@@ -131,17 +131,23 @@ class CartItem(AuditedModel):
         return self.unit_price * units
 
     @property
-    def is_available(self):
-        """False once something has changed since this was added: the SKU
-        went inactive, the listing is no longer approved or was deleted, or
-        stock can no longer cover `qty`. The line is kept either way — only
-        checkout needs to decide what to do about it."""
+    def unavailable_reason(self):
+        """None once this line can still be checked out; otherwise why not —
+        the SKU went inactive, the listing is no longer approved or was
+        deleted, or stock dropped below `qty` since this was added to the
+        cart (stock is never reserved by a cart — only checkout re-checks
+        it, against whatever is in stock right now). The line is kept
+        either way — only checkout needs to decide what to do about it."""
         sku, listing = self.listing_sku, self.listing
         if not sku or not sku.is_active or listing.status != listing.Status.APPROVED or listing.deleted_at:
-            return False
-        if self.qty is not None and sku.stock_qty is not None:
-            return sku.stock_qty - sku.reserved_qty >= self.qty
-        return True
+            return "This item is no longer available."
+        if self.qty is not None and sku.stock_qty is not None and sku.stock_qty < self.qty:
+            return f"Only {sku.stock_qty} left in stock (you asked for {self.qty})."
+        return None
+
+    @property
+    def is_available(self):
+        return self.unavailable_reason is None
 
 
 class Address(AuditedModel):
