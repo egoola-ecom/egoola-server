@@ -230,6 +230,8 @@ Web screen tests (frontend repo): `egoola-web/docs/admin-smoke-tests.md`.
 | Document | Where | What it is |
 |---|---|---|
 | Backend set-up | [`../README.md`](../README.md) | Run the backend locally |
+| VPS setup guide | [`deployment/vps-setup-guide.md`](deployment/vps-setup-guide.md) | Set up a new server from zero: Postgres, GitHub deploy keys, uv, Gunicorn, egoola-web with pm2, Nginx, Cloudflare DNS, HTTPS |
+| VPS update guide | [`deployment/update-guide.md`](deployment/update-guide.md) | Ship new backend/frontend code to a running server, change `.env`, roll back, restore a backup, maintenance |
 | Frontend work brief | [`frontend-handoff-prompt.md`](prompt/frontend-handoff-prompt.md) | Tasks and rules for the web session |
 | Frontend brief: Listings / Gigs panels, packages, thumbnail | [`frontend-gigs-thumbnail-prompt.md`](prompt/frontend-gigs-thumbnail-prompt.md) | The complete prompt to hand to the web session for the gig change (Task H) |
 | Frontend brief: listing files (thumbnail and gallery, 4 APIs; breaking change) | [`frontend-listing-files-prompt.md`](prompt/frontend-listing-files-prompt.md) | The complete prompt to hand to the web session for the files change |
