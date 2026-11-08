@@ -11,6 +11,7 @@ documents).
 
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import Case, DecimalField, F, Q, When
 from django.db.models.functions import Lower
 
 from apps.core.models import ActorType, AuditedModel, CatalogType, PriceType
@@ -324,7 +325,6 @@ class ListingSku(AuditedModel):
     discount_start_date = models.DateTimeField(db_column="discountStartDate", null=True, blank=True)
     discount_end_date = models.DateTimeField(db_column="discountEndDate", null=True, blank=True)
     stock_qty = models.BigIntegerField(db_column="stockQty", null=True, blank=True)
-    reserved_qty = models.IntegerField(db_column="reservedQty", default=0)
     is_active = models.BooleanField(db_column="isActive", default=True)
     # Gig only (null on a product SKU).
     price_type = models.CharField(
@@ -363,6 +363,23 @@ class ListingSku(AuditedModel):
             ):
                 return self.discounted_price
         return self.price
+
+    @staticmethod
+    def effective_price_expr(now, prefix=""):
+        """SQL twin of `effective_price()`, for filtering/ordering by a queryset
+        column instead of a loaded instance. `prefix` is the lookup path to this
+        model from the queryset's root (e.g. "skus__" when filtering `Listing`)."""
+        price = F(f"{prefix}price")
+        discounted_price = F(f"{prefix}discounted_price")
+        window_open = (
+            Q(**{f"{prefix}discounted_price__lt": price})
+            & (Q(**{f"{prefix}discount_start_date__isnull": True}) | Q(**{f"{prefix}discount_start_date__lte": now}))
+            & (Q(**{f"{prefix}discount_end_date__isnull": True}) | Q(**{f"{prefix}discount_end_date__gte": now}))
+        )
+        return Case(
+            When(window_open, then=discounted_price), default=price,
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
 
     def __str__(self):
         return self.sku or f"SKU #{self.pk}"

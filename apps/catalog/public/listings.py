@@ -12,7 +12,7 @@ details). Prices are those of the **active** SKUs only. Paging is the Buyer
 Panel's page-based paging. See docs/public-api-guide.md.
 """
 
-from django.db.models import Case, DecimalField, Exists, F, OuterRef, Prefetch, Q, Subquery, When
+from django.db.models import Exists, OuterRef, Prefetch, Q, Subquery
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import NotFound
@@ -88,18 +88,7 @@ class GigQuerySerializer(_ListQuerySerializer):
 # ------------------------------------------------------------------------ queryset
 
 
-def _effective_price(now):
-    """SQL twin of ListingSku.effective_price(): the discounted price while the
-    discount window is open, otherwise the normal price."""
-    window_open = (
-        Q(discounted_price__lt=F("price"))
-        & (Q(discount_start_date__isnull=True) | Q(discount_start_date__lte=now))
-        & (Q(discount_end_date__isnull=True) | Q(discount_end_date__gte=now))
-    )
-    return Case(
-        When(window_open, then=F("discounted_price")), default=F("price"),
-        output_field=DecimalField(max_digits=12, decimal_places=2),
-    )
+_effective_price = ListingSku.effective_price_expr
 
 
 def _category_ids_with_descendants(category_id):
@@ -250,7 +239,7 @@ class PublicGigListSerializer(_ListingRow):
 
 def _available(sku):
     """Stock left on a product SKU (`None` stock = not tracked = available)."""
-    return sku.stock_qty is None or sku.stock_qty - sku.reserved_qty > 0
+    return sku.stock_qty is None or sku.stock_qty > 0
 
 
 class _PublicMediaSerializer(serializers.ModelSerializer):
@@ -298,7 +287,7 @@ class PublicProductSkuSerializer(_SkuBase):
         return _available(obj)
 
     def get_available_qty(self, obj):
-        return None if obj.stock_qty is None else max(obj.stock_qty - obj.reserved_qty, 0)
+        return None if obj.stock_qty is None else max(obj.stock_qty, 0)
 
 
 class PublicGigPackageSerializer(_SkuBase):
@@ -368,7 +357,7 @@ class PublicProductListView(_PublicListingBase):
         if "brand" in params:
             rows = rows.filter(brand_id=params["brand"])
         if "in_stock" in params:
-            in_stock = _active_skus().filter(Q(stock_qty__isnull=True) | Q(stock_qty__gt=F("reserved_qty")))
+            in_stock = _active_skus().filter(Q(stock_qty__isnull=True) | Q(stock_qty__gt=0))
             rows = rows.filter(Exists(in_stock)) if params["in_stock"] else rows.exclude(Exists(in_stock))
         return rows
 

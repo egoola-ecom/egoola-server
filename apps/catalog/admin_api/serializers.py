@@ -383,10 +383,9 @@ class ListingSkuSerializer(serializers.ModelSerializer):
         model = ListingSku
         fields = [
             "id", "sku", "price", "discounted_price", "discount_start_date", "discount_end_date",
-            "effective_price", "is_discount_active", "stock_qty", "reserved_qty", "is_active",
+            "effective_price", "is_discount_active", "stock_qty", "is_active",
             "price_type", "description", "description_bn", "variants",
         ]
-        read_only_fields = ["reserved_qty"]
         extra_kwargs = {
             "sku": {"validators": [], "allow_null": True, "allow_blank": True, "required": False},
             "price": {"required": False, "min_value": 0},
@@ -1049,7 +1048,7 @@ class BuyerJobSkuSerializer(ListingSkuSerializer):
     the parts that only make sense for something actually for sale."""
 
     class Meta(ListingSkuSerializer.Meta):
-        fields = [f for f in ListingSkuSerializer.Meta.fields if f not in ("variants", "stock_qty", "reserved_qty")]
+        fields = [f for f in ListingSkuSerializer.Meta.fields if f not in ("variants", "stock_qty")]
 
 
 class _CategoryBrief(serializers.ModelSerializer):
