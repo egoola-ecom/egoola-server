@@ -1,4 +1,5 @@
 import django_filters
+from django.utils import timezone
 
 from ..models import Listing, ListingSku
 
@@ -43,9 +44,9 @@ class SellerGigFilter(_GigPriceTypeFilter, _ListingDateFilters):
 
 class SellerJobFilter(_GigPriceTypeFilter, _ListingDateFilters):
     """The seller's job board (`/seller/jobs/`) and "jobs I've bid on". `budget_min`/
-    `budget_max` compare against the job's cheapest active budget SKU, current
-    price (no discount window on a job's own SKU in practice, but the same
-    `effective_price()` rule applies if one is ever set)."""
+    `budget_max` compare against the job's cheapest active budget SKU's
+    `effective_price()` (discounted price only while its discount window is open,
+    else the normal price)."""
 
     budget_min = django_filters.NumberFilter(method="filter_budget_min")
     budget_max = django_filters.NumberFilter(method="filter_budget_max")
@@ -56,8 +57,18 @@ class SellerJobFilter(_GigPriceTypeFilter, _ListingDateFilters):
         model = Listing
         fields = ["category", "country", "state", "city", "thana"]
 
+    def _active_skus_with_effective_price(self, queryset):
+        now = timezone.now()
+        return queryset.filter(skus__is_active=True).annotate(
+            _sku_effective_price=ListingSku.effective_price_expr(now, prefix="skus__")
+        )
+
     def filter_budget_min(self, queryset, name, value):
-        return queryset.filter(skus__is_active=True, skus__discounted_price__gte=value).distinct()
+        return self._active_skus_with_effective_price(queryset).filter(
+            _sku_effective_price__gte=value
+        ).distinct()
 
     def filter_budget_max(self, queryset, name, value):
-        return queryset.filter(skus__is_active=True, skus__discounted_price__lte=value).distinct()
+        return self._active_skus_with_effective_price(queryset).filter(
+            _sku_effective_price__lte=value
+        ).distinct()
