@@ -128,7 +128,7 @@ default SKU from its old price, discount and stock; then `color`, `colors`, `siz
 `discountedPrice`, `stockQty`, `reservedQty` are dropped from `listings`). `orders 0002` adds a
 nullable `listingSkuId` to `cartItems` and `orderItems`. `0011`–`0013` (gigs and the thumbnail): `imagePath` / `imageUrl`, the gig SKU
 columns, then the data move (`priceType` / `hourlyRate` of services into their SKUs), then the constraints and dropping `priceType` / `hourlyRate`
-from `listings`; `orders 0003` makes `qty` optional on cart and order items, adds `duration` to both, adds `orderItems.priceTypeSnapshot` and `total`, removes `orderItems.color`, `size` and `status`, and adds `orders.payable`.
+from `listings`; `orders 0003` makes `qty` optional on cart and order items, adds `duration` to both, adds `orderItems.priceTypeSnapshot` and `total`, removes `orderItems.color`, `size` and `status`, and adds `orders.payable`. `0018` drops `listingSkus.reservedQty` — a dead, always-zero column (nothing ever wrote to it); stock is now checked straight against `stock_qty`, with no cart-side reservation, re-checked again at order placement.
 
 ---
 
@@ -373,7 +373,7 @@ Response `201` (shortened)
   "skus": [
     { "id": 7, "sku": "SAM-A15-128-BLK", "price": "24500.00", "discounted_price": "22900.00",
       "discount_start_date": null, "discount_end_date": null, "effective_price": "22900.00",
-      "is_discount_active": true, "stock_qty": 25, "reserved_qty": 0, "is_active": true,
+      "is_discount_active": true, "stock_qty": 25, "is_active": true,
       "variants": [
         { "attribute": 3, "attribute_name": "Storage", "attribute_value": 12, "attribute_value_name": "128GB" },
         { "attribute": 2, "attribute_name": "Colour", "attribute_value": 7, "attribute_value_name": "Black" } ] },
@@ -478,7 +478,7 @@ Soft-deleted or unknown id → `404`.
 |---|---|
 | `status` | `draft`, `pending`, `approved`, `rejected`, `changes_requested` |
 | `catalog_type`, `listing_type` | |
-| `category`, `brand`, `seller`, `buyer` | ids |
+| `category`, `brand`, `seller`, `buyer` | ids — `category` is **exact match only**, no sub-category rollup (unlike the buyer-facing public catalog, which expands to descendants) |
 | `created_from`, `created_to`, `requested_from`, `requested_to` | dates, `YYYY-MM-DD`, inclusive |
 | `search` | title, Bangla title, brand name, model, SKU code |
 | `limit`, `offset` | Pagination (default limit 20) |

@@ -178,7 +178,7 @@ the general `PATCH` above — that route now returns `404`.
 | No token | `401` |
 | `cart`/`address` not the buyer's own, or doesn't exist | `400` (field error on `cart`/`address`) |
 | A no-seller cart | `400` |
-| An empty, already-used, or stale (unavailable items) cart | `400` |
+| An empty, already-used, or stale (unavailable items) cart | `400`, a non-field message per stale line, e.g. `"<listing title>: Only 2 left in stock (you asked for 5)."` — stock is re-checked against what's in stock **right now**, not what the SKU showed when it was added to the cart |
 | An inactive `payment_gateway` | `400` |
 | Order id unknown, or another buyer's | `404` |
 | `PATCH` to any status except `cancelled` | `400` |

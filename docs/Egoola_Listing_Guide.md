@@ -103,7 +103,8 @@ service cannot be created from the product form.
 | Full detail | sections 1–11 | section 12 | section 13 |
 
 **The six product formats** (called the *listing type*): General, Used, Village, Retail, Wholesale, and Brand.
-A Brand listing must have a brand chosen.
+A Brand listing must have a brand chosen. The brand must be **active** at the moment it is chosen; if it is turned
+off later, that does not undo listings that already use it — they can still be opened and edited.
 
 **A listing holds:**
 
@@ -124,6 +125,25 @@ are refused with a clear message.
 
 **Bangla versions.** Five texts of a product can be written in Bangla as well: title, description, condition note, warranty and origin.
 They are all optional. (A gig also has "package includes" in Bangla.)
+
+**Options never disappear.** Just like a gig's packages (section 12.2), a product's options are never deleted — to
+stop selling one, the seller (or an admin) turns it **off** ("not active"); it stays in the record for history and
+old orders. Two options on the same listing cannot be the exact same combination (two "Size M + Colour Black" rows,
+for example), and every option on one listing must use the **same set of choices** — a listing cannot mix an option
+that only has a colour with one that also has a size.
+
+**Prices and discounts.** The discounted price can never be higher than the normal price (equal is fine — that just
+means no discount is running). A discount can be limited to run only between two dates; outside that window the
+buyer pays the normal price. If the normal price is later lowered below a discount that is already running, the
+save is refused until the discount is lowered too. The same two rules apply to quantity prices (below).
+
+**Quantity prices don't overlap.** Each quantity-price row covers a range (for example "1 to 9" or "10 and above").
+The ranges on one listing must not overlap each other, and only the **last** row may be open-ended with no upper
+limit — every other row needs both a lower and an upper number.
+
+**Place must match up.** When a country, state, city or thana is set, each one must actually belong to the one
+above it: the state must be in the chosen country, the city in that state, the thana in that city. Otherwise the
+save is refused, pointing at whichever level doesn't match.
 
 ---
 
@@ -361,7 +381,7 @@ Service chosen by default), its own pending list and its own price rules. Everyt
 | **Packages** | The prices. See 12.2. |
 | **Photos and files** | The gallery: pictures or other files that show the work. |
 | **Thumbnail** | One cover picture for lists (section 4.1). |
-| **Place** | Country, state, city, thana (optional). |
+| **Place** | Country, state, city, thana (optional). Same rule as a product (section 2): when set, each one must belong to the one above it (state in that country, city in that state, thana in that city). |
 
 A gig does **not** have: brand, model, origin, warranty, condition, unit of measure, sizes and colours, stock, or quantity prices. These
 belong to products. If someone sends them for a gig, they are refused with a clear message.
@@ -374,7 +394,7 @@ A gig is not sold by quantity. It is sold by **time**. The seller creates one **
 |---|---|
 | **Price type** | What the price is for: **hourly**, **daily**, **weekly**, **monthly**, or **fixed** (one price for the whole job). A price type is **required**. |
 | **Price** | The **rate** for that price type. For a weekly package, the price is the price of one week. |
-| **Discount** | An optional lower price, with an optional start and end date. |
+| **Discount** | An optional lower price, with an optional start and end date. Same rule as a product (section 2): never higher than the rate, and only applies inside its date window; lowering the rate below a running discount is refused until the discount is lowered too. |
 | **Description** | A few words about this package (also in Bangla). Only gigs have this. |
 
 **How long the buyer buys.** A package has **no duration of its own**. When the buyer orders, they choose how many hours, days, weeks or months
@@ -508,6 +528,11 @@ once it's already been hired (In Progress) — a buyer cannot do this themselves
 | Status | Only an admin sets it. |
 | Reject / request changes | A **reason is required**. |
 | Same title | One title per seller **per kind** (capital letters and spaces do not matter). |
+| Discount | Can never be higher than the normal price; only applies inside its own date window, if one is set. |
+| Options (SKUs) | Never deleted, only turned off. No two options with the same combination; every option on a listing shares the same set of choices. |
+| Quantity prices | Ranges cannot overlap; only the last range may be open-ended. |
+| Place | Country, state, city, thana must be on one branch (state in that country, city in that state, thana in that city). |
+| Brand | Must be active when picked for the first time; a later deactivation doesn't block editing listings that already use it. |
 | Rejected listing | The seller **updates it**; saving sends it back to **Pending** (top of the list). |
 | Approved listing | A seller's edit keeps it **Approved**, whatever changes. |
 | Pending listing | A seller's edit keeps it Pending. |
@@ -590,6 +615,19 @@ Products and gigs are separate lists. Open the **Gigs** list.
 
 **Did the seller get a message when I approved or rejected the listing?**
 **No.** There are no automatic messages yet. Please tell the seller yourself.
+
+**A seller says their discount price was refused.**
+The discounted price can never be higher than the normal price. If they just lowered the normal price below a
+discount that was already running, they need to lower the discount too before saving.
+
+**A save is refused because of the city or state.**
+Country, state, city and thana must be on the same branch — the chosen city must actually belong to the chosen
+state, and the thana to that city. Ask them to pick the fields in order (country, then state, then city, then
+thana) and re-check each one.
+
+**A seller wants to remove one option (size/colour) from their product.**
+Options are never deleted, same rule as a gig's packages — they turn it **off** instead, and it stops showing to
+buyers while staying in the listing's history.
 
 ---
 

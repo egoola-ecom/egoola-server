@@ -543,7 +543,7 @@ POST /api/v1/seller/listings/
   "origin": "Bangladesh", "origin_bn": "বাংলাদেশ", "currency": "BDT",
   "price": "500.00", "discounted_price": "450.00",
   "skus": [ { "id": 593, "sku": "TEE-CAP-001", "price": "500.00", "discounted_price": "450.00", "effective_price": "450.00",
-              "is_discount_active": true, "stock_qty": 20, "reserved_qty": 0, "is_active": true, "variants": [] } ],
+              "is_discount_active": true, "stock_qty": 20, "is_active": true, "variants": [] } ],
   "status": "pending", "note": null, "requested_at": "2026-10-12T09:41:03.595364+06:00",
   "price_tiers": [], "media": [],
   "status_change_logs": [ { "id": 1119, "status": "pending", "note": null, "creator_type": "seller", "created_at": "2026-10-12T09:41:03.599409+06:00" } ],

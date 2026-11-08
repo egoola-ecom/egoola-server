@@ -174,7 +174,7 @@ is `{"item_count": 0, "carts": []}`, not an error.
 | `qty` | required, at least 1 | not accepted |
 | `duration` | not accepted | required, at least 1 (hours/days/weeks/months, matching the SKU's `price_type`) |
 
-The listing must be one a buyer can already see (same rule as browsing — approved, seller verified and active); anything else is `400 {"listing": ["Invalid pk \"...\" - object does not exist."]}`, same as an unknown id. A `listing_sku` that belongs to a different listing is `400 {"listing_sku": ["Does not belong to this listing."]}`. For a product, stock is checked (`stock_qty - reserved_qty` against `qty`) — no stock is reserved yet, this only blocks adding more than is available right now.
+The listing must be one a buyer can already see (same rule as browsing — approved, seller verified and active); anything else is `400 {"listing": ["Invalid pk \"...\" - object does not exist."]}`, same as an unknown id. A `listing_sku` that belongs to a different listing is `400 {"listing_sku": ["Does not belong to this listing."]}`. For a product, stock is checked (`stock_qty` against `qty`) — adding to cart never reserves/holds the stock, so this only blocks adding more than is available **right now**; the same stock is re-checked again at checkout (section 3 of [`buyer-order-api-guide.md`](buyer-order-api-guide.md)), since it may have moved between the add and the checkout.
 
 **Adding the same SKU again merges into the existing line** instead of creating a second one — `qty` (or `duration`) adds up. `201`:
 

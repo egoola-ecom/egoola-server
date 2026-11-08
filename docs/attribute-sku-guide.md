@@ -165,7 +165,7 @@ SKUs are sent inside the listing: `skus` on `POST` / `PATCH /api/v1/catalog/list
 | is_active | default `true` |
 | variants | list of `{ "attribute": <id>, "attribute_value": <id> }`, one per attribute. Empty for a listing with no options |
 | price_type, description, description_bn | **gig SKUs only** (section 8). On a product SKU they are `400` (`"Only for gigs."`) |
-| *(read only)* | `reserved_qty` (starts at 0, kept by the order flow later), `effective_price`, `is_discount_active`, and on each variant `attribute_name` / `attribute_value_name` |
+| *(read only)* | `effective_price`, `is_discount_active`, and on each variant `attribute_name` / `attribute_value_name` |
 
 `effective_price` is the price a buyer pays **right now**: the discounted price while the
 discount window is open, otherwise the normal price. `is_discount_active` says which one it is.
@@ -197,7 +197,7 @@ and the current price of the cheapest **active** SKU (`null` when no SKU is acti
     { "id": 41, "sku": "PNJ-M-WHT", "price": "1800.00", "discounted_price": "1500.00",
       "discount_start_date": null, "discount_end_date": null,
       "effective_price": "1500.00", "is_discount_active": true,
-      "stock_qty": 12, "reserved_qty": 0, "is_active": true,
+      "stock_qty": 12, "is_active": true,
       "variants": [
         { "attribute": 1, "attribute_name": "Size",   "attribute_value": 2, "attribute_value_name": "M" },
         { "attribute": 2, "attribute_name": "Colour", "attribute_value": 6, "attribute_value_name": "White" } ] },
@@ -311,6 +311,10 @@ colour and size text columns stay as a snapshot of what was bought.
 - `cartItems`, `orderItems`: new nullable `listingSkuId`.
 - Migration `catalog 0008` first gives every existing listing one default SKU from its old price, discount and stock, then drops the old
   columns. (The dev database's sample listings were then removed and re-created with real options.)
+- Migration `catalog 0018` drops `listingSkus.reservedQty`. It was never written by any flow (add-to-cart never
+  reserved stock), so dropping it changes no behaviour — it only removes a dead, always-zero column. Stock checks
+  everywhere now compare straight against `stock_qty`; a cart line's stock is re-checked again at checkout (see
+  [`buyer-order-api-guide.md`](buyer/buyer-order-api-guide.md) §9), since it can move between add-to-cart and checkout.
 
 ## 7. Testing
 

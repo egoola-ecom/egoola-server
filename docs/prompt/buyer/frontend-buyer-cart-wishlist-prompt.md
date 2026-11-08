@@ -78,8 +78,8 @@ Product: `qty` required (≥1), `duration` rejected (`400`). Gig: `duration` req
 listing must pass the same visibility rule as browsing (approved, seller verified+active, SKU active) — invisible or
 unknown is `400 {"listing": ["Invalid pk \"103\" - object does not exist."]}`. A `listing_sku` from a different
 listing is `400 {"listing_sku": ["Does not belong to this listing."]}`. Product stock is checked
-(`stock_qty - reserved_qty >= qty`) but **not reserved** — a race with another buyer is still possible right up to
-checkout.
+(`stock_qty >= qty`) but **not reserved** — a race with another buyer is still possible right up to
+checkout, where it is checked again.
 
 **Adding the same SKU again merges into the existing line** — `qty`/`duration` add together, no duplicate row.
 `201`:

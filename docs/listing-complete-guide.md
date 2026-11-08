@@ -409,7 +409,6 @@ A **SKU** is one sellable combination. Price, discount and stock belong to it.
 | `discount_start_date` / `discount_end_date` | when the discount runs. Empty = no limit on that side. End must be after start |
 | `stock_qty` | units in stock. Empty = not tracked. `0` = out of stock. (A gig SKU must leave it empty.) |
 | `price_type`, `description`, `description_bn` | **gig SKUs only** (see section 14.3); on a product SKU they are `400` |
-| `reserved_qty` | read only, units held for open orders (the order flow fills it later) |
 | `is_active` | `false` hides the SKU from buyers. SKUs are **never deleted** |
 | `variants` | the options of this SKU (`[]` for a listing without options) |
 | `effective_price`, `is_discount_active` | read only. What the buyer pays **right now** and whether the discount applies right now |
@@ -479,7 +478,7 @@ One SKU in the response:
   "price": "24500.00", "discounted_price": "22900.00",
   "discount_start_date": "2026-10-06T15:28:16+06:00", "discount_end_date": "2026-10-31T15:28:16+06:00",
   "effective_price": "22900.00", "is_discount_active": true,
-  "stock_qty": 25, "reserved_qty": 0, "is_active": true,
+  "stock_qty": 25, "is_active": true,
   "price_type": null, "description": null, "description_bn": null,
   "variants": [
     { "attribute": 22, "attribute_name": "Colour",  "attribute_value": 55, "attribute_value_name": "Black" },
@@ -781,7 +780,7 @@ the buyer chooses how many hours, days, weeks or months to buy when ordering (`o
 | `variants` | **must be empty**: a gig has no options (`400` otherwise) |
 | `sku` (code) | optional, unique across all SKUs |
 | `is_active` | `false` hides a package. SKUs are never deleted |
-| read only | `effective_price` (the rate right now), `is_discount_active`, `reserved_qty` (0) |
+| read only | `effective_price` (the rate right now), `is_discount_active` |
 
 **Several pricing strategies = several SKUs**: hourly 500 and weekly 12,000 are two SKUs. **A gig has at most one SKU per price type**
 (also enforced by the database). A hidden SKU still holds its price type: reactivate it instead of adding a new one.
@@ -805,7 +804,7 @@ POST /api/v1/catalog/gigs/
   "price": "500.00", "discounted_price": "450.00", "currency": "BDT",
   "skus": [
     { "id": 212, "price": "500.00", "discounted_price": "450.00", "effective_price": "450.00", "is_discount_active": true,
-      "price_type": "hourly", "stock_qty": null, "reserved_qty": 0, "is_active": true,
+      "price_type": "hourly", "stock_qty": null, "is_active": true,
       "description": "Hourly cleaning", "description_bn": "ঘণ্টাভিত্তিক ক্লিনিং", "variants": [], "...": "..." },
     { "id": 213, "price": "12000.00", "price_type": "weekly", "...": "..." },
     { "id": 214, "price": "9000.00", "price_type": "fixed", "...": "..." } ],
@@ -1185,7 +1184,7 @@ POST /buyer/jobs/
 
 `category`, `title`, `description` and **at least one budget option** are required —
 `{"skus": ["A job needs at least one budget option."]}` with none. `skus` here is the same shape a gig's packages
-use, minus the parts that only make sense for something for sale (`variants`, `stock_qty`, `reserved_qty` are
+use, minus the parts that only make sense for something for sale (`variants`, `stock_qty` are
 dropped): `price_type` (optional, defaults to `fixed`), `price`, `description`, `description_bn`. Two tiers with
 the same `price_type` in one request is `400`. The category must be an **active service** category —
 `{"category": "A job needs a service category."}` otherwise. `country` / `state` / `city` / `thana` are optional
