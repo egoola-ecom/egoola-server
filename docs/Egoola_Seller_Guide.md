@@ -81,8 +81,8 @@ This is like an on/off switch for the account. It has three values:
 | Value | What it means |
 |---|---|
 | **Active** | The account is switched on. |
-| **Inactive** | The account is switched off **for the time being**. The seller can still log in, but can only change their own profile. They can do nothing else until an admin switches them to Active. |
-| **Suspended** | The seller is **blocked**. They cannot log in at all. |
+| **Inactive** | The account is switched off **for the time being**. The seller can still log in. If they were never verified (or were rejected), they can still edit their own profile. If they were already **verified** and an admin paused them, they are **locked**: read-only profile, nothing else, until an admin switches them to Active. |
+| **Suspended** | The seller can still **log in**, but is **locked**: read-only profile, every write refused. (Unlike inactive, this is not a "for the time being" pause — an admin has to lift it explicitly.) |
 
 A new seller starts as **Inactive**. An admin can also make an approved seller **Inactive** (for example, to
 pause them) and make them **Active** again later.
@@ -296,7 +296,7 @@ Seller joins  ->  Unverified + Inactive  ->  appears in "Seller Request" list
 ### 5.1 How a seller logs in
 
 1. The seller enters their **phone number** and **password** on the login page. (**Sellers log in with their phone number, not their email.** Admins and buyers still use their email.)
-2. If both are correct and the seller is not suspended, they get in.
+2. If both are correct, they get in — **every account state can log in, including a suspended one.** (This is different from admins and buyers: for them, being inactive/suspended blocks the login itself. A seller's `status` is never a login gate — it only decides what they can do once they're in, see 5.2.)
 3. The app then looks at the seller's two settings and shows the right screens (see section 4.2).
 
 ```
@@ -304,11 +304,13 @@ Phone number + password
           |
    Wrong, or not registered? -----> "Invalid phone number or password."
           |
-   Suspended? ---------------------> "This account is not active."
-          |
-   Otherwise: logged in
+   Otherwise: logged in (every status, including suspended)
           |
    Verified AND Active?  --yes-->  normal seller area
+          |
+          no
+          v
+   Suspended (or verified+paused)? --yes--> locked: read-only profile, every write refused
           |
           no
           v
@@ -321,9 +323,9 @@ Phone number + password
 | Seller | Can log in? | What they can do after logging in |
 |---|---|---|
 | Unverified, Pending, or Rejected (Inactive) | **Yes** | Edit their own profile only. |
-| Verified and Inactive (paused) | **Yes** | Edit their own profile only. |
+| Verified and Inactive (paused) | **Yes** | Nothing — locked: read-only profile, every write refused. |
 | Verified and Active | **Yes** | Everything a seller can do. |
-| **Suspended** | **No** | Nothing. They see: "This account is not active." |
+| **Suspended** (any verification result) | **Yes** | Nothing — locked: read-only profile, every write refused. (The `rejected` + suspended combination is the one exception: that seller can still edit their profile and resubmit, see 6.1.) |
 
 If the phone number or password is wrong, the seller sees: "Invalid phone number or password." We do not say which one
 is wrong, to keep accounts safe. The same message is shown if the phone number is not registered.
@@ -340,7 +342,7 @@ Spaces before or after the number do not matter.
 
 The seller's settings are checked **every time** they do something. So changes work **at once**:
 
-- If an admin **suspends** the seller, the seller is signed out on their very next action, and cannot log in again. They see: "This account is not active."
+- If an admin **suspends** the seller, their very next action is refused (**locked**) — but they are not signed out and can still log in. There is no message telling them they are suspended; the app has to read `GET /seller/me/` and show the locked screen itself.
 - If an admin **pauses** (Inactive) an approved seller, they can still use their profile but nothing else.
 - If an admin **approves** or **activates** a seller, they can start operating without logging in again, once the app refreshes their state.
 
@@ -362,7 +364,10 @@ This section lists what each person can do after the seller exists.
 
 ### 6.1 What a seller can do (their own profile)
 
-These actions are open to every seller who is **not suspended**, whatever their verification result.
+These actions are open to a seller in the **profile-only** or **full** tier (5.2): not suspended, and not a
+**verified** seller an admin has paused (that combination is **locked** — read-only profile only). The one
+carve-out: a **rejected** seller is profile-only even though `status` is forced to `suspended` in that state —
+they still need to be able to fix their profile and resubmit.
 
 | Action | Details |
 |---|---|
@@ -404,15 +409,15 @@ These actions are open to every seller who is **not suspended**, whatever their 
 | **Add a seller** | Section 3.2. |
 | **Edit a seller** | Change any detail, including **email, phone and password** (the phone number is the seller's login, so if it changes, the seller must log in with the new number), and add or remove documents. Admins are not stopped by the "locked after verification" rule. |
 | **Approve / Reject / Mark pending** | Section 4.1. |
-| **Pause a seller** (Inactive) | The seller stays approved, can still log in and edit the profile, but cannot work. This does **not** put them back in the Seller Request list. |
+| **Pause a seller** (Inactive) | The seller stays approved, can still log in, but is **locked** (read-only profile, cannot work or edit). This does **not** put them back in the Seller Request list. |
 | **Make a seller Active again** | The seller can work again (if they are Verified). |
-| **Suspend a seller** | The seller is blocked at once. They cannot log in. |
+| **Suspend a seller** | The seller can still **log in**, but is **locked** (read-only profile, cannot work or edit) at once. |
 | **Delete a seller** | The seller, their history and **all their uploaded files** are removed for good. This cannot be undone. |
 
 **Suspend or Pause?**
 
-- Use **Pause (Inactive)** when you want the seller to stop working for a while but still be able to log in and fix their profile.
-- Use **Suspend** when the seller must be blocked completely.
+- Use **Pause (Inactive)** when you want an already-verified seller to stop working for a while. They can still log in, but are locked out of everything, including their own profile, until reactivated.
+- Use **Suspend** for anything more serious. It behaves the same way (locked, can still log in) but is not a "for the time being" pause — it has to be lifted explicitly, and it is the one that forces a **rejected** seller's `status`, with the deliberate carve-out that a rejected seller stays able to fix their profile and resubmit (6.1).
 
 ### 6.3 The profile change history (admins only)
 
@@ -496,8 +501,14 @@ An admin made it Inactive. Find out why. When it is fine, an admin makes the sel
 Sellers log in with their **phone number**, not their email. Ask them to use the phone number they gave at sign-up.
 
 **A seller says: "I cannot log in."**
-- Wrong phone number or password? Ask them to try again with the exact phone number they gave at sign-up, or an admin sets a new password. Remember: a seller does **not** log in with their email.
-- Message "This account is not active"? The seller is **Suspended**. Only an admin can change that.
+Wrong phone number or password: that's the only reason a seller is ever blocked at the login screen. Ask them to try
+again with the exact phone number they gave at sign-up, or an admin sets a new password. Remember: a seller does
+**not** log in with their email. (Unlike admins and buyers, a seller logs in even while suspended or paused — see the
+next question.)
+
+**A seller says: "I can log in, but can't do anything — everything is refused."**
+They are **locked**: either **Suspended**, or **Verified and paused (Inactive)**. Check `status` on the seller's
+profile. Only an admin can lift it (make them **Active** again, or clear the suspension).
 
 **How do I stop a seller for a short time but let them fix their profile?**
 Make them **Inactive** (pause). Make them **Active** again later.
