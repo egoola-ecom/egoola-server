@@ -599,7 +599,7 @@ All test data was removed afterwards.
 ## 9. Added for seller listings (reference)
 
 Sellers can now create and manage their own listings (see [../listing-complete-guide.md](../listing-complete-guide.md) section 13 and
-[../seller/seller-api-guide.md](../seller/seller-api-guide.md) section 6). What that added to the admin side:
+[../seller/seller-listing-api-guide.md](../seller/seller-listing-api-guide.md)). What that added to the admin side:
 
 ### 9.1 Database changes (`listings` and a new log table)
 
@@ -643,7 +643,7 @@ plus `ordering` (`requested_at`, `created_at`, `title`, `id`). Row shape = the l
 | `GET /seller/lookups/{categories,brands,measurements,attributes}/` | active items only |
 | `DELETE` | not allowed |
 
-All need a verified and active seller. Details and examples: [../seller/seller-api-guide.md](../seller/seller-api-guide.md) section 6.
+All need a verified and active seller. Details and examples: [../seller/seller-listing-api-guide.md](../seller/seller-listing-api-guide.md).
 
 ### 9.5 Thumbnail and gigs (reference)
 

@@ -7,7 +7,7 @@ same bearer token as everything else on that resource.
 
 - Postman: `postman/admin/Egoola-Seller.postman_collection.json` (admin collection).
 - **Seller-facing APIs** (sign-up, seller login, a seller's own profile, resubmit) are in a separate guide:
-  [`../seller/seller-api-guide.md`](../seller/seller-api-guide.md), with their own collection `Egoola-SellerApp.postman_collection.json`.
+  [`../seller/seller-account-api-guide.md`](../seller/seller-account-api-guide.md), with their own collection `Egoola-SellerApp.postman_collection.json`.
 - Basic list/create/update shapes: [`../frontend-api-guide.md`](../frontend-api-guide.md) §8.
 
 ---
@@ -50,7 +50,7 @@ same bearer token as everything else on that resource.
 ## Default verification_status on create
 
 - **Admin creates the Seller** (`POST /api/v1/accounts/sellers/`) → `verification_status` defaults to `verified` if you don't pass one.
-- **The seller registers themselves** (`POST /api/v1/auth/seller/register/`) → always `unverified`, with `status: inactive` and `is_seller_request: true`. The registration writes the first history entry, created by the seller. (How a seller signs up: [`../seller/seller-api-guide.md`](../seller/seller-api-guide.md) §3.)
+- **The seller registers themselves** (`POST /api/v1/auth/seller/register/`) → always `unverified`, with `status: inactive` and `is_seller_request: true`. The registration writes the first history entry, created by the seller. (How a seller signs up: [`../seller/seller-account-api-guide.md`](../seller/seller-account-api-guide.md) §3.)
 - Any other creation path → defaults to `unverified`.
 - You can still pass `verification_status` explicitly on create to override the default (e.g. create straight into `pending`).
 
@@ -188,7 +188,7 @@ more). What a logged-in seller can actually *do* is one of three tiers, both rep
 | Locked | `false` | `false` | Nothing — not even their own profile. Still able to `GET` it, just not change it. |
 
 Which `(verification_status, status)` pair lands where — see the table in "What each reachable state falls into"
-in [`../seller/seller-api-guide.md`](../seller/seller-api-guide.md) §1 for the full breakdown (this is the seller's
+in [`../seller/seller-account-api-guide.md`](../seller/seller-account-api-guide.md) §1 for the full breakdown (this is the seller's
 own view of the same three tiers your `PATCH`es here drive).
 
 ## How `verification_note` behaves
