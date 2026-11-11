@@ -7,7 +7,7 @@ the seller's side, the admin's side, and what happens the moment a bid is accept
 It is written for all teams: operations, support, product, design, testing and development. You do not need any
 technical knowledge to read it. For the technical reference (every API, every error, every field), see
 [`listing-complete-guide.md`](listing-complete-guide.md) section 16, [`admin/job-admin-guide.md`](admin/job-admin-guide.md),
-[`buyer/buyer-api-guide.md`](buyer/buyer-api-guide.md) section 5 and [`seller/seller-api-guide.md`](seller/seller-api-guide.md) section 6c.
+[`buyer/buyer-api-guide.md`](buyer/buyer-api-guide.md) section 5 and [`seller/seller-job-bidding-api-guide.md`](seller/seller-job-bidding-api-guide.md).
 
 ---
 

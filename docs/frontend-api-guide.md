@@ -74,7 +74,7 @@ Every endpoint requires a valid token **except** the three login endpoints,
 `POST /api/v1/auth/token/refresh/`, the public seller sign-up
 `POST /api/v1/auth/seller/register/` (§8.1) and the public read-only geography
 lists `GET /api/v1/public/geography/{countries,states,cities,thanas}/` (they
-need no token; see `seller/seller-api-guide.md` section 2).
+need no token; see `seller/seller-account-api-guide.md` section 2).
 There is no "public browsing" of accounts data — an Admin, Seller, or Buyer
 must be logged in for literally everything else in this guide.
 
@@ -127,7 +127,7 @@ the super-admin-only **Admin Management** section; the server still checks it on
 ```json
 { "detail": "Invalid email or password." }
 ```
-For a seller (wrong phone or password): `401 { "detail": "Invalid phone number or password." }`. See `seller/seller-api-guide.md` §4.
+For a seller (wrong phone or password): `401 { "detail": "Invalid phone number or password." }`. See `seller/seller-account-api-guide.md` §4.
 
 **What to do with the response:** save `access` and `refresh` somewhere
 (localStorage, a cookie, wherever your app keeps this). Don't bother
@@ -179,7 +179,7 @@ login again.
 
 | Status | Meaning | Example |
 |---|---|---|
-| `401` | No token, an invalid/expired one, a wrong password at login, or the account is not allowed in (a deactivated admin or buyer, a suspended seller or buyer) | `{"detail": "Authentication credentials were not provided."}` or `{"detail": "This account is not active."}` (a seller who is not approved yet is **not** refused: they can log in and use `/seller/me/`, see `seller/seller-api-guide.md`) |
+| `401` | No token, an invalid/expired one, a wrong password at login, or the account is not allowed in (a deactivated admin or buyer, a suspended seller or buyer) | `{"detail": "Authentication credentials were not provided."}` or `{"detail": "This account is not active."}` (a seller who is not approved yet is **not** refused: they can log in and use `/seller/me/`, see `seller/seller-account-api-guide.md`) |
 | `403` | Valid token, but this actor isn't allowed here | `{"detail": "Only an authenticated Admin can access this endpoint."}` |
 | `400` | The request body itself is wrong | see below |
 
@@ -503,7 +503,7 @@ Required: `name`, `email`, `phone`, `password`, `present_address`,
 Optional: `thana`, `profile_pic`, more documents, and the business profile
 (`info`, a JSON string). The account is created `unverified` + `inactive` with
 `is_seller_request: true`, and the response has no token. Full details, fields,
-errors and a code example: **`seller/seller-api-guide.md`** (the seller-facing guide).
+errors and a code example: **`seller/seller-account-api-guide.md`** (the seller-facing guide).
 
 ### 8.2 Seller Request queue — `GET /api/v1/accounts/sellers/requests/`
 
@@ -613,7 +613,7 @@ Don't build screens against these — they don't exist on the backend yet:
 
 - **Seller/Buyer self-service login screens that go anywhere past login.**
   Seller and Buyer login work (§3) and return a valid token. A seller has
-  their own profile endpoints (`/seller/me/`, see `seller/seller-api-guide.md`), but
+  their own profile endpoints (`/seller/me/`, see `seller/seller-account-api-guide.md`), but
   there are no seller features for sellers who can operate yet (listings, orders,
   wallet) and no Buyer-facing endpoints at all.
 - **Signup / registration for Buyers.** Sellers can register themselves

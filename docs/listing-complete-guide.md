@@ -18,7 +18,7 @@ topic, the other guides go deeper:
 | Topic | Deeper guide |
 |---|---|
 | Listing endpoints, moderation tables, brand CRUD, the pending list | [admin/listing-module-guide.md](admin/listing-module-guide.md) |
-| The seller's listing endpoints and lookups (request / response) | [seller/seller-api-guide.md](seller/seller-api-guide.md) section 6 |
+| The seller's listing endpoints and lookups (request / response) | [seller/seller-listing-api-guide.md](seller/seller-listing-api-guide.md) |
 | Attributes, attribute values, SKU rules | [attribute-sku-guide.md](attribute-sku-guide.md) |
 | Category tree and parent chain | [admin/category-tree-api-guide.md](admin/category-tree-api-guide.md) |
 | Country / state / city / thana | [admin/geography-api-guide.md](admin/geography-api-guide.md) |
@@ -665,7 +665,7 @@ There is no restore endpoint yet.
 A seller who is **verified and active** manages their own **products** through one shared set of endpoints, for every product format
 (`general`, `used`, `village`, `retail`, `wholesale`, `brand`). Their **gigs** (services) are on `/seller/gigs/`
 (section 14.5). Full request and response examples are in
-[seller/seller-api-guide.md](seller/seller-api-guide.md) section 6; the rules are:
+[seller/seller-listing-api-guide.md](seller/seller-listing-api-guide.md); the rules are:
 
 | Call | What it does |
 |---|---|
