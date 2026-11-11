@@ -150,8 +150,8 @@ class SellerRegisterView(APIView):
 
     Send multipart/form-data (the NID files make JSON impossible). The account
     is created unverified and inactive and joins the admin's Seller Request
-    queue; there is no login token in the response because the seller cannot
-    log in until an admin activates the account."""
+    queue. There is no login token in the response, but the seller can log in
+    right away (profile-only tier) to finish their profile while it's reviewed."""
 
     permission_classes = [AllowAny]
     authentication_classes = []
