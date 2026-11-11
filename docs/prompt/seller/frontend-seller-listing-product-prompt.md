@@ -10,8 +10,8 @@ contract itself looks wrong or something needed is missing on the backend, stop 
 of working around it in the app.
 
 Read first: `egoola-server/docs/seller/seller-listing-api-guide.md` (the full contract — read it fully;
-it supersedes any older copy of this content in `docs/seller/seller-api-guide.md` section 6, which it
-was extracted from). Plain-language tour: `egoola-server/docs/Egoola_Listing_Guide.md`. Shared
+it is the only product-listing guide now — the duplicate section that used to live in
+`docs/seller/seller-account-api-guide.md` has been removed). Plain-language tour: `egoola-server/docs/Egoola_Listing_Guide.md`. Shared
 field/SKU/attribute reference: `egoola-server/docs/listing-complete-guide.md` and
 `egoola-server/docs/attribute-sku-guide.md`. Postman:
 `postman/seller/Egoola-SellerApp.postman_collection.json` → **Seller listings** folder (already covers

@@ -43,7 +43,7 @@ all data comes from `egoola-server` over REST only. Follow the patterns already 
 | **Gigs (service offers), thumbnails** | **`listing-complete-guide.md`** sections 14–15 (+ plain words: `Egoola_Listing_Guide.md` section 12) | **`Egoola-Listing.postman_collection.json`** → **Gigs**, **Listing files** |
 | **Attributes, values, SKUs** | **`attribute-sku-guide.md`** | **`Egoola-Attribute.postman_collection.json`** |
 | Sellers (admin side) + Seller Requests | `seller-verification-guide.md`, `frontend-api-guide.md` §8 | `Egoola-Seller.postman_collection.json` |
-| **Seller-facing APIs** (sign-up, seller login, own profile) | **`seller-api-guide.md`** | **`Egoola-SellerApp.postman_collection.json`** |
+| **Seller-facing APIs** (sign-up, seller login, own profile) | **`seller-account-api-guide.md`** | **`Egoola-SellerApp.postman_collection.json`** |
 | Buyers | `buyer-management-guide.md` | `Egoola.postman_collection.json` → Accounts → Buyers |
 | Admins (super-admin only) | `admin-management-guide.md` | `Egoola.postman_collection.json` → Auth → Super-Admin Login, then Accounts → Admins |
 | CMS (banners, email templates, settings, logo) | `cms-api-guide.md` | `Egoola-CMS.postman_collection.json` |
@@ -204,7 +204,7 @@ The admin side of sellers is in **`seller-verification-guide.md`** (+ `frontend-
   `created_at` are read-only fields to show where useful. The normal seller list takes the same new filters (`creator_type`, `status__in`,
   `verification_status__in`, `has_business_profile`, `business_type`, ...).
 - `inactive` is the account switch: the seller can log in but only edit their profile until an admin sets `active` (a new sign-up, or an approved
-  seller an admin paused). It is NOT the same as "not approved" (that is `verification_status`). Only `suspended` sellers cannot log in. Failed logins are `401`. **Sellers now log in with PHONE + password (not email)**: see `seller-api-guide.md` §4.
+  seller an admin paused). It is NOT the same as "not approved" (that is `verification_status`). Only `suspended` sellers cannot log in. Failed logins are `401`. **Sellers now log in with PHONE + password (not email)**: see `seller-account-api-guide.md` §4.
 
 **Seller documents (screen rule):** unverified / pending / rejected seller = can add, delete and replace ANY document (at least one NID must
 remain; replacing the last NID = delete + upload in one request). Verified seller (active or inactive) = NID and birth_certificate are LOCKED
@@ -212,8 +212,8 @@ remain; replacing the last NID = delete + upload in one request). Verified selle
 
 **Seller-side screens** (seller panel / Flutter app; do them only when the user asks): public sign-up form (dropdowns from the PUBLIC lists
 `/public/geography/{countries,states,cities,thanas}/`, no token), login (`can_operate`, `verification_status`), own profile `/seller/me/`
-(edit, documents, change password), rejected seller: read `verification_note`, fix, `POST /seller/me/resubmit/`. All documented in **`seller-api-guide.md`**
-(sections 2–6) with the collection `Egoola-SellerApp.postman_collection.json`.
+(edit, documents, change password), rejected seller: read `verification_note`, fix, `POST /seller/me/resubmit/`. All documented in **`seller-account-api-guide.md`**
+(sections 2–5) with the collection `Egoola-SellerApp.postman_collection.json`.
 
 ---
 

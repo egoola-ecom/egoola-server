@@ -22,7 +22,8 @@ Do not push to any remote. Commit locally only when asked. Do not change `egoola
 ## 0. Read first (in this order)
 
 1. This file.
-2. `egoola-server/docs/seller/seller-api-guide.md` — the seller API guide (sign-up, login, profile, products, gigs, files). **The source of truth.**
+2. `egoola-server/docs/seller/seller-account-api-guide.md` (sign-up, login, profile), `egoola-server/docs/seller/seller-listing-api-guide.md` (products) and
+   `egoola-server/docs/seller/seller-gig-api-guide.md` (gigs, files). **The source of truth.**
 3. `egoola-server/docs/listing-complete-guide.md` sections 6, 13, 14, 15 (every listing field, the gig packages, files) and `egoola-server/docs/attribute-sku-guide.md` (options / SKUs).
 4. `egoola-server/docs/frontend-api-guide.md` sections 1–5 (base URL, tokens, error shapes, pagination) and `egoola-server/docs/authentication.md`.
 5. Plain-language guides for the product rules: `egoola-server/docs/Egoola_Seller_Guide.md` and `egoola-server/docs/Egoola_Listing_Guide.md`.

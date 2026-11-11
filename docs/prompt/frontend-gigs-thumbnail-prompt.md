@@ -254,7 +254,7 @@ image_url, status, requested_at, created_at`. Show `image_url` as the row thumbn
 The seller side has the same split: **`/seller/listings/`** (products) and **`/seller/gigs/`** (gigs), each with create, list, details, edit and
 `POST` / `PATCH /seller/listing-files/{id}/` (thumbnail and gallery). A seller's new listing or gig is always `pending`; there is no delete and no resubmit button (saving is
 resubmitting; changing files does **not** change the status). Lookups: `/seller/lookups/categories/?type=service`.
-Full rules: `seller-api-guide.md` sections 6, 6b and 6.8.
+Full rules: `seller-listing-api-guide.md` and `seller-gig-api-guide.md`.
 
 ---
 

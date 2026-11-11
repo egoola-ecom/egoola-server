@@ -15,8 +15,8 @@ wrong or something is missing, stop and report it.
 ## 0. Read first (in this order)
 
 1. This file.
-2. `egoola-server/docs/seller/seller-api-guide.md` section 6c — the seller contract (summarized below, read the full
-   section for anything ambiguous).
+2. `egoola-server/docs/seller/seller-job-bidding-api-guide.md` — the seller contract (summarized below, read the full
+   guide for anything ambiguous).
 3. `egoola-server/docs/listing-complete-guide.md` section 16 — the full state machine shared by all three roles
    (buyer, seller, admin). Read 16.2 ("every case"), 16.3 (bid statuses), 16.4 (price tiers), 16.8–16.9 (the
    seller endpoints in full depth).
