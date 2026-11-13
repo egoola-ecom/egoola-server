@@ -80,6 +80,19 @@ check "filter status=inactive" 1 "$(body "$(req GET "/banners/?search=Smoke&stat
 check "filter active_now=true" 1 "$(body "$(req GET "/banners/?search=Smoke&active_now=true")" | cnt)"
 check "filter active_now=false" 2 "$(body "$(req GET "/banners/?search=Smoke&active_now=false")" | cnt)"
 check "list ordered by placement then sort_order" "Smoke Scheduled" "$(body "$(req GET "/banners/?search=Smoke")" | jget "['results'][0]['heading']")"
+
+echo "=== Public banner list (buyer homepage, no auth) ==="
+PUB="$API/public/cms/banners/"
+check "public list, no token -> 200 (never 401)" 200 "$(curl -s -o /dev/null -w '%{http_code}' "$PUB")"
+check "public list, garbage token -> still 200" 200 "$(curl -s -o /dev/null -w '%{http_code}' "$PUB" -H "Authorization: Bearer garbage.invalid.token")"
+PUB_HEADINGS=$(curl -s "$PUB" | python -c "import sys,json;print([b['heading'] for b in json.load(sys.stdin)])")
+check "public list includes the live (active, unscheduled) banner" True "$(echo "$PUB_HEADINGS" | grep -qF "Smoke Eid Sale 2" && echo True)"
+check "public list excludes the inactive banner" True "$(echo "$PUB_HEADINGS" | grep -qF "Smoke Sidebar" || echo True)"
+check "public list excludes the future-scheduled banner" True "$(echo "$PUB_HEADINGS" | grep -qF "Smoke Scheduled" || echo True)"
+check "public list has no image_path (internal field)" True "$(curl -s "$PUB" | python -c "import sys,json; print(all('image_path' not in b for b in json.load(sys.stdin)))")"
+check "public list placement=hero filter includes the live banner" True "$(curl -s "$PUB?placement=hero" | python -c "import sys,json;print(any(b['heading']=='Smoke Eid Sale 2' for b in json.load(sys.stdin)))")"
+check "public list placement=sidebar filter excludes it" True "$(curl -s "$PUB?placement=sidebar" | python -c "import sys,json;print(all(b['heading']!='Smoke Eid Sale 2' for b in json.load(sys.stdin)))")"
+
 check "delete banner" 204 "$(code "$(req DELETE /banners/$BN1/)")"
 check "deleted banner image file removed" True "$([ ! -f "$SERVER_DIR/media/$IMGPATH1B" ] && echo True)"
 check "delete again -> 404" 404 "$(code "$(req DELETE /banners/$BN1/)")"

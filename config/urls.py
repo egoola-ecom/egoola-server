@@ -23,6 +23,8 @@ API_V1 = [
     path("public/sellers/", include("apps.accounts.public.urls")),
     # Read-only active-gateway list for the checkout form: no login.
     path("public/orders/", include("apps.orders.public.urls")),
+    # Read-only live-banner list for the buyer homepage: no login.
+    path("public/cms/", include("apps.cms.public.urls")),
     path("accounts/", include("apps.accounts.admin_api.urls")),
     # The logged-in seller's own endpoints (profile, resubmit, password).
     path("seller/", include("apps.accounts.seller.urls")),
