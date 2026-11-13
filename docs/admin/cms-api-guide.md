@@ -16,8 +16,9 @@ Lists are paginated: `?limit=` / `?offset=` (default 20, max 100) →
 `{count, next, previous, results}`.
 Postman: `postman/admin/Egoola-CMS.postman_collection.json`.
 
-This API is admin-only. Public read endpoints for the storefront (active
-banners, the logo, public settings) belong to the later browsing phase.
+This API is admin-only. The buyer-facing read of active banners is a
+separate, public endpoint — see [section 5](#5-public-banner-list-buyer-homepage-apiv1publiccmsbanners).
+The logo and public settings have no public read endpoint yet.
 
 ---
 
@@ -42,6 +43,7 @@ banners, the logo, public settings) belong to the later browsing phase.
   - [List — `GET /settings/?search=commission` (key contains)](#list-get-settingssearchcommission-key-contains)
   - [Delete — `DELETE /settings/{key}/` → `204`](#delete-delete-settingskey-204)
 - [4. Site Logo — `/site-logo/`](#4-site-logo-site-logo)
+- [5. Public banner list (buyer homepage) — `/api/v1/public/cms/banners/`](#5-public-banner-list-buyer-homepage-apiv1publiccmsbanners)
 - [Notes](#notes)
 - [Testing](#testing)
 
@@ -223,6 +225,34 @@ written only by this endpoint.
 
 ---
 
+## 5. Public banner list (buyer homepage) — `/api/v1/public/cms/banners/`
+
+**Not under `/api/v1/cms/`** — a separate, no-auth read for the storefront. No token
+needed; a stale or expired one in the browser is simply ignored (never a `401`).
+Returns only banners that are **live right now**: `status=active` and the current
+time falls inside `starts_at`/`ends_at` (either side blank = open-ended on that
+side) — the same "live" definition as the admin list's `active_now=true` filter.
+
+```
+GET /api/v1/public/cms/banners/
+GET /api/v1/public/cms/banners/?placement=hero
+```
+`200`, a plain list (no pagination):
+```json
+[
+  { "id": 1, "placement": "hero", "heading": "Eid Collection is Here",
+    "small_heading": "Up to 40% off", "link_url": "/categories/electronics",
+    "image_url": "/media/banners/3f2a….png", "category": null, "sort_order": 1 }
+]
+```
+Ordered by placement, then `sort_order` (the model's default ordering). Only
+`placement` can be filtered — `status` and the schedule are already baked into
+"live," not something a client chooses. No `image_path`, `status`, `starts_at`
+or `ends_at` in the response — those are internal to how the admin manages the
+banner, not something the buyer screen needs.
+
+---
+
 ## Notes
 
 - Creator and last-editor (`created_by`, `creator_type`, `creator_name`,
@@ -234,7 +264,8 @@ written only by this endpoint.
 
 ## Testing
 
-97 / 97 smoke checks passed (`scripts/smoke/cms_smoke.sh`; access control for every endpoint, every
+105 / 105 smoke checks passed (`scripts/smoke/cms_smoke.sh`; access control for every endpoint, every
 validation and filter, file replace/delete behaviour on disk, creator
-stamping), plus Newman: 49 assertions, 0 failed. All test data and uploaded
-files were removed afterwards.
+stamping, and the public banner list's no-auth access and "live" filtering),
+plus Newman: 49 assertions, 0 failed. All test data and uploaded files were
+removed afterwards.
