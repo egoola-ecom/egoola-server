@@ -25,11 +25,12 @@ endpoint (listings, gigs, the job board). An order that isn't placed with this s
 ## 1. List — `GET /seller/orders/`
 
 Cursor-paginated (`?limit=`, default 20, max 100 — same shape as the Seller Request queue: `next`/`previous`
-links, no `count`). Only **product** orders placed with this seller.
+links, no `count`). **Product** and **gig** orders placed with this seller — `order_type` tells them apart.
 
 | Query param | What it does |
 |---|---|
 | `status` | exact match: `pending`, `accepted`, `rejected`, `in_progress`, `shipped`, `delivered`, `cancelled`, `disputed`, `completed` |
+| `order_type` | exact match (`product` or `service`) |
 | `created_from` / `created_to` | inclusive dates, `YYYY-MM-DD` |
 | `search` | matches the buyer's name, phone or email |
 

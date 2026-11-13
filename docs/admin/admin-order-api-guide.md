@@ -23,14 +23,15 @@ buyer token).
 ## 1. List — `GET /orders/orders/`
 
 Cursor-paginated (`?limit=`, default 20, max 100 — same shape as every other admin cursor list: `next`/
-`previous`, no `count`). Every **product** order on the platform.
+`previous`, no `count`). Every **product** and **gig** order on the platform — a job's own order (created when a
+bid is accepted, no cart involved) isn't surfaced here yet.
 
 | Query param | What it does |
 |---|---|
 | `buyer` | exact buyer id |
 | `seller` | exact seller id |
 | `status` | exact match |
-| `order_type` | exact match (`product`, `service`, `job` — in practice only `product` ever appears here) |
+| `order_type` | exact match (`product` or `service` — `job` never appears here, see above) |
 | `created_from` / `created_to` | inclusive dates, `YYYY-MM-DD` |
 | `search` | matches the buyer's name/phone, or the seller's name |
 

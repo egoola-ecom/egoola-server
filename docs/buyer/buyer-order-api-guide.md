@@ -98,9 +98,15 @@ One request, several rows, all in one database transaction:
 ## 5. List — `GET /buyer/orders/`
 
 Page-based pagination (`?page=&page_size=`, same shape as every other Buyer Panel list — see
-[`buyer-api-guide.md`](buyer-api-guide.md)'s pagination note). Newest first. Only **product** orders show up
-here — a job's own order (created when a bid is accepted, no cart involved) is reached through
-`/buyer/jobs/{id}/` instead, not this list.
+[`buyer-api-guide.md`](buyer-api-guide.md)'s pagination note). Newest first. Both **product** and **gig**
+(`order_type: "service"`) orders show up here, same shape either way — a job's own order (created when a bid is
+accepted, no cart involved) is reached through `/buyer/jobs/{id}/` instead, not this list.
+
+| Query param | What it does |
+|---|---|
+| `status` | exact match: `pending`, `accepted`, `rejected`, `in_progress`, `shipped`, `delivered`, `cancelled`, `disputed`, `completed` |
+| `order_type` | exact match (`product` or `service`) — separates product orders from gig orders |
+| `created_from` / `created_to` | inclusive dates, `YYYY-MM-DD` |
 
 ```json
 GET /buyer/orders/
