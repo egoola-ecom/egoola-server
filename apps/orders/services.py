@@ -12,6 +12,8 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
 
+from apps.catalog.models import ListingSku
+
 from .models import Address, Cart, Order, OrderItem, OrderStatusChangeHistory, Payment, PaymentStatusChangeHistory
 
 TWO_PLACES = Decimal("0.01")
@@ -88,14 +90,30 @@ def create_order_from_cart(cart, address, payment_gateway, actor):
     items = list(cart.items.select_related("listing", "listing_sku").all())
     if not items:
         raise ValueError("This cart is empty.")
-    problems = [
-        f"{item.listing.title}: {item.unavailable_reason}"
-        for item in items if item.unavailable_reason
-    ]
-    if problems:
-        raise ValueError(" ".join(problems))
 
     with transaction.atomic():
+        # Lock every SKU in this cart for the rest of the transaction, so two
+        # concurrent checkouts racing for the last unit of stock can't both
+        # pass the check below — the second one blocks here until the first
+        # commits (or rolls back), then re-reads the now-current stock_qty.
+        # The lock is released automatically when this `with` block ends.
+        locked_skus = {
+            sku.id: sku
+            for sku in ListingSku.objects.select_for_update().filter(
+                id__in=[item.listing_sku_id for item in items if item.listing_sku_id]
+            )
+        }
+        for item in items:
+            if item.listing_sku_id:
+                item.listing_sku = locked_skus[item.listing_sku_id]
+
+        problems = [
+            f"{item.listing.title}: {item.unavailable_reason}"
+            for item in items if item.unavailable_reason
+        ]
+        if problems:
+            raise ValueError(" ".join(problems))
+
         subtotal = money(sum((item.line_subtotal for item in items), Decimal("0.00")))
         total = money(sum((item.listing_sku.price * item.units for item in items), Decimal("0.00")))
         delivery_cost = money(Decimal("0.00"))
