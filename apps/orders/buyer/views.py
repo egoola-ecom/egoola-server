@@ -14,6 +14,7 @@ from apps.authentication.permissions import IsBuyerActor
 from apps.core.pagination import BuyerPagePagination
 
 from ..models import Address, Cart, CartItem, Order
+from .filters import BuyerOrderFilter
 from .serializers import (
     AddCartItemSerializer,
     BuyerAddressSerializer,
@@ -51,12 +52,13 @@ def _get_or_create_active_cart(buyer, cart_type, seller):
     )[0]
 
 
-def _touch(cart):
-    """Bumps `updated_at` on the cart itself — changing one of its items
-    doesn't otherwise touch the cart row, and "most recently touched" (see
-    `_target_cart`) needs to mean any interaction with it, not just its own
-    field changes."""
-    cart.save(update_fields=["updated_at"])
+def _touch(cart, actor):
+    """Bumps `updated_at` on the cart itself and stamps who did it — changing
+    one of its items doesn't otherwise touch the cart row, and "most recently
+    touched" (see `_target_cart`) needs to mean any interaction with it, not
+    just its own field changes."""
+    cart.updated_by, cart.updater_type, cart.updater_name = actor.id, actor.actor_type, actor.name
+    cart.save(update_fields=["updated_at", "updated_by", "updater_type", "updater_name"])
 
 
 def _target_cart(request):
@@ -93,6 +95,7 @@ class CartView(APIView):
         cart = _target_cart(request)
         if cart is not None:
             cart.items.all().delete()
+            _touch(cart, request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -144,7 +147,7 @@ class CartItemsView(APIView):
                     created_by=actor.id, creator_type=actor.actor_type, creator_name=actor.name,
                     **variant_snapshot(sku),
                 )
-            _touch(cart)
+            _touch(cart, actor)
         return Response(CartItemSerializer(item).data, status=status.HTTP_201_CREATED)
 
 
@@ -162,14 +165,15 @@ class CartItemDetailView(APIView):
         serializer = UpdateCartItemSerializer(item, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save(updated_by=actor.id, updater_type=actor.actor_type, updater_name=actor.name)
-        _touch(item.cart)
+        _touch(item.cart, actor)
         return Response(CartItemSerializer(item).data)
 
     def delete(self, request, pk):
         item = self.get_object(request, pk)
         cart = item.cart
+        actor = request.user
         item.delete()
-        _touch(cart)
+        _touch(cart, actor)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -203,17 +207,23 @@ class BuyerOrderViewSet(
     mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
-    """`GET /buyer/orders/` (page-paginated) — my product orders, newest
-    first. `GET /buyer/orders/{id}/` — detail, with the seller, every item,
-    the payment and both status histories. `POST /buyer/orders/` —
+    """`GET /buyer/orders/` (page-paginated) — my product and gig orders,
+    newest first. `GET /buyer/orders/{id}/` — detail, with the seller, every
+    item, the payment and both status histories. `POST /buyer/orders/` —
     checkout. `PATCH /buyer/orders/{id}/` — for now, only `{"status":
-    "cancelled"}`, any time before the seller has shipped it."""
+    "cancelled"}`, any time before the seller has shipped it.
+
+    A job's own order (created when a bid is accepted, no cart involved) is
+    reached through `/buyer/jobs/{id}/` instead, not this list."""
 
     permission_classes = [IsBuyerActor]
     pagination_class = BuyerPagePagination
+    filterset_class = BuyerOrderFilter
 
     def get_queryset(self):
-        qs = Order.objects.filter(buyer=self.request.user, order_type=Order.OrderType.PRODUCT)
+        qs = Order.objects.filter(
+            buyer=self.request.user, order_type__in=[Order.OrderType.PRODUCT, Order.OrderType.SERVICE],
+        )
         if self.action == "retrieve":
             return qs.select_related(
                 "seller", "address", "address__country", "address__state", "address__city", "address__thana",
