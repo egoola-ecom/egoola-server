@@ -23,7 +23,7 @@ import urllib.request
 
 BASE = os.environ.get("SMOKE_BASE", "http://127.0.0.1:8000") + "/api/v1"
 SERVER_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-PRODUCT_CATEGORY = 18
+PRODUCT_CATEGORY, SERVICE_CATEGORY = 18, 29
 COUNTRY, STATE, CITY = 126, 13, 8
 PASS = FAIL = 0
 
@@ -120,6 +120,13 @@ s, product = A("POST", "/catalog/listings/", {
 assert s == 201, product
 LISTING, SKU = product["id"], product["skus"][0]["id"]
 
+s, gig = A("POST", "/catalog/gigs/", {
+    "category": SERVICE_CATEGORY, "catalog_type": "service", "title": "Smoke AOrd Cleaning",
+    "description": "d", "seller": SELLER, "price": "400", "price_type": "daily",
+})
+assert s == 201, gig
+GIG, GIG_SKU = gig["id"], gig["skus"][0]["id"]
+
 s, buyer_reg = call("POST", "/auth/buyer/register/", body={
     "name": "Smoke AOrd Buyer", "phone": "+8801700097001", "password": "Buy@12345",
 })
@@ -137,28 +144,41 @@ ADDR = addr["id"]
 s, _ = B("POST", "/buyer/cart/items/?type=product", {"listing": LISTING, "listing_sku": SKU, "qty": 1})
 assert s == 201, _
 s, summary = B("GET", "/buyer/cart/summary/")
-CART = next(c["id"] for c in summary["carts"] if c["seller"]["id"] == SELLER)
+CART = next(c["id"] for c in summary["carts"] if c["seller"]["id"] == SELLER and c["cart_type"] == "product")
 s, order = B("POST", "/buyer/orders/", {"cart": CART, "address": ADDR, "payment_gateway": GATEWAY})
 assert s == 201, order
 ORDER = order["id"]
+
+s, _ = B("POST", "/buyer/cart/items/?type=service", {"listing": GIG, "listing_sku": GIG_SKU, "duration": 2})
+assert s == 201, _
+s, summary = B("GET", "/buyer/cart/summary/")
+GIG_CART = next(c["id"] for c in summary["carts"] if c["seller"]["id"] == SELLER and c["cart_type"] == "service")
+s, gig_order = B("POST", "/buyer/orders/", {"cart": GIG_CART, "address": ADDR, "payment_gateway": GATEWAY})
+assert s == 201, gig_order
+GIG_ORDER = gig_order["id"]
 
 print("\n=== Auth ===")
 check("no token -> 401", 401, call("GET", "/orders/orders/")[0])
 check("seller token -> 403", 403, call("GET", "/orders/orders/", ST)[0])
 check("buyer token -> 403", 403, B("GET", "/orders/orders/")[0])
+check("seller token on PATCH -> 403", 403, call("PATCH", f"/orders/orders/{ORDER}/", ST, {"status": "delivered"})[0])
+check("buyer token on PATCH -> 403", 403, B("PATCH", f"/orders/orders/{ORDER}/", {"status": "delivered"})[0])
 
 print("\n=== List / filter / detail ===")
 s, listing_page = A("GET", "/orders/orders/")
 check("cursor shape", True, all(k in listing_page for k in ("next", "previous", "results")))
 check("it's in the unfiltered list", True, any(o["id"] == ORDER for o in listing_page["results"]))
 s, by_buyer = A(f"GET", f"/orders/orders/?buyer={buyer_reg['id']}")
-check("filter by buyer", [ORDER], [o["id"] for o in by_buyer["results"]])
+check("filter by buyer (both the product and gig order)", {ORDER, GIG_ORDER}, {o["id"] for o in by_buyer["results"]})
 s, by_seller = A("GET", f"/orders/orders/?seller={SELLER}")
-check("filter by seller", [ORDER], [o["id"] for o in by_seller["results"]])
+check("filter by seller (both the product and gig order)", {ORDER, GIG_ORDER}, {o["id"] for o in by_seller["results"]})
 s, by_status = A("GET", "/orders/orders/?status=pending")
 check("filter by status matches", True, all(o["status"] == "pending" for o in by_status["results"]))
 s, by_type = A("GET", "/orders/orders/?order_type=product")
-check("filter by order_type matches", True, all(o["order_type"] == "product" for o in by_type["results"]))
+check("filter by order_type=product matches", True, all(o["order_type"] == "product" for o in by_type["results"]))
+check("the gig order is excluded by order_type=product", False, any(o["id"] == GIG_ORDER for o in by_type["results"]))
+s, by_service = A("GET", "/orders/orders/?order_type=service")
+check("filter by order_type=service matches", [GIG_ORDER], [o["id"] for o in by_service["results"] if o["seller"]["id"] == SELLER])
 
 s, detail = A("GET", f"/orders/orders/{ORDER}/")
 check("detail -> 200", 200, s)
@@ -167,6 +187,13 @@ check("seller nested", "Smoke AOrd Seller", detail["seller"]["name"])
 check("payment nested", "due", detail["payment"]["status"])
 check("audit columns present", True, all(k in detail for k in ("created_by", "creator_type", "creator_name")))
 check("unknown id -> 404", 404, A("GET", "/orders/orders/999999/")[0])
+
+print("\n=== Gig (service) order — same oversight, no transition check ===")
+s, gig_detail = A("GET", f"/orders/orders/{GIG_ORDER}/")
+check("gig detail -> 200, order_type service", (200, "service"), (s, gig_detail["order_type"]))
+s, gig_jumped = A("PATCH", f"/orders/orders/{GIG_ORDER}/", {"status": "delivered"})
+check("admin can jump a gig order straight to delivered -> 200", 200, s)
+check("gig payment auto-flipped to paid", "paid", gig_jumped["payment"]["status"])
 
 print("\n=== Any status, any time, no transition check ===")
 s, jumped = A("PATCH", f"/orders/orders/{ORDER}/", {"status": "delivered"})
