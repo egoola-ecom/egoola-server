@@ -24,7 +24,7 @@ import urllib.request
 
 BASE = os.environ.get("SMOKE_BASE", "http://127.0.0.1:8000") + "/api/v1"
 SERVER_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-PRODUCT_CATEGORY = 18
+PRODUCT_CATEGORY, SERVICE_CATEGORY = 18, 29
 COUNTRY, STATE, CITY = 126, 13, 8
 PASS = FAIL = 0
 
@@ -125,6 +125,13 @@ s, no_seller_product = A("POST", "/catalog/listings/", {
 assert s == 201, no_seller_product
 NS_LISTING, NS_SKU = no_seller_product["id"], no_seller_product["skus"][0]["id"]
 
+s, gig = A("POST", "/catalog/gigs/", {
+    "category": SERVICE_CATEGORY, "catalog_type": "service", "title": "Smoke BOrd Cleaning",
+    "description": "d", "seller": SELLER, "price": "500", "price_type": "hourly",
+})
+assert s == 201, gig
+GIG, GIG_SKU = gig["id"], gig["skus"][0]["id"]
+
 s, buyer_reg = call("POST", "/auth/buyer/register/", body={
     "name": "Smoke BOrd Buyer", "phone": "+8801700095001", "password": "Buy@12345",
 })
@@ -162,6 +169,13 @@ def cart_for(seller_id, token=BT):
 print("\n=== Checkout validation ===")
 check("no token -> 401", 401, call("POST", "/buyer/orders/")[0])
 
+s, seller_login = call("POST", "/auth/seller/login/", body={"phone": "+8801700095500", "password": "Sell@12345"})
+ST = seller_login["access"]
+check("a seller token on the list -> 403", 403, call("GET", "/buyer/orders/", ST)[0])
+check("a seller token on checkout -> 403", 403, call("POST", "/buyer/orders/", ST, {"cart": 1, "address": 1, "payment_gateway": GATEWAY})[0])
+check("an admin token on the list -> 403", 403, A("GET", "/buyer/orders/")[0])
+check("an admin token on checkout -> 403", 403, A("POST", "/buyer/orders/", {"cart": 1, "address": 1, "payment_gateway": GATEWAY})[0])
+
 add_to_cart(NS_LISTING, NS_SKU, 1)
 ns_cart = cart_for(None)
 s, r = B("POST", "/buyer/orders/", {"cart": ns_cart, "address": ADDR, "payment_gateway": GATEWAY})
@@ -198,6 +212,34 @@ ORDER = order["id"]
 
 s, r = B("POST", "/buyer/orders/", {"cart": CART, "address": ADDR, "payment_gateway": GATEWAY})
 check("the same (now-closed) cart cannot be checked out again -> 400", 400, s)
+
+print("\n=== Gig (service) checkout — same mechanism, order_type=service ===")
+s, _ = B("POST", "/buyer/cart/items/?type=service", {"listing": GIG, "listing_sku": GIG_SKU, "duration": 3})
+check("add gig to cart -> 201", 201, s)
+GIG_CART = cart_for(SELLER, token=BT)
+s, gig_order = B("POST", "/buyer/orders/", {"cart": GIG_CART, "address": ADDR, "payment_gateway": GATEWAY})
+check("gig checkout -> 201", 201, s)
+check("order_type is service", "service", gig_order["order_type"])
+check("subtotal = rate x duration", "1500.00", gig_order["subtotal"])
+check("one order item", 1, len(gig_order["items"]))
+check("item carries duration, no qty", (3, None), (gig_order["items"][0]["duration"], gig_order["items"][0]["qty"]))
+check("item carries the price_type snapshot", "hourly", gig_order["items"][0]["price_type_snapshot"])
+GIG_ORDER = gig_order["id"]
+
+s, mine = B("GET", "/buyer/orders/")
+check("both the product and gig order show up in the same list", {ORDER, GIG_ORDER}, {o["id"] for o in mine["results"]} & {ORDER, GIG_ORDER})
+check("another buyer gets 404 on the gig order id too", 404, call("GET", f"/buyer/orders/{GIG_ORDER}/", BT2)[0])
+
+s, gig_cancelled = B("PATCH", f"/buyer/orders/{GIG_ORDER}/", {"status": "cancelled", "reason": "Smoke BOrd gig changed my mind"})
+check("cancel a gig order -> 200, same rule as a product order", (200, "cancelled"), (s, gig_cancelled["status"]))
+
+print("\n=== order_type filter ===")
+s, by_product = B("GET", "/buyer/orders/?order_type=product")
+check("order_type=product excludes the gig order", True, all(o["order_type"] == "product" for o in by_product["results"]))
+check("order_type=product includes my product order", True, any(o["id"] == ORDER for o in by_product["results"]))
+s, by_service = B("GET", "/buyer/orders/?order_type=service")
+check("order_type=service excludes the product order", True, all(o["order_type"] == "service" for o in by_service["results"]))
+check("order_type=service includes my gig order", True, any(o["id"] == GIG_ORDER for o in by_service["results"]))
 
 print("\n=== Empty cart ===")
 add_to_cart(LISTING, SKU, 1)
