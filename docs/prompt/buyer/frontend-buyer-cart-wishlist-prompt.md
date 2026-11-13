@@ -30,9 +30,9 @@ for the UI:
   after this brief was first written) — one row per active cart (`cart_type`, `seller`, `item_count`, `subtotal`,
   `updated_at`), plus a grand `item_count`. Use it for the header badge's true total and for a real "all carts"
   page; link each row to `GET /buyer/cart/?type=<cart_type>&seller=<id>` for that cart's full detail.
-- A cart **closes permanently** once it becomes an order (future checkout step) — closed carts never resurface; the
-  next add of that type/seller opens a brand new one. Don't cache a cart id across sessions expecting it to still be
-  open.
+- A cart **closes permanently** once it becomes an order (checkout — see `frontend-buyer-order-prompt.md` and
+  `frontend-buyer-gig-order-prompt.md`) — closed carts never resurface; the next add of that type/seller opens a
+  brand new one. Don't cache a cart id across sessions expecting it to still be open.
 
 Wishlist has none of this: it is one flat list per buyer, optionally filtered by `type`, no seller split.
 
@@ -107,9 +107,9 @@ flagged; show it struck-through or with a warning, don't hide it, don't auto-rem
 ```
 
 `subtotal` = sum of every line's live `line_subtotal` (skips lines with no resolvable price). No delivery cost, no
-discount, no grand total here — those only exist on an `Order`, post-checkout (not built yet). Missing/invalid
-`type` is `400`. No cart found is `null`, `200` — not `404` — don't show an error state for it, show the empty-cart
-state.
+discount, no grand total here — those only exist on an `Order`, after checkout (see the order prompts above).
+Missing/invalid `type` is `400`. No cart found is `null`, `200` — not `404` — don't show an error state for it, show
+the empty-cart state.
 
 **Edit/remove a line** — `PATCH /buyer/cart/items/{id}/` with `{"qty": 1}` or `{"duration": 3}` (whichever matches
 the line's own kind — sending the wrong one is `400`). This **replaces** the value, it does not add (unlike POST).

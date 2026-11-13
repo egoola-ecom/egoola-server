@@ -3,6 +3,9 @@
 Backend done and tested in `egoola-server`: checking out a cart into an order, watching it, and cancelling it.
 Read this file top to bottom, then build it in **Buyer Web**. Do not push; commit locally only if asked.
 
+This brief was written product-only. Gig (service) orders use the exact same endpoints and now work too — see
+`frontend-buyer-gig-order-prompt.md` for the cross-check once this is built, rather than re-reading this file.
+
 Read first: `egoola-server/docs/buyer/buyer-order-api-guide.md` (the technical contract below is a copy of it),
 `egoola-server/docs/Egoola_Order_Guide.md` (plain-language version — read the status flow at the very top
 first, it's the single most important thing in this whole feature), `egoola-server/docs/buyer/buyer-address-api-guide.md`
