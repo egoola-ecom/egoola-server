@@ -87,21 +87,24 @@ real gateway (bKash, say) to use.
 
 | Who | What they do with orders |
 |---|---|
-| **Buyer** | Saves delivery addresses, checks out a cart into an order, watches it move, and can cancel it before it ships. |
-| **Seller** | Sees every order placed against their shop, moves it forward step by step (accept, reject, prepare, ship, deliver). |
+| **Buyer** | Saves delivery addresses, checks out a cart (a product purchase or a gig hire) into an order, watches it move, and can cancel it before it ships. |
+| **Seller** | Sees every order placed against their shop — products and gigs alike — moves it forward step by step (accept, reject, prepare, ship, deliver). |
 | **Admin** | Manages the Payment Gateways sellers and buyers can use, and has full oversight of every order — can view everything and move any order to any status, at any time, no restriction. |
 
 ## 2. What is an order?
 
 An order is what a cart becomes the moment a buyer checks out. It is the one record that ties together: who
 bought it (the buyer), who it was bought from (the seller — an order always belongs to exactly one seller), what
-was bought (its **order items**, a snapshot of each product line at the moment of purchase), where it's going
-(a snapshotted delivery **address**), and how it's being paid for (its **Payment**).
+was bought (its **order items**, a snapshot of each line at the moment of purchase — a product's quantity, or a
+gig's duration), where it's going (a snapshotted delivery **address**), and how it's being paid for (its
+**Payment**).
 
 An order is always exactly **one seller's** order — a buyer shopping from three different sellers in one visit
 ends up with three separate carts and, after checking out each one, three separate orders. This guide covers a
-**product** order (the kind built from a cart). A **job**'s order is a different animal — created the instant a
-bid is accepted, with no cart involved at all — see the Egoola Job Guide.
+cart-built order — buying a **product** or hiring a **gig**, the exact same mechanism either way, just with its
+`order_type` field reading `product` or `service` and its lines priced by quantity or duration respectively (see
+section 4). A **job**'s order is a different animal — created the instant a bid is accepted, with no cart
+involved at all — see the Egoola Job Guide.
 
 ## 3. Payment Gateways
 
@@ -126,9 +129,13 @@ Checkout is **one single action**: the buyer picks (1) which of their active car
 which of their saved addresses it should ship to, and (3) which Payment Gateway they're paying with. That one
 action, behind the scenes, does all of the following together:
 
-1. Creates the **Order** itself (status `pending`), copying the cart's seller onto it.
-2. Creates one **OrderItem** per line in the cart, each one a frozen snapshot of that product's title and price
-   at this exact moment — later price changes on the product never reach back and change a past order.
+1. Creates the **Order** itself (status `pending`), copying the cart's seller onto it, and its `order_type`
+   straight from the cart's own kind — a `product` cart becomes a `product` order, a `service` (gig) cart becomes
+   a `service` order. Hiring a gig is the exact same checkout as buying a product; nothing about it is special-cased.
+2. Creates one **OrderItem** per line in the cart, each one a frozen snapshot of that line's title and price at
+   this exact moment — later price changes on the product or gig never reach back and change a past order. A
+   product line keeps its `qty`; a gig line keeps its `duration` and which rate type it was (hourly, daily,
+   weekly, monthly or fixed) instead.
 3. Snapshots the chosen address onto a brand-new **Address** row attached to this order — editing or deleting
    the buyer's saved address afterwards never changes what a past order actually shipped to.
 4. Creates the **Payment** for the order, status `due`, remembering which gateway was used (both the live link
@@ -153,8 +160,10 @@ list — add, see the list, edit one, or delete one. A buyer only ever sees and 
 response is the full order — seller, every item, the address it's shipping to, and the brand-new Payment, all in
 one place.
 
-**My orders.** A buyer's own order list shows every order they've ever placed, newest first, with normal paging
-(a page number and a page size — not the "infinite scroll" style the seller and admin lists use). Opening one
+**My orders.** A buyer's own order list shows every order they've ever placed — products bought and gigs hired,
+together, newest first — with normal paging (a page number and a page size — not the "infinite scroll" style the
+seller and admin lists use). Its `order_type` field is how the two are told apart in the same list, and it can be
+filtered by order type too, same as the seller's and admin's lists. Opening one
 shows the full detail: the seller, every item, the address, the **Payment** (with its own status and its own
 status history nested right inside it), and the order's **own** status history.
 
@@ -165,9 +174,10 @@ this order" request every actor uses, just that a buyer is currently only allowe
 
 ## 6. Seller: orders placed with me
 
-A seller's own order list shows every order placed against their shop — this list grows over time, so it scrolls
-rather than pages, the same style used for the Seller Request queue. It can be filtered by status and by a date
-range, and searched by the buyer's name, phone or email.
+A seller's own order list shows every order placed against their shop — products bought **and** gigs hired from
+them, together in the same list, told apart by `order_type` (and filterable by it) — this list grows over time,
+so it scrolls rather than pages, the same style used for the Seller Request queue. It can be filtered by status,
+by order type, and by a date range, and searched by the buyer's name, phone or email.
 
 Opening one order shows the buyer, every item, the address, and the Payment with its history — the same rich
 detail a buyer or an admin sees. From there the seller moves the order forward **one step at a time**: `pending`
@@ -176,12 +186,18 @@ Trying to skip a step, or move a terminal order (`rejected`, `cancelled`, or alr
 refused with a clear message. Marking an order `delivered` also flips its payment from `due` to `paid`
 automatically — the seller doesn't do anything extra for that; it just happens as part of the same move.
 
+**A gig order moves through this exact same ladder** — there is no separate "hire request" flow. `shipped` and
+`delivered` read a little oddly for a service (there's nothing to physically ship), but the mechanism underneath
+doesn't branch on order type at all: a seller marks a gig `in_progress` while doing the work, `shipped` once it's
+handed over, `delivered` once the buyer has it — same clicks, same payment flip, same history.
+
 ## 7. Admin: full oversight
 
-An admin sees **every** order on the platform — the same scrollable, filterable, searchable list style as the
-seller's, just not limited to one shop. Filters include the buyer, the seller, the status, the order type, and a
-date range. Opening one shows absolutely everything: buyer, seller, every item, the address, the Payment and
-both histories, plus the usual audit columns (who created it, who last touched it).
+An admin sees **every** product and gig order on the platform — the same scrollable, filterable, searchable list
+style as the seller's, just not limited to one shop. Filters include the buyer, the seller, the status, the order
+type (`product` or `service`), and a date range. Opening one shows absolutely everything: buyer, seller, every
+item, the address, the Payment and both histories, plus the usual audit columns (who created it, who last
+touched it). (A job's own order isn't part of this list yet — see the Egoola Job Guide.)
 
 The one thing that makes the admin's view different from the seller's: **an admin can move an order to any
 status, from any status, at any time** — forwards, backwards, it doesn't matter. There's no step-by-step
@@ -210,6 +226,11 @@ Each **order item** carries the same idea at the line level: its own `total` (ma
 `subtotal` (discounted price × quantity, or the same as total if nothing's discounted). The order's total and
 subtotal are exactly the sum of its items' totals and subtotals — nothing extra is added at the order level
 today.
+
+A **gig** line does the same math with its rate and duration standing in for price and quantity: a package rated
+12,000/week, hired for 2 weeks, is a line total of 24,000 (the discounted rate instead, if one happens to be
+running). Nothing else about the money math changes — `payable` is worked out exactly the same way for a product
+order and a gig order.
 
 ## 9. Payment, and its own history
 
@@ -248,7 +269,8 @@ This history is also always shown in every order's detail view, for the buyer, t
 | Topic | Rule |
 |---|---|
 | One order, one seller | Always — a multi-seller cart basket simply doesn't exist; it's several carts, several orders. |
-| Checkout | One action: cart + address + payment gateway → order + items + payment, all at once. |
+| Order type | `product` or `service` — set straight from the cart's own kind at checkout. A gig hire is the same mechanism as a product purchase, start to finish. |
+| Checkout | One action: cart + address + payment gateway → order + items + payment, all at once. Works the same for a product cart or a service (gig) cart. |
 | A cart with no seller | **Cannot** be checked out (admin-owned listings only). |
 | A cart used once | Checking it out closes it; it can never be reused. |
 | Order status start | Always `pending`. |
@@ -260,7 +282,7 @@ This history is also always shown in every order's detail view, for the buyer, t
 | Payment status start | Always `due` (Cash on Delivery is the only gateway today). |
 | Money rounding | Always to 2 decimal places, normal rounding — never floor/ceil. |
 | Payable (today) | Equals the subtotal — delivery cost and discount are both `0` until those features are built. |
-| Order item snapshot | Title and price are frozen at checkout — a later product-price change never rewrites a past order. |
+| Order item snapshot | Title and price are frozen at checkout — a later product/gig price change never rewrites a past order. A gig line also freezes its rate type (hourly/daily/weekly/monthly/fixed) and duration, instead of a quantity. |
 | Address snapshot | A fresh copy is made at checkout — editing/deleting the saved address later never changes a past order. |
 | Order history | Every status move, forever, with the reason given at that moment. Never edited or deleted. |
 | Payment history | Every payment-status move, forever. Never edited or deleted. |
@@ -314,6 +336,11 @@ history shows the reason given at **every single** reject/cancel that's ever hap
 No — Cash on Delivery already exists, created ahead of time for the whole platform. A buyer just picks it by id
 at checkout; nobody creates gateways except an admin.
 
+**Why does a gig order say "shipped"? Nothing was shipped.**
+A gig order moves through the exact same status ladder as a product order — there's no separate wording for a
+service. Read `shipped` as "handed over" and `delivered` as "the buyer has it" for a gig; nothing else about the
+flow (or the payment flipping to paid) is any different from a product.
+
 ---
 
 ## 13. Not available yet
@@ -341,8 +368,9 @@ Please do not promise these to buyers, sellers or admins yet.
 
 | Word | Meaning |
 |---|---|
-| **Order** | The record of a purchase — created from a cart at checkout, or directly when a job's bid is accepted. |
-| **Order item** | One line of an order — a frozen snapshot of one product's title, price and quantity at checkout. |
+| **Order** | The record of a purchase or a gig hire — created from a cart at checkout, or directly when a job's bid is accepted. |
+| **Order type** | `product` or `service` (a job order is a third, separate kind — see the Egoola Job Guide) — tells the two apart in every order list. |
+| **Order item** | One line of an order — a frozen snapshot of one product's (or gig's) title and price, plus its quantity or duration, at checkout. |
 | **Payment** | The one money record tied to an order: how much, by which gateway, and its own status. |
 | **Payment Gateway** | A way to pay (Cash on Delivery today). Admin-managed; a buyer just picks one by id. |
 | **Payment status** | Separate from the order's own status — tracks the money (`due`, `paid`, and so on). |

@@ -1,9 +1,9 @@
 # Egoola Cart & Wishlist Guide (in plain words)
 
 This guide explains how a buyer's **cart** and **wishlist** work: what each one is, how it is created, how things go
-in and come out of it, and — for the cart — what happens once it turns into an order. It has no technical terms and
-no mention of any API — it describes the idea, not the code. Ordering and checkout themselves are not built yet; this
-guide only covers the cart and the wishlist that will feed into them.
+in and come out of it, and what happens once it turns into an order. It has no technical terms and no mention of
+any API — it describes the idea, not the code. For what happens after checkout (the order itself), see the
+**Egoola Order Guide**.
 
 The two are deliberately different ideas:
 
@@ -11,7 +11,7 @@ The two are deliberately different ideas:
 |---|---|---|
 | **What it means** | "I intend to buy this" | "I like this, remind me later" |
 | **Holds** | A quantity or a duration, chosen on purpose | Nothing but the listing itself |
-| **Leads to** | An order, eventually | Nothing automatically — a buyer still has to add it to a cart to buy it |
+| **Leads to** | An order, once the buyer checks out | Nothing automatically — a buyer still has to add it to a cart to buy it |
 | **How many a buyer has** | One per seller they're shopping with, per kind (see Part I, section 2) | One single list |
 
 Part I covers the cart. Part II covers the wishlist.
@@ -43,7 +43,7 @@ Part I covers the cart. Part II covers the wishlist.
 
 A cart is a holding area. Before a buyer commits to buying anything, they can drop things into their cart, look at
 them together, change their mind about how many they want, and take things back out — all without anything being
-bought yet. Nothing is final until checkout happens, and checkout is a separate step that has not been built.
+bought yet. Nothing is final until checkout happens — see the **Egoola Order Guide** for what happens then.
 
 A cart belongs to exactly one buyer. Nobody else can see it or touch it.
 
@@ -119,7 +119,8 @@ in the cart, rather than listing it twice.
 
 If there is only a limited amount of something left to sell, the cart will not let a buyer add more than is actually
 available right now. This is just a check at the moment of adding — nothing is held back or reserved for the buyer
-yet. That reservation only happens once an actual order is placed, which is a later step not built yet.
+yet. Stock is checked again, for real, at the moment of checkout (see the **Egoola Order Guide**) — but even then
+nothing is set aside ahead of time; it is simply re-checked against whatever is in stock right then.
 
 ---
 
@@ -163,7 +164,9 @@ A buyer can only ever change or remove their own cart's contents — never anyon
 
 ## 7. What happens to a cart once an order is placed from it
 
-This is the part that connects a cart to an order, even though ordering itself has not been built yet.
+This is the part that connects a cart to an order — see the **Egoola Order Guide** for everything about the order
+itself (checkout, status, payment). A product cart and a service (gig) cart both become an order the exact same
+way; the only difference is what kind of order comes out the other end.
 
 A cart is meant to be used **once**. The moment everything in it is turned into an actual order — the buyer has
 committed to buying and paying — that cart is considered closed. It is not emptied out and handed back for reuse.
@@ -188,10 +191,9 @@ Put simply: a cart's life looks like this —
 
 ## 8. What the cart does not cover yet
 
-- **Checkout itself** — the step where a cart's contents actually turn into an order and a payment is taken. This is
-  a future piece of work; this guide only describes the cart that will feed into it.
-- **Reserving stock** — right now, adding something to a cart only checks that enough is available at that moment; it
-  does not hold or set aside stock for that buyer. True reservation happens only once an order is placed.
+- **Reserving stock ahead of checkout** — adding something to a cart only checks that enough is available at that
+  moment; it does not hold or set aside stock for that buyer. Checkout re-checks it for real (see the **Egoola
+  Order Guide**), but even that is a check at the moment of buying, not a reservation made in advance.
 
 ---
 
