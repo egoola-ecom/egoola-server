@@ -9,6 +9,8 @@ key -> JSON value store.
 """
 
 from django.db import models
+from django.db.models import Q
+from django.utils import timezone
 
 from apps.core.models import AuditedModel
 
@@ -45,6 +47,19 @@ class Banner(AuditedModel):
 
     def __str__(self):
         return self.heading or f"Banner #{self.pk}"
+
+    @staticmethod
+    def live_q(now=None):
+        """`status=active` and inside its schedule window right now (an
+        empty `starts_at`/`ends_at` means no limit on that side). Shared by
+        the admin `active_now` filter and the public banner list, so the
+        definition of "live" can't drift between the two."""
+        now = now or timezone.now()
+        return (
+            Q(status=Banner.Status.ACTIVE)
+            & (Q(starts_at__isnull=True) | Q(starts_at__lte=now))
+            & (Q(ends_at__isnull=True) | Q(ends_at__gte=now))
+        )
 
 
 class EmailTemplate(AuditedModel):
