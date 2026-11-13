@@ -152,8 +152,8 @@ reference per actor.
 - Admin dashboard data (counts, charts, recent activity).
 - Financial oversight: withdrawal requests, refunds, commission settings (a job's Order carries `commission_rate`
   / `commission_amount` as `null` until this exists).
-- Hire requests on a gig (accept, decline, deliver — a direct gig hire, not the job/bidding flow below), seller
-  orders, wallet and withdrawals (Phase 3, next rows). Gigs themselves (create, manage, price, thumbnail) are built.
+- Wallet and withdrawals (Phase 3, next rows). A direct gig hire is a cart + checkout like a product — see §3.5 —
+  not a separate "hire request" flow.
 - Any Payment Gateway besides Cash on Delivery (bKash, cards, ...) — the `Payment`/`PaymentGateway` schema already
   anticipates one (`store_amount`, `initiated`/`failed`/`partially_paid`), nothing is wired up yet.
 - Coupons / order-level discounts, real delivery-cost pricing (both fields exist on `Order`, always `0` for now).
@@ -161,8 +161,8 @@ reference per actor.
 - Deliverables, messaging between buyer and seller, reviews/ratings.
 - Email / phone code checks (OTP), notifications to sellers, forgot password.
 
-Checkout for a product (cart → Order, Payment, both status histories) **is now built** — see §3.5. A job's
-Order is still created directly on bid acceptance instead (§3.4), no cart involved either way.
+Checkout for a product or a gig (cart → Order, Payment, both status histories) **is now built** — see §3.5. A
+job's Order is still created directly on bid acceptance instead (§3.4), no cart involved either way.
 
 Status of each: `egoola-document/Egoola_Phase_Tracker.md`.
 

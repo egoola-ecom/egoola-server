@@ -94,7 +94,7 @@ never allowed is **two live bids at once** (pending or accepted) from the same s
 A job is the mirror image of a gig. A **gig** is a seller offering a fixed service at a fixed rate; a **job** is a
 **buyer** describing work they need and a budget, and letting **sellers compete for it by bidding**. The buyer (or
 an admin on their behalf) picks one bid to hire. The two sides are then connected through an **order** right away
-— there is no cart step, unlike buying a product or (eventually) hiring a gig outright.
+— there is no cart step, unlike buying a product or hiring a gig outright.
 
 A job carries:
 

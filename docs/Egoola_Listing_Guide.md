@@ -61,7 +61,7 @@ verification, login), read the **Egoola Seller Guide**.
 |---|---|
 | **Seller** | Creates and manages their own products. Can create, change, see and search them. Cannot delete them. |
 | **Admin** | Checks the products sellers create (approve or reject). Can also create, change and delete any product, for a seller or for nobody. |
-| **Buyer** | Browses and saves products and gigs, and posts jobs for sellers to bid on. Buying/hiring a product or gig outright is not built yet. |
+| **Buyer** | Browses and saves products and gigs, buys a product or hires a gig outright, and posts jobs for sellers to bid on. |
 | **Operations / support team** | Helps sellers and admins. Uses the admin panel. |
 
 ---
@@ -77,12 +77,11 @@ The old app had separate, repeated screens for each format. Now every format use
   it for a seller or for nobody. It lives under **Listings** (Product chosen by default), goes through the usual
   checking (Pending → Approved/Rejected/Changes requested, section 3), is priced on its **options** (size, colour,
   storage — each combination has its own price, discount and stock), and can carry quantity prices for wholesale. Once
-  checked, a buyer will eventually be able to buy it outright (not built yet — a buyer can browse and save it today).
-  Sections 1–11 are all about products.
+  checked, a buyer adds it to a cart and buys it outright. Sections 1–11 are all about products.
 - A **gig** is work a **seller** offers (cleaning, photography, logo design, repair) — a service, not a physical thing.
   It lives under **Gigs** (Service chosen by default), with its own place, its own pending list, and a completely
   different price model: **packages**, one per price type (hourly, daily, weekly, monthly, or one fixed price), instead
-  of options and stock. A buyer will eventually hire a gig outright (not built yet — browsing is). Full detail: section 12.
+  of options and stock. A buyer hires it the same way — one package into a cart, then checkout. Full detail: section 12.
 - A **job** is work a **buyer** asks for — the mirror image of a gig. Instead of a seller offering a fixed service at a
   fixed rate, the buyer describes what they need and a **budget**, and sellers **bid** for the work with their own
   price. The buyer (or an admin, on the buyer's behalf) picks one bid to **hire**; every other bid on that job is
@@ -98,7 +97,7 @@ service cannot be created from the product form.
 | What it is | something to ship | a service a seller offers | work a buyer needs done |
 | Checked by an admin first? | yes (Pending → Approved/Rejected) | yes, same as a product | **no** — live immediately |
 | Priced by | options + stock | packages (one per price type) | the buyer's own budget; sellers then **bid** their own price |
-| How a buyer gets it | buy outright (not built yet) | hire outright (not built yet) | **bidding** — the buyer hires one bidder (built) |
+| How a buyer gets it | buy outright (built) | hire outright (built) | **bidding** — the buyer hires one bidder (built) |
 | Where | **Listings** | **Gigs** | **Jobs** |
 | Full detail | sections 1–11 | section 12 | section 13 |
 
@@ -399,7 +398,7 @@ A gig is not sold by quantity. It is sold by **time**. The seller creates one **
 
 **How long the buyer buys.** A package has **no duration of its own**. When the buyer orders, they choose how many hours, days, weeks or months
 they want (a fixed price is always one). The order records that number, and the buyer pays the rate **times** that number. Example: weekly rate
-12,000 and the buyer chooses 2 weeks: 24,000. If a discount is running when they order, the discounted rate is used. (The buyer side is not built yet.)
+12,000 and the buyer chooses 2 weeks: 24,000. If a discount is running when they order, the discounted rate is used.
 
 **Several ways of charging, one gig.** A seller who wants to be paid hourly **and** weekly creates two packages:
 
@@ -636,16 +635,12 @@ buyers while staying in the listing's history.
 Please do not promise these to sellers yet.
 
 - **Messages to sellers** (email, SMS or app) when a listing is approved, rejected or sent back.
-- **Buyers buying** a product outright (browsing, cart and wishlist are built — see `public-api-guide.md`, `buyer/buyer-api-guide.md`).
 - **Sellers deleting or hiding** their own listings.
 - **Saving a draft** before sending. A seller's new listing always goes straight to Pending.
 - **Restoring** a deleted listing.
 - **Uploading many listings at once.**
 - **Sellers seeing the change history** of their listings.
 - **Creating a listing with its files in one step.** Files are added after the listing is saved.
-- **Buyers hiring a gig directly** (browsing is built; checkout and payment for a gig are not).
-- **The seller's hire requests on a gig** (accepting, declining, delivering): the next step. (The **job board and bidding** — a
-  separate, buyer-posted kind of work — is already built: see [`listing-complete-guide.md`](listing-complete-guide.md) section 16.)
 - **Different delivery times for each package** (delivery days belongs to the gig).
 
 ---
