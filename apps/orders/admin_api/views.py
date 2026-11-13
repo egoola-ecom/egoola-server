@@ -89,7 +89,7 @@ class AdminOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins
     search_fields = ["buyer__name", "buyer__phone", "seller__name"]
 
     def get_queryset(self):
-        qs = Order.objects.filter(order_type=Order.OrderType.PRODUCT)
+        qs = Order.objects.filter(order_type__in=[Order.OrderType.PRODUCT, Order.OrderType.SERVICE])
         if self.action == "retrieve":
             return qs.select_related(
                 "buyer", "seller", "address",

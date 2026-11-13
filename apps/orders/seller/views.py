@@ -15,11 +15,12 @@ from .serializers import SellerOrderDetailSerializer, SellerOrderListSerializer,
 
 
 class SellerOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
-    """`GET /seller/orders/` (cursor-paginated) — orders placed with me.
-    `GET /seller/orders/{id}/` — detail, with the buyer, every item, the
-    payment and both status histories. `PATCH /seller/orders/{id}/` — move
-    it forward: accept, reject (reason required), in_progress, shipped,
-    delivered. The response is always the full detail shape, same as a GET."""
+    """`GET /seller/orders/` (cursor-paginated) — product and gig orders
+    placed with me. `GET /seller/orders/{id}/` — detail, with the buyer,
+    every item, the payment and both status histories. `PATCH
+    /seller/orders/{id}/` — move it forward: accept, reject (reason
+    required), in_progress, shipped, delivered. The response is always the
+    full detail shape, same as a GET."""
 
     permission_classes = [IsActiveVerifiedSellerActor]
     pagination_class = DefaultCursorPagination
@@ -27,7 +28,9 @@ class SellerOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixin
     search_fields = ["buyer__name", "buyer__phone", "buyer__email"]
 
     def get_queryset(self):
-        qs = Order.objects.filter(seller=self.request.user, order_type=Order.OrderType.PRODUCT)
+        qs = Order.objects.filter(
+            seller=self.request.user, order_type__in=[Order.OrderType.PRODUCT, Order.OrderType.SERVICE],
+        )
         if self.action == "retrieve":
             return qs.select_related(
                 "buyer", "address", "address__country", "address__state", "address__city", "address__thana",
